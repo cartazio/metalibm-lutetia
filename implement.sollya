@@ -1,0 +1,587 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya metalibm main procedures for implementing functions 
+ * with polynomial approximation and Horner scheme evaluation
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+execute("remezwrapper.sollya");
+execute("upperbounds.sollya");
+execute("vandercoeff.sollya");
+execute("fpminimax.sollya");
+execute("galoptimisation.sollya");
+execute("symetries.sollya");
+
+
+/* Quickly checks if the infinite norm of func 
+   in dom is less than target 
+
+   Returns false if it is not
+   Returns the infinite norm if it is
+
+*/
+procedure dirtycheckinfnorm(func,dom,target) {
+	  var t, b, h, y, maxy;
+	  var oldprec;
+	  var res;
+	  var infn;
+
+	  oldprec = prec = ?;
+	  prec = 20!;
+	  t = inf(dom);
+	  b = sup(dom);
+	  h = round((b - t) / 64,12,RU);
+	  maxy = 0; 
+	  while ((t <= b) && (maxy <= target)) do {
+	  	maxy := abs(func(t));
+		t = round(t + h,12,RU);
+	  };
+	  prec = oldprec!;
+	  
+	  if (maxy > target) then 
+	      res = false 
+	  else {
+	       infn = dirtyinfnorm(func,dom);
+	       if (infn > target) then {
+	       	  write("Warning: dirtycheckinfnorm decides false case by dirtyinfnorm\n");
+	       	  res = false; 
+	       } else res = infn;
+ 	  };
+
+	  return res;
+};
+
+
+/* implementandcheck
+
+   implements a polynomial in a domain for a given target error 
+   and checks whether the overall error is less than the target error
+
+   approxerr may be false, in which case the procedure computes the infnorm
+
+   Returns a list containing a boolean (works or not), a polynomial (the implemented one if works), an approx error and an evaluation error.
+
+   The procedure may return false for problems with the implementation
+
+*/
+procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta,variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable) {
+	  var res;
+	  var myapproxerr;
+	  var q;
+	  var implapproxerr;
+	  var boundsList;
+	  var evalerr;
+	  var i;
+	  var oldverb;
+
+	  q = poly;
+	  
+	  if (approxerr == false) then {
+	    myapproxerr = dirtyinfnorm(poly/func-1,dom);
+	  } else {
+	    myapproxerr = approxerr;
+	  };
+	  implapproxerr = myapproxerr;
+	  evalerr = false;
+
+	  // myapproxerr, targeterr;
+
+	  res = (myapproxerr < targeterr);
+	  if (res) then {
+	     	q = implementpoly(poly,dom,targeterrimpl,variableFormat,"p",implementationFile,honorcoeffprec,gappaFile);
+		if (!(q == error || q != error)) then {
+		   write("Something strange happened. The implementpoly command did not succeed\n");
+		   oldverb = verbosity = ?;
+		   verbosity = 2!;
+	     	   q = implementpoly(poly,dom,targeterrimpl,variableFormat,"p",implementationFile,honorcoeffprec,gappaFile);
+		   verbosity = oldverb!;
+		   q = poly;
+		};
+		if (horner(q) == horner(poly)) then {
+		   implapproxerr = myapproxerr;
+		} else {
+		   implapproxerr = dirtyinfnorm(q/func-1,dom);
+		};
+	        res = (implapproxerr < targeterr);		
+		if (res) then {
+		   	write("boundsList = [|") > gappaOutputFile;
+			bashexecute(gappaExecutable@" < "@gappaFile@" 2>&1 | grep 'epsilon in' | sed -n 's/\\({[^}]*}\\)//g;p' | sed -n 's/epsilon in \\[//;p' | sed -n 's/\\]/,/;p' | sed -n 's/, /,\\n/;p' >> "@gappaOutputFile);
+			print("0|];") >> gappaOutputFile;
+			execute(gappaOutputFile);	
+			evalerr = 0;
+			for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);			
+			if (evalerr == 0) then evalerr := 1/0;
+			write("\tGappa determined evaluation error = 2^(",round(log2(evalerr),12,RU),")\n");
+
+			res = ((implapproxerr + evalerr + implapproxerr * evalerr) <= (targeterr * beta));
+		};
+	  };
+	  
+	  if (res) then res = [|true, q, implapproxerr, evalerr|] else res = [| false, q, implapproxerr, evalerr|];
+
+	  return res;
+};
+
+
+/* configToNumber 
+
+   Gives the number of a configuration under a permutation order
+
+*/
+procedure configToNumber(config,permut) {
+	  var res, k, i, tt;
+
+	  res = 0;
+	  for k from length(config)-1 to 0 by -1 do {
+	      i = config[permut[k]];
+	      res = res * 3;
+	      if (i == D) then
+		tt = 0
+	      else 
+		if (i == DD) then
+			tt = 1
+		else 
+			tt = 2;
+	      res = res + tt;
+	  };
+
+	  return res;
+};
+
+/* numberToConfig
+
+   Gives a configuration of a configuration number under a permutation order
+
+*/
+procedure numberToConfig(t,permut,numberMonomials) {
+	var k, configur, j, dv, r, form;
+	k = t;
+	configur = [|1,...,numberMonomials|];
+	j = 0;
+	while (j < numberMonomials) do {
+		dv := floor(k / 3);
+		r := k - 3 * dv;
+		if (r == 0) then
+			form = D
+		else 
+			if (r == 1) then
+				form = DD
+			else 
+				form = TD;
+		configur[permut[j]] = form;
+		k = dv;
+		j := j + 1;
+	};
+	return configur;
+};
+
+
+procedure isHigherPrecisionConfig(config,bounds) {
+	  var res;
+	  var i, c, b;
+
+	  if (length(config) != length(bounds)) then {
+	     res = false;
+	  } else {
+	     res = true;
+	     i = 0;
+	     while ((i < length(bounds)) && res) do {
+	     	   c = config[i];
+		   b = bounds[i];
+		   if (((c == D) && (b != D)) || ((c == DD) && (b == TD))) then res = false;
+	     	   i := i + 1;
+	     };
+	  };
+	  return res;
+};
+
+procedure isLowerPrecisionConfig(config,bounds) {
+	  var res;
+	  var i, c, b;
+
+	  if (length(config) != length(bounds)) then {
+	     res = false;
+	  } else {
+	     res = true;
+	     i = 0;
+	     while ((i < length(bounds)) && res) do {
+	     	   c = config[i];
+		   b = bounds[i];
+		   if (((b == D) && (c != D)) || ((b == DD) && (c == TD))) then res = false;
+	     	   i := i + 1;
+	     };
+	  };
+	  return res;
+};
+
+
+procedure extraroundcoefficients(poly,monomials,configuration) {
+	  var confli;
+	  var i;
+
+	  confli = [||];
+	  for i from 0 to degree(poly) do confli = D.:confli;
+
+	  for i from 0 to length(monomials) - 1 do {
+	      confli[monomials[i]] = configuration[i];
+	  };
+
+	  return roundcoefficients(poly,confli);
+};
+
+
+/* implementconfigurations
+
+   Based on func, pstar, lowerbounds, upperbounds and optimisationPermut
+   tries to find the first polynomial in optimisationPermut order
+   (with the least number of coefficients) that satisfies targeterr
+
+   Uses fpminimax
+
+   Returns [|true, poly, approxerr, implerr, pstar|] if a configuration has been found
+   Returns [|false, bestpoly, bestapprox, bestimplerr, pstar |] if no configuration satisfies the target error
+   Returns [|false, pstar, 0, 0, false, pstar|] if some other error occurs
+
+*/
+procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,upperbounds,optimisationPermut,
+	                          variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable) {
+          var ii;
+	  var okay;
+	  var numbercoefficients;
+	  var res;
+	  var approxerr;
+	  var pointlist;
+	  var d;
+	  var monomials;
+	  var symetrical;
+	  var firstmonomial;
+	  var bestpoly, bestapprox, bestimplerr;
+	  var configuration;
+	  var implresult;
+	  var poly;
+	  var targetlog;
+	  var looparound, targeterrimpl;
+	  var dci, dcii, polyRound;
+
+	  okay = true;
+	  numbercoefficients = 0;
+	  for ii from 0 to degree(pstar) do if (coeff(pstar,ii) != 0) then numbercoefficients := numbercoefficients + 1;
+	  if ((length(lowerbounds) != length(upperbounds)) || (numbercoefficients != length(lowerbounds))) then {
+	     okay = false;
+	     res = [| false, pstar, 0, 0, false, pstar |];
+	  };
+
+	  if (okay) then {
+	     approxerr = dirtyinfnorm(pstar/func-1,dom);
+
+	     monomials = [||];
+	     for ii from 0 to degree(pstar) do 
+	           if (coeff(pstar,ii) != 0) then monomials = monomials:.ii;
+	     
+	     symetrical = true;
+	     ii := length(monomials) - 1;
+	     firstmonomial = head(monomials);
+	     while ((ii >= 0) && symetrical) do {
+	  	if (floor((monomials[ii] + firstmonomial) / 2) * 2 != (monomials[i] + firstmonomial)) then 
+		   symetrical = false;
+		ii := ii - 1;
+	     };
+	     if (symetrical) then {
+	        if (-inf(dom) > sup(dom)) then 
+		   d = [1b-1075, -inf(dom)]
+	        else 
+		   d = [1b-1075, sup(dom)];
+	     } else {
+	        d = dom;
+	     };
+
+	     pointlist = dirtyfindzeros(pstar/func-1,d);
+
+	     firstConfigNumber = configToNumber(lowerbounds,optimisationPermut);
+	     lastConfigNumber = configToNumber(upperbounds,optimisationPermut);
+	     t = firstConfigNumber;
+	     found = false;
+	     bestpoly = 0;
+	     bestimplerr = 1000;	
+	     bestapproxerr = 1000;
+	     ii = 1;
+	     targetlog = round(log2(targeterr),12,RN);
+	     while ((!found) && (t <= lastConfigNumber)) do {
+	     	   configuration = numberToConfig(t,optimisationPermut,numbercoefficients);
+		   if (isHigherPrecisionConfig(configuration,lowerbounds) && isLowerPrecisionConfig(configuration,upperbounds)) then {
+		      write("Trying configuration #",ii," ",configuration,":\n");
+
+		      poly = fpminimaxwrapper(func,dom,monomials,pstar,pointlist,configuration);
+		      
+		      if (poly != false) then {
+		      	        dci = dirtycheckinfnorm(poly/func-1,dom,targeterr); 
+				if (dci == false) then {
+				   polyRound = extraroundcoefficients(pstar,monomials,configuration);
+				   dcii = dirtycheckinfnorm(polyRound/func-1,dom,targeterr);
+				   if (dcii != false) then {
+				      write("Warning: rounded Pstar better that fpminimax polynomial\n");
+				      poly = polyRound;
+				      dci = dcii;
+				   };
+				};
+		      	       	if (dci != false) then {      	              
+		      	       	      looparound = true;
+				      targeterrimpl = targeterr;
+				      while (looparound && (targeterrimpl >= targeterr/16)) do {
+		      		      	    implresult = implementandcheck(func,poly,dom,targeterr,targeterrimpl,dci,beta,
+									   variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable);
+
+					    // implresult[0], implresult[3];				   
+				            if (implresult[0]) then 
+					       looparound = false
+					    else {
+					    	 if ((implresult[3] == false) || (implresult[3] == 1/0)) then 
+						    looparound = false 
+						 else 
+						    targeterrimpl := targeterrimpl / 2;
+					    };					    
+				      };
+                                      if (implresult[0]) then {
+				            found = true;
+                                            bestpoly = poly;
+					    bestimplerr = implresult[3];
+					    bestapproxerr = implresult[2];
+					    
+					    write("\tfound: target = 2^(",targetlog,"), approx = 2^(",round(log2(bestapproxerr),12,RN),"), evaluat = 2^(",
+                                                  round(log2(bestimplerr),12,RN),"), overall = 2^(",
+						  round(log2(bestimplerr + bestapproxerr + bestimplerr * bestapproxerr),12,RN),")");
+			              } else {				      
+				            if (implresult[2] < bestapproxerr) then {
+					       bestpoly = poly;
+					       bestapproxerr = implresult[2];
+					       bestimplerr = implresult[3];
+                                            };
+				            write("\tunusable: target = 2^(",targetlog,"), approx = 2^(", 
+                                                  round(log2(implresult[2]),12,RN),") (best approx = 2^(",
+					          round(log2(bestapproxerr),12,RN),"))");
+                                      };
+                                } else {
+				      write("\tunusable: target = 2^(",targetlog,")");
+				};
+		      } else {
+		      	write("\tproblem with fpminimax");
+		      };
+		      write("\n");
+		      ii := ii + 1;
+		   };
+	     	   t := t + 1;
+	     };
+	     res = [| found, bestpoly, bestapproxerr, bestimplerr, pstar |];
+	  };
+
+          return res;		    
+};
+
+
+/* implements a function by polynomial approximation in an interval centered in 0 
+
+   Returns 
+
+    [| true, poly, approxerr, implerr, pstar |] if everything is fine
+    [| false, 0, 0, 0, 0 |] otherwise
+
+    No test is made whether the interval is correctly centered in 0
+
+*/
+procedure implementcentered(func, dom, target, beta, variableFormat, galoptimizedMonomials, implementationFile, gappaFile, gappaOutputFile, gappaExecutable) {
+	  var res;
+	  var Pstar, upperbounds, lowerbounds, optimisationPermut;	  
+	  var i, monomials;
+	  var lowerboundsAndOptiPermut;
+	  var k, l;
+
+	  res = [| false, 0, 0, 0, 0 |];
+
+	  Pstar = remezwrapper(func, dom, target, 20);
+
+	  if (Pstar != false) then {
+	  
+		monomials = [||];
+		for i from 0 to degree(Pstar) do {
+		    if (coeff(Pstar,i) != 0) then monomials = monomials:.i;
+		};
+
+		upperbounds = determineupperbounds(Pstar, func, dom, target, variableFormat, implementationFile);
+
+		lowerboundsAndOptiPermut = determinelowerbounds(Pstar, func, dom, target);
+
+
+		if (lowerboundsAndOptiPermut == false) then {
+
+          	        lowerbounds = [||];
+	                for i in upperbounds do {
+	                   if (i == D) then 
+	                      lowerbounds = lowerbounds:.D
+                           else
+	                      if (i == DD) then 
+		                 lowerbounds = lowerbounds:.D
+	                      else 
+                                 lowerbounds = lowerbounds:.DD;
+                        };
+
+                        optimisationPermut = [| 0, ..., length(upperbounds)-1 |];
+                } else {
+		        lowerbounds = lowerboundsAndOptiPermut[0];
+			optimisationPermut = lowerboundsAndOptiPermut[1];
+			
+			for l from 0 to length(monomials) - 1 do {
+			    if (listcontains(galoptimizedMonomials,monomials[l])) then {
+			       lowerbounds[l] = D;
+			    }; 
+			};
+
+                };
+
+		if (length(lowerbounds) == length(upperbounds)) then {
+
+		for k from 0 to length(lowerbounds) - 1 do {
+		    if ((upperbounds[k] == D) && (lowerbounds[k] != D)) then upperbounds[k] = lowerbounds[k];
+		    if ((upperbounds[k] == DD) && (lowerbounds[k] == TD)) then upperbounds[k] = lowerbounds[k];
+		};
+
+	        write("Chosen monomial base: ",monomials,"\n");
+	        write("Lower bounds for precisions of coefficients: ",lowerbounds,"\n");
+	        write("Upper bounds for precisions of coefficients: ",upperbounds,"\n");		
+	        write("Optimisation permutation: ",optimisationPermut,"\n");
+	        write("\n");
+
+                res = implementconfigurations(func,Pstar,dom,target,beta,lowerbounds,upperbounds,optimisationPermut,
+	                                      variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable);
+		};
+          };
+
+	  return res;
+};
+
+
+
+/* implements a function by polynomial approximation in a small interval
+
+   Returns 
+
+    [| true, centerpoint, poly, approxerr, implerr |] if everything is fine
+    [| false, 0, 0, 0, 0 |] otherwise
+
+   The function to be implemented may have at most 1 zero in the domain.
+   No test for this condition is made.
+
+*/
+procedure implementsmall(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable) {
+	  var res;
+	  var zerosInInterval, zerosInIntervalRaw, zr, midpoint, zerosInIntervalTemp, zerosInIntervalRaw2;
+	  var smallestAbsZero;
+	  var Pstar;
+	  var okay;
+	  var startmidpoint;
+	  var shiftedFunc, shiftedDom;
+	  var resImpl;
+	  var oldprec, oldpoints, olddiam;
+	  var galoptim;		  
+	  var galoptimizedMonomials;
+
+	  
+	  galoptimizedMonomials = [||];
+	  okay = true;
+	  
+
+	  if (inf(dom) * sup(dom) >= 0) then {
+
+
+	       zerosInInterval = [||];
+	       oldprec = (prec = ?);
+	       prec = oldprec * 3!;
+	       oldpoints = (points = ?);
+	       points = oldpoints * 6!;
+	       olddiam = (diam = ?);
+	       diam = olddiam / 1b8!;
+ 	       zerosInIntervalRaw2 = findzeros(func,dom);
+	       zerosInIntervalRaw = [||];
+	       for zr in zerosInIntervalRaw2 do 
+	          zerosInIntervalRaw = zerosInIntervalRaw @(findzeros(func,zr));
+	       for zr in zerosInIntervalRaw do 
+	          zerosInInterval = zerosInInterval @ (dirtyfindzeros(func,zr));
+	       prec = oldprec!;
+	       points = oldpoints!;
+	       diam = olddiam!;
+	       zerosInIntervalTemp = sort(zerosInInterval);	  
+	       zeroInInterval = [||];
+	       for zr in zerosInIntervalTemp do zerosInInterval = zerosInInterval:.(mid(evaluate(D(x),zr)));
+	       if (zerosInInterval != [||]) then {
+	           smallestAbsZero = zerosInInterval[0];
+	           for zr in zerosInInterval do 
+	     	       if (abs(func(zr)) < abs(func(smallestAbsZero))) then smallestAbsZero = zr;
+	           midpoint := D(smallestAbsZero);	 	 
+	       } else {
+	           symetrypoint = testEvenSymetry(func, dom, 1b-10);
+		   if (symetrypoint != false) then {
+		      write("Even symmetry dectected\n");
+		      midpoint := D(symetrypoint);
+		   } else {
+		     if (target < 1b-50) then {
+	              Pstar = simplify(horner(simplify(substitute(remezwrapper(func(x + D(mid(dom))), [inf(dom) - D(mid(dom));sup(dom) - D(mid(dom))], target, 7),(x - D(mid(dom)))))));
+	              if (Pstar != false) then {
+	                 startmidpoint := D(mid(dom));
+			 galoptim = galoptimisation(Pstar,func,dom,target,startmidpoint);
+	                 midpoint := D(galoptim[0]);
+			 galoptimizedMonomials = galoptim[1];
+	              } else {
+	                 midpoint := D(mid(dom));
+	              };
+		      } else {
+		      	 midpoint := D(mid(dom));
+		      };
+		   };
+	       };
+
+          } else {
+	       midpoint = 0;
+          };
+
+	  if (okay) then {
+	     write("Chosen midpoint = ",round(midpoint,53,RN)," = ");
+	     printhexa(midpoint);
+	     
+	     shiftedFunc = horner(func(x + midpoint));
+	     shiftedDom = [inf(dom) - midpoint ; sup(dom) - midpoint];
+
+	     write("The translated function is f = ",shiftedFunc,"\n");
+	     write("The translated domain is dom = ",shiftedDom,"\n");
+
+	     resImpl = implementcentered(shiftedFunc, shiftedDom, target, beta, variableFormat, galoptimizedMonomials,
+	                                 implementationFile, gappaFile, gappaOutputFile, gappaExecutable);
+
+	     res = [| resImpl[0], midpoint, resImpl[1], resImpl[2], resImpl[3], resImpl[4] |];				 
+
+	  } else {
+	    res = [| false, 0, 0, 0, 0, 0 |];
+	  };
+
+	  return res;
+};

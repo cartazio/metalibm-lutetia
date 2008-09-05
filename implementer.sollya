@@ -1,0 +1,145 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya metalibm main exploitation script for implementing functions 
+ * with polynomial approximation and Horner scheme evaluation
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+roundingwarnings=off!;
+prec = 350!;
+verbosity = 0!;
+
+/* --------------------------------------------------------
+   Read in configuration
+----------------------------------------------------------- */ 
+
+execute("config.sollya");
+
+/* --------------------------------------------------------
+   Load implementer
+----------------------------------------------------------- */ 
+
+execute("implement.sollya");
+
+/* --------------------------------------------------------
+   Read in problem to implement 
+----------------------------------------------------------- */ 
+
+execute("problemdef.sollya");
+
+/* -------------------------------------------------------- 
+   Put additional configuration data here
+----------------------------------------------------------- */ 
+
+variableFormat = D;
+
+doplots = false;
+dotiming = false;
+
+iterations = 1b13;	
+
+trim = 1/2;
+
+/* -------------------------------------------------------- 
+   Print out problem configuration 
+----------------------------------------------------------- */ 
+
+if ((variableFormat == TD) && (target > 1b-103)) then { print("Warning: reduced format of variable"); variableFormat = DD; };
+if ((variableFormat == DD) && (target > 1b-52)) then { print("Warning: reduced format of variable"); variableFormat = D; };
+
+write("The function to be implemented is: ",f,"\n");
+write("The domain is: ",dom,"\n");
+write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n");
+
+/* -------------------------------------------------------- 
+   Launch implementer
+----------------------------------------------------------- */ 
+
+
+res = implementsmall(f, dom, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
+                     "gappaOutput.sollya",gappaExecutable);
+
+
+/* -------------------------------------------------------- 
+   Print out results of the implementer, do timing and plotting
+----------------------------------------------------------- */ 
+
+write("\n");
+
+if (res[0]) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
+
+if (res[0]) then {
+   
+   write("The implemented polynomial is:\n\t");
+   printexpansion(res[2]);
+
+   sollyapath = sollyaPath;
+   if sollypath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";
+
+   
+   if (variableFormat == D) then
+	signature = "D_TO_"
+   else
+	if (variableFormat == DD) then
+		signature = "DD_TO_"
+	else 
+		signature = "TD_TO_";
+
+   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@"`cat "@implementationFile@" | grep \"void p\" | sed -n 's/double x.*//g;p' | sed -n 's/void p(double \\*p_resh, double \\*p_resm, double \\*p_resl, /TD/g;p' | sed -n 's/void p(double \\*p_resh, double \\*p_resm, /DD/g;p' | sed -n 's/void p(double \\*p_resh, /D/g;p'`");
+
+
+   if (doplots) then {
+
+      plot(res[2]/f(x + res[1]) - 1, [inf(dom) - res[1]; sup(dom) - res[1]]);	    
+      plot(res[5]/f(x + res[1]) - 1, [inf(dom) - res[1]; sup(dom) - res[1]]);	    
+      plot(res[2]/f(x + res[1]) - 1,res[5]/f(x + res[1]) - 1, [inf(dom) - res[1]; sup(dom) - res[1]]);	    
+      externalplot(sollyapath@"implementation",relative,res[2],[inf(dom) - res[1]; sup(dom) - res[1]],12);
+      externalplot(sollyapath@"implementation",relative,f(x + res[1]),[inf(dom) - res[1]; sup(dom) - res[1]],12);
+
+   };
+
+   resultfile = resumedImplementationFile;
+
+   if (dotiming) then {
+
+        externalproc(timefunc, sollyapath@"implementation", (constant, constant, integer, integer) -> integer);
+
+	evaltime = round(timefunc(inf(dom), sup(dom), 2000, iterations) / iterations, 12, RN);
+
+	print("Time needed for evaluating the polynomial implemented:", evaltime,"time units");
+
+	display = dyadic!;
+	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", evaltime, "|]\n") >> resultfile; 
+	display = default!;
+
+   } else {
+
+     	display = dyadic!;	
+	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", infty, "|]\n") >> resultfile; 
+	display = default!;
+
+   };
+
+};

@@ -1,0 +1,69 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya script for running the metalibm implementer script on 
+ * a list of examples
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+
+write("fpminimaxinstances = [|") > "fpminimaxwrapper.log";
+
+f = exp(x);
+
+minTarget = 1b-20;
+maxTarget = 1b-120;
+
+minWidth = 1b-12;
+maxWidth = 1b-1;
+
+write("\n") > "results.res";
+display = dyadic!;
+
+
+width = maxWidth;
+while (width >= minWidth) do {
+
+      dom = [-width; width];
+
+      target = minTarget;
+      while (target >= maxTarget) do {
+
+      	    bashexecute("rm implementation.c implementation.gappa");
+
+      	    write("f = ", f, ";\n") > "problemdef.sollya";
+      	    write("dom = ", dom, ";\n") >> "problemdef.sollya";
+      	    write("target = ", target, ";\n") >> "problemdef.sollya";
+
+      	    bashexecute("cat implementer.sollya | /home/clauter/sollya/sollya");
+
+      	    target := target / 2;
+
+      };
+
+      width := width * 0.5;
+
+};
+
+write("|];") > "fpminimaxwrapper.log";

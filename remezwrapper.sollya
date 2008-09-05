@@ -1,0 +1,408 @@
+/*
+ * Copyright 2008 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * Sollya wrapper scripts for the Remez algorithm in Sollya
+ * Implements an algorithm published in the proceedings of the RNC'8 conference
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+/* Quickly checks if the infinite norm of func 
+   in dom is less than target 
+
+   Returns true or false
+
+*/
+procedure quickcheckinfnorm(func,dom,target) {
+	  var t, b, h, y, maxy;
+	  var oldprec;
+	  var res;
+	  var infn;
+
+	  oldprec = prec = ?;
+	  prec = 20!;
+	  t = inf(dom);
+	  b = sup(dom);
+	  h = round((b - t) / 64,12,RU);
+	  maxy = 0; 
+	  while ((t <= b) && (maxy <= target)) do {
+	  	maxy := abs(func(t));
+		t = round(t + h,12,RU);
+	  };
+	  prec = oldprec!;
+	  
+	  if (maxy > target) then 
+	      res = false 
+	  else {
+	       infn = dirtyinfnorm(func,dom);
+	       if (infn > target) then {
+	       	  write("Warning: quickcheckinfnorm decides false case by dirtyinfnorm\n");
+	       	  res = false; 
+	       } else res = true;
+ 	  };
+
+	  return res;
+};
+
+
+procedure minimaMaxima(func,dom) {
+	var zerosIntRaw, zerosInt, zeros;
+	var deriv;	
+	var z;
+	var minimum, maximum, t;
+
+	deriv = diff(func);
+	zerosIntRaw = findzeros(deriv,dom);
+	zerosInt = [||];
+	for z in zerosIntRaw do zerosInt = zerosInt @ (findzeros(deriv,z));
+	zeros = [||];
+	for z in zerosInt do zeros = zeros @ (dirtyfindzeros(deriv,z));
+	zeros = sort(zeros);
+
+	t := func(inf(dom));
+	minimum = t;
+	maximum = t;
+	t := func(sup(dom));
+	if (t > maximum) then maximum = t;
+	if (t < minimum) then minimum = t;
+	
+	for z in zeros do {
+		t := func(z);
+		if (t > maximum) then maximum = t;
+		if (t < minimum) then minimum = t;
+	};
+
+	return [ minimum; maximum ];
+};
+
+/* guessdegreewrapper */
+procedure guessdegreewrapper(f,d,eps,w) {
+	  var res, guess;
+	  var poly;
+
+
+	  guess = guessdegree(f,d,eps,w);
+	  if (!(guess == error || guess != error)) then {
+	     guess = [1,1];
+	  };
+
+	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	     res = sup(guess);
+	     poly = remezbugreport(f,res,d,w);
+	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
+	     	   res := res - 1;
+	     	   poly = remezbugreport(f,res,d,w);		   
+	     };
+	     if (poly == false) then res = inf(guess);
+	  } else
+	    res = inf(guess);
+
+	  return res;
+};
+
+
+
+/* remezbugreport */
+procedure remezbugreport(f,d,m,w) {
+	  var res;
+	  var oldpoints;
+	  var qual;
+	  var oldprec;
+	  var oldverb;
+
+	  oldpoints = points = ?;
+	  points = 65!;
+	  oldprec = prec = ?;
+	  prec = 300!;
+	  oldverb = verbosity = ?;
+	  verbosity = 1!;
+
+	  qual = 2621b-19;
+	  res = false;
+	  res = remez(f,d,m,w,qual);
+	  if (!(res == error || res != error)) then res = false;
+
+	  verbosity = oldverb!;
+	  points = oldpoints!;
+	  prec = oldprec!;
+
+	  return res;
+};
+
+
+/* remezorfail
+
+   Returns an approximation polynomial or false 
+
+   Uses symetries if possible
+
+*/
+procedure remezorfail(func,dom,monomials) {
+	  var poly, poly2;
+	  var d, symetrical, i, firstmonomial;
+	  var deg;
+
+	  deg = degree(func);
+
+	  if ((deg > 0) && (deg <= monomials[length(monomials) - 1])) then {
+
+	     poly = func;
+	  
+	  } else {	  
+
+	    symetrical = true;
+	    i := length(monomials) - 1;
+	    firstmonomial = head(monomials);
+	    while ((i >= 0) && symetrical) do {
+	  	if (floor((monomials[i] + firstmonomial) / 2) * 2 != (monomials[i] + firstmonomial)) then 
+		   symetrical = false;
+		i := i - 1;
+	    };
+	    if (symetrical) then {
+	       if (-inf(dom) > sup(dom)) then 
+		  d = [1b-1075, -inf(dom)]
+	       else 
+		  d = [1b-1075, sup(dom)];
+	    } else {
+	       d = dom;
+	    };
+
+	    poly = false;
+	    poly = remezbugreport(1,monomials,d,1/func);
+	    if (symetrical) then {
+	          poly2 = false;
+	          poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/func);
+		  if (poly2 != false) then {
+		     if (dirtyinfnorm(poly2/func - 1, dom) < dirtyinfnorm(poly/func - 1, dom)) then {
+		        poly = poly2;
+		     };
+		  };
+		  if ((poly == false) && (poly2 != false)) then poly = poly2;
+	    };
+	  };
+
+	  return poly;
+};
+
+
+
+procedure simpleRemezWrapper(func, dom, targetErr, iterations) {
+	  var y, guess, noConstantTerm, err, deg, k;
+	  var res;
+
+	  y = evaluate(func, 0);
+	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
+	     { guess = guessdegreewrapper(1,dom,abs(targetErr),x/func); };
+	     guess = guess + 1;
+	     noConstantTerm = true;
+	  } else {
+	     { guess = guessdegreewrapper(1,dom,abs(targetErr),1/func); };
+	     noConstantTerm = false;
+	  };
+	
+	  err = 1b1000;
+	  deg = guess - 1;
+	  if (deg < 0) then deg = 0;
+	  k = 0;
+	  while ((abs(err) > abs(targetErr)) && (k <= iterations)) do {
+	     deg := deg + 1;
+	     if (noConstantTerm) then 
+	     	monomials = [|1,...,deg|]
+	     else 
+	     	monomials = [|0,...,deg|];
+	     poly = remezorfail(func,dom,monomials);
+	     if (poly != false) then {
+	     	err = dirtyinfnorm(poly/func-1,dom);
+	     };
+	     k := k + 1;
+	  };
+
+	  if (abs(err) <= abs(targetErr)) then 
+		res = poly
+	  else 
+		res = false;
+
+	  return res;
+};
+
+
+/* remezwrapper 
+
+   Computes an approximation polynomial of smallest degree possible
+   better than or equal to a target error respecting implementation 
+   constraints (Horner evaluation).
+
+   Returns the found polynomial
+   Returns false if no polynomial has been found in iterations iterations
+
+*/
+
+procedure remezwrapper(func, dom, targetErr, iterations) {
+	  var guess, y, i, deg;
+	  var poly, err, noConstantTerm;
+	  var monomials;
+	  var revMonomials, subPolyDeg, subPolyDone, correctMonomials, i, g, alpha;
+	  var poly2;
+	  var k;
+	  var res;
+	  var uncorrectpoly;
+	  var minmax;
+	  var samesign;
+	  var uncorrecterr;
+	  var errR;
+	  var infnormPoly;
+	  var special, nocancel;
+	  var temp;
+	  var lastcoeff;
+
+	  y = evaluate(func, 0);
+	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
+	     { guess = guessdegreewrapper(1,dom,abs(targetErr),x/func); };
+	     guess = guess + 1;
+	     noConstantTerm = true;
+	  } else {
+	     { guess = guessdegreewrapper(1,dom,abs(targetErr),1/func); };
+	     noConstantTerm = false;
+	  };
+	
+	  err = 1b1000;
+	  deg = guess - 1;
+	  if (deg < 0) then deg = 0;
+	  k = 0;
+	  while ((abs(err) > abs(targetErr)) && (k <= iterations)) do {
+	     deg := deg + 1;
+	     if (noConstantTerm) then 
+	     	monomials = [|1,...,deg|]
+	     else 
+	     	monomials = [|0,...,deg|];
+	     poly = remezorfail(func,dom,monomials);
+	     if (poly != false) then {
+	     	err = dirtyinfnorm(poly/func-1,dom);
+	     };
+	     k := k + 1;
+	  };
+
+	  if (abs(err) <= abs(targetErr)) then {
+		  write("\t\tcurrent remez polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
+	  	  k = 0;
+		  uncorrecterr = err;
+		  err = 1b1000;
+	  	  while ((abs(err) > abs(targetErr)) && (k <= iterations)) do {
+		  	revMonomials = revert(monomials);
+			subPolyDeg = [|head(revMonomials)|];
+			subPolyDone = coeff(poly,head(revMonomials));
+			correctMonomials = [|head(revMonomials)|];
+			revMonomials = tail(revMonomials);
+			infnormPoly = dirtyinfnorm(poly,dom);			
+			while (revMonomials != [||]) do {
+			      i = head(revMonomials);
+			      g = (x * subPolyDone) / coeff(poly,i);
+			      alpha = dirtyinfnorm(g,dom);
+			      
+		              samesign = false; nocancel = false;
+			      if (alpha > 0.5) then {
+				minmax = minimaMaxima(x * subPolyDone,dom);	
+				samesign = ((inf(minmax) * sup(minmax) > 0) && (inf(minmax) * coeff(poly,i) > 0));
+				temp = minimaMaxima(g,dom);
+				nocancel = (inf(temp) > -0.5);
+				if (nocancel) then {
+				   write("\t\tCase of impossible cancellation by asymmetric subpolynomial addition detected on coefficient ", i, "\n");
+				};
+
+			      };	
+
+			      special = (alpha > 0.5) && (alpha < 1) && 
+			                (abs(targetErr) / abs(coeff(poly,i) * alpha / infnormPoly) * 1b52 >= abs(1 - alpha)) && 
+			                (abs(targetErr) / abs(coeff(poly,i) * alpha / infnormPoly) >= 1b-52);
+
+			      lastcoeff = (i == 0) && (coeff(poly,i) != 0);
+
+			      if (special) then write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, "\n");
+
+			      if ((samesign) || ((alpha <= 0.5) || special) || nocancel || lastcoeff) then {
+				 correctMonomials = i.:correctMonomials;
+				 subPolyDone = coeff(poly,i) + x * subPolyDone;
+			      	 subPolyDeg = i.:subPolyDeg;
+			      } else {
+			         subPolyDone = x * subPolyDone;
+			      };
+			      revMonomials = tail(revMonomials);
+			};
+
+			uncorrectpoly = poly; 
+			poly = subpoly(poly,correctMonomials);
+			err = dirtyinfnorm(poly/func - 1, dom);
+			write("\t\tcurrent implem. polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
+			if (abs(err) > abs(targetErr)) then {
+		   	   poly = remezorfail(func,dom,correctMonomials);
+		   	   if (poly != false) then {
+		      	      errR = dirtyinfnorm(poly/func - 1, dom);
+			      if (abs(errR) > abs(err)) then {
+			      	 write("Warning: Remez on incomplete base worse than force-and-round\n");
+			      };
+			      err = errR;
+			      write("\t\tcurrent implem. polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");	
+			      /* write("Found implementable polynomial with error at 2^(",round(log2(err),12,RN),")\n"); */
+		   	   };
+			};				
+
+			// round(log2(err),12,RN), round(log2(uncorrecterr),12,RN);
+
+			if (abs(err) > abs(targetErr)) then {
+		   	   k := k + 1;
+		   	   monomials = monomials:.(simplifysafe(head(revert(monomials)) + 1));
+		   	   poly2 = remezorfail(func,dom,monomials);
+		   	   if (poly2 != false) then {
+		      	      poly = poly2;
+		      	      err = dirtyinfnorm(poly/func - 1, dom);
+		              uncorrecterr = err;
+			      write("\t\tcurrent remez polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n"); 
+		   	   } else {
+		     	      write("Warning: remez failed on func = ",func,", dom = ",dom,", monomials = ",monomials,"\n");
+			      k := iterations + 1;
+		   	   };
+			   if (abs(err) > abs(targetErr)) then {
+			      write("Warning: must use polynomial that is difficult to implement.\n");	
+			      poly = uncorrectpoly;
+			      err = dirtyinfnorm(poly/func - 1, dom);
+			   } else {
+	                     uncorrecterr = err;
+			     err = 1b1000;
+			   };
+			};				
+	  	  };
+          };
+	  
+	  if (abs(err) <= abs(targetErr)) then 
+	     res = poly
+	  else 
+	     res = false;
+
+	  return res;	  
+};
+
+
+
+
+
+
