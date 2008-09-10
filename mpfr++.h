@@ -42,7 +42,7 @@
 
 // To be able to use the C++ string
 using namespace std;
-#include <string>
+#include <string.h>
 #define String string // Hmm, what for?
 
 #include <iostream>

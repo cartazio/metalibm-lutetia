@@ -31,6 +31,7 @@
 
 #include "mpfr++.h"
 
+
 MpfrClass::PrecisionType MpfrClass::CurrPrecision = mpfr_get_default_prec();
 RoundingMode MpfrClass::CurrRndMode = mpfr_get_default_rounding_mode();
 
