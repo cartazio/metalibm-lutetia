@@ -28,8 +28,8 @@
 
 /* Paths and names of the external executables */
 
-gappaExecutable = "/home/clauter/gappa/src/gappa";
-sollyaPath = "/home/clauter/sollya/";  
+gappaExecutable = "/home/clauter/moulinette/gappa/src/gappa";
+sollyaPath = "/home/clauter/moulinette/sollya/";  
 
 /* Names of the implementation and proof files */
 
