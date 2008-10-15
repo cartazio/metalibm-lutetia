@@ -26,6 +26,7 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
+fpminimaxdebug = true;
 
 /* containselement 
 
@@ -75,6 +76,7 @@ procedure fpminimaxwrapper(func,dom,monomials,pstar,pointlist,formatlist) {
 	  var P0, poly;
 	  var mymonomials;
 	  var fullformatlist;
+	  var olddisplay2;
 
 	  olddisplay = display = ?;
 	  display = decimal!;
@@ -112,6 +114,11 @@ procedure fpminimaxwrapper(func,dom,monomials,pstar,pointlist,formatlist) {
 
 	  if (length(mypointlist) < length(mymonomials)) then {
 	     write("Warning: not enough points for fpminimax - delegating the issue\n");
+	     if (fpminimaxdebug) then {
+	     	olddisplay2 = display; display = dyadic!; 
+	     	write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",d,",",default,",",default,",",default,",",pstar,");\n");
+	     	display = olddisplay2!;
+             };
 	     P0 = fpminimax(func,mymonomials,formatlist,d,default,default,default,pstar);
 	  } else {
 	     P0 = fpminimax(func,mymonomials,formatlist,mypointlist,default,default,default,pstar);

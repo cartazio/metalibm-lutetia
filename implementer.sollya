@@ -56,9 +56,9 @@ execute("problemdef.sollya");
 variableFormat = D;
 
 doplots = false;
-dotiming = false;
+dotiming = true;
 
-iterations = 1b13;	
+iterations = 1b11;	
 
 trim = 1/2;
 
@@ -90,14 +90,13 @@ write("\n");
 
 if (res[0]) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
 
+sollyapath = sollyaPath;
+if sollyapath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";
+
 if (res[0]) then {
    
    write("The implemented polynomial is:\n\t");
    printexpansion(res[2]);
-
-   sollyapath = sollyaPath;
-   if sollypath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";
-
    
    if (variableFormat == D) then
 	signature = "D_TO_"
@@ -131,13 +130,13 @@ if (res[0]) then {
 	print("Time needed for evaluating the polynomial implemented:", evaltime,"time units");
 
 	display = dyadic!;
-	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", evaltime, "|]\n") >> resultfile; 
+	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", evaltime, "|],\n") >> resultfile; 
 	display = default!;
 
    } else {
 
      	display = dyadic!;	
-	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", infty, "|]\n") >> resultfile; 
+	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", infty, "|],\n") >> resultfile; 
 	display = default!;
 
    };

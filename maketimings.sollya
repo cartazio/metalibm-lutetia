@@ -33,13 +33,13 @@ write("fpminimaxinstances = [|") > "fpminimaxwrapper.log";
 
 f = exp(x);
 
-minTarget = 1b-20;
-maxTarget = 1b-120;
+minTarget = 1b-60;
+maxTarget = 1b-100;
 
-minWidth = 1b-12;
-maxWidth = 1b-1;
+minWidth = 1b-17;
+maxWidth = 1b-9;
 
-write("\n") > "results.res";
+write("data = [|\n") > "results.res";
 display = dyadic!;
 
 
@@ -68,3 +68,4 @@ while (width >= minWidth) do {
 };
 
 write("|];") > "fpminimaxwrapper.log";
+

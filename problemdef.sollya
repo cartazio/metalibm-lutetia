@@ -1,3 +1,3 @@
-f = exp(cos(x^2) + 1);
-dom = [-1b-8;1b-8];
-target = 1b-101;
+f = exp(x);
+dom = [-1b-17;1b-17];
+target = 1b-100;
