@@ -49,6 +49,8 @@
 */
 
 
+extern mp_prec_t tools_precision;
+
 int noDuplicate(int count, int *array) {
   int i,k;
 
@@ -61,6 +63,32 @@ int noDuplicate(int count, int *array) {
   return 1;
 }
 
+int lengthChain(chain *c) {
+  int i;
+  chain *curr;
+
+  i = 0;
+  curr = c;
+  while (curr != NULL) {
+    i++;
+    curr = curr->next;
+  }
+
+  return i;
+}
+
+chain *addElement(chain *c, void *elem) {
+  chain *newChain;
+
+  newChain = (chain *) malloc(sizeof(chain));
+  newChain->next = c;
+  newChain->value = elem;
+  return newChain;
+}
+
+mp_prec_t getToolPrecision() {
+  return tools_precision;
+}
 
 int myvandercoeff(chain **results, int absRel, chain *monomials, chain* points, chain *evals, mpfr_t maxerr) {
   int monomialsCount, pointsCount, evalsCount;
