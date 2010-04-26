@@ -40,14 +40,14 @@ procedure determineupperbounds(poly, func, dom, targetErr, variableFormat, imple
 	  var res, coeffi, format;
 
 	  testpoly = implementpoly(poly,dom,targetErr/8,variableFormat,"p",implementationFile);
-	  if (!(testpoly == error || testpoly != error)) then {
+	  if (!(testpoly == testpoly)) then {
 	     testpoly = poly;
 	     err = error;
 	  } else {
 	  	  err = dirtyinfnorm(testpoly/func-1, dom);
 	  };	
 
-	  if ((err == error || err != error)) then { 		  
+	  if (!(err == err)) then { 		  
 	  if (abs(err) <= abs(targetErr)) then {
 	     res = [||];	     
 	     for i from 0 to degree(testpoly) do {

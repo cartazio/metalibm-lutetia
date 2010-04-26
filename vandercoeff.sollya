@@ -112,7 +112,7 @@ procedure vandercoeffswrapper(poly, func, dom, target) {
              };
 	  };
 	  
-	  if (!(res == error || res != error)) then res = false;
+	  if (!(res == res)) then res = false;
 
 	  if (res != false) then {
 	     okay = true;

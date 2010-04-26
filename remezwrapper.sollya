@@ -102,7 +102,7 @@ procedure guessdegreewrapper(f,d,eps,w) {
 
 
 	  guess = guessdegree(f,d,eps,w);
-	  if (!(guess == error || guess != error)) then {
+	  if (!(guess == guess)) then {
 	     guess = [1,1];
 	  };
 
@@ -140,7 +140,7 @@ procedure remezbugreport(f,d,m,w) {
 	  qual = 2621b-19;
 	  res = false;
 	  res = remez(f,d,m,w,qual);
-	  if (!(res == error || res != error)) then res = false;
+	  if (!(res == res)) then res = false;
 
 	  verbosity = oldverb!;
 	  points = oldpoints!;

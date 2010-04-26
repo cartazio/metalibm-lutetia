@@ -111,7 +111,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 	  res = (myapproxerr < targeterr);
 	  if (res) then {
 	     	q = implementpoly(poly,dom,targeterrimpl,variableFormat,"p",implementationFile,honorcoeffprec,gappaFile);
-		if (!(q == error || q != error)) then {
+		if (!(q == q)) then {
 		   write("Something strange happened. The implementpoly command did not succeed\n");
 		   oldverb = verbosity = ?;
 		   verbosity = 2!;
