@@ -2005,22 +2005,22 @@ void MpfrClass::fma (MpfrClass& res, const MpfrClass& r1, const MpfrClass& r2, c
 //--------------------------------------------------------------
 // NaN of infinity handled by MPFR
 // => no test on the value (sign...) of the operand
-void MpfrClass::random (PrecisionType prec)		// member to avoid conflict with GMP random
-  {
-  if (nbref->decr() <= 0)				// the memory can be reused
-    {
-    nbref->refvalue() = 1;
-    mpfr_set_prec(mpfr_rep, prec);
-    }
-  else							// the previous value must be preserved
-    {
-    mpfr_init2(mpfr_rep, prec);
-    nbref = new RefCounter(1);
-    inexact = new InexactFlag();
-    }
-  mpfr_random(mpfr_rep);
-  inexact->refvalue() = EXACT_FLAG;
-  }
+// void MpfrClass::random (PrecisionType prec)		// member to avoid conflict with GMP random
+//   {
+//   if (nbref->decr() <= 0)				// the memory can be reused
+//     {
+//     nbref->refvalue() = 1;
+//     mpfr_set_prec(mpfr_rep, prec);
+//     }
+//   else							// the previous value must be preserved
+//     {
+//     mpfr_init2(mpfr_rep, prec);
+//     nbref = new RefCounter(1);
+//     inexact = new InexactFlag();
+//     }
+//   mpfr_random(mpfr_rep);
+//   inexact->refvalue() = EXACT_FLAG;
+//   }
 
 
 MpfrClass abs (const MpfrClass& r, RoundingMode rnd)

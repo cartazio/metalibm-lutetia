@@ -304,7 +304,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 	     ii := length(monomials) - 1;
 	     firstmonomial = head(monomials);
 	     while ((ii >= 0) && symetrical) do {
-	  	if (floor((monomials[ii] + firstmonomial) / 2) * 2 != (monomials[i] + firstmonomial)) then 
+	  	if (floor((monomials[ii] + firstmonomial) / 2) * 2 != (monomials[ii] + firstmonomial)) then 
 		   symetrical = false;
 		ii := ii - 1;
 	     };
@@ -369,9 +369,9 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 					    bestimplerr = implresult[3];
 					    bestapproxerr = implresult[2];
 					    
-					    write("\tfound: target = 2^(",targetlog,"), approx = 2^(",round(log2(bestapproxerr),12,RN),"), evaluat = 2^(",
-                                                  round(log2(bestimplerr),12,RN),"), overall = 2^(",
-						  round(log2(bestimplerr + bestapproxerr + bestimplerr * bestapproxerr),12,RN),")");
+					    write("\tfound: target = 2^(",targetlog,"), approx = 2^(",round(log2(bestapproxerr),12,RU),"), evaluat = 2^(",
+                                                  round(log2(bestimplerr),12,RU),"), overall = 2^(",
+						  round(log2(bestimplerr + bestapproxerr + bestimplerr * bestapproxerr),12,RU),")");
 			              } else {				      
 				            if (implresult[2] < bestapproxerr) then {
 					       bestpoly = poly;

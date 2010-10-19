@@ -1,3 +1,4 @@
 f = exp(x);
-dom = [-1b-17;1b-17];
-target = 1b-100;
+dom = [-1b-3; 1b-3];
+target = 1b-60;
+

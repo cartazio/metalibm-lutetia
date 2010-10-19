@@ -55,8 +55,8 @@ execute("problemdef.sollya");
 
 variableFormat = D;
 
-doplots = true;
-dotiming = true;
+doplots = false;
+dotiming = false;
 
 iterations = 1b11;	
 

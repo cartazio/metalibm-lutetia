@@ -47,7 +47,7 @@ procedure determineupperbounds(poly, func, dom, targetErr, variableFormat, imple
 	  	  err = dirtyinfnorm(testpoly/func-1, dom);
 	  };	
 
-	  if (!(err == err)) then { 		  
+	  if (err == err) then { 		  
 	  if (abs(err) <= abs(targetErr)) then {
 	     res = [||];	     
 	     for i from 0 to degree(testpoly) do {
