@@ -55,12 +55,15 @@ execute("problemdef.sollya");
 
 variableFormat = D;
 
-doplots = false;
-dotiming = false;
+doplots = true;
+dotiming = true;
 
 iterations = 1b11;	
 
 trim = 1/2;
+
+polynomialName = "q";
+gappaOutputTmpFile = "gappaOutput.sollya";
 
 /* -------------------------------------------------------- 
    Print out problem configuration 
@@ -79,7 +82,7 @@ write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n
 
 
 res = implementsmall(f, dom, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
-                     "gappaOutput.sollya",gappaExecutable);
+                     gappaOutputTmpFile,gappaExecutable,polynomialName);
 
 
 /* -------------------------------------------------------- 
@@ -106,7 +109,7 @@ if (res[0]) then {
 	else 
 		signature = "TD_TO_";
 
-   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@"`cat "@implementationFile@" | grep \"void p\" | sed -n 's/double x.*//g;p' | sed -n 's/void p(double \\*p_resh, double \\*p_resm, double \\*p_resl, /TD/g;p' | sed -n 's/void p(double \\*p_resh, double \\*p_resm, /DD/g;p' | sed -n 's/void p(double \\*p_resh, /D/g;p'`");
+   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@"`cat "@implementationFile@" | grep \"void "@polynomialName@"\" | sed -n 's/double x.*//g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, double \\*"@polynomialName@"_resm, double \\*"@polynomialName@"_resl, /TD/g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, double \\*"@polynomialName@"_resm, /DD/g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, /D/g;p'` "@polynomialName);
 
 
    if (doplots) then {
