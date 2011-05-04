@@ -586,3 +586,120 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  return res;
 };
 
+procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polynomialName, functionName, implementationFile) {
+	  var res;
+	  var shifterCode, oldDisplay;
+
+	  res = { .okay = false };
+
+	  /* Check if centerPoint is a double precision number in the domain
+             and if Sterbenz' lemma will be verified for the whole domain */
+	  if ((D(centerPoint) - centerPoint == 0) && 
+              (centerPoint in dom) && 
+              ((inf(dom) >= centerPoint/2) && (sup(dom) <= 2 * centerPoint))) then {
+               res.okay = true;
+	       oldDisplay = display;
+	       display = decimal!;
+	       shifterCode = "\n\n#define centerpoint " @ centerPoint;
+	       display = oldDisplay!;
+	       shifterCode = shifterCode @ "\n\nvoid "@functionName@"(";
+	       shifterCode = shifterCode @ (match outputFormat with 
+                                                  D   : ( "double *res_resh, " )
+                                                  DD  : ( "double *res_resh, double *res_resm, " )
+                                                  TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
+                                           );
+               shifterCode = shifterCode @ (match variableFormat with 
+                                                  D   : ( "double x" )
+                                                  DD  : ( "double xh, double xm" )
+                                                  TD  : ( "double xh, double xm, double xl" )
+                                           );
+               shifterCode = shifterCode @ ") {\n";
+               shifterCode = shifterCode @ (match variableFormat with 
+                                                  D   : ( "double t;\n\n" )
+                                                  DD  : ( "double th, tm;\ndouble temp;\n\n" )
+                                                  TD  : ( "double th, tm, tl;\ndouble temp;\n\n" )
+                                           );
+               shifterCode = shifterCode @ (match variableFormat with 
+                                                  D   : ( "t = x - centerpoint;" )
+                                                  DD  : ( "temp = xh - centerpoint;\nAdd12(th,tm,temp,xm);" )
+                                                  TD  : ( "temp = xh - centerpoint;\nRenormalize3(&th,&tm,&tl,temp,xm,xl);" )
+                                           );
+               shifterCode = shifterCode @ "\n\n";
+	       shifterCode = shifterCode @ polynomialName @ "(";
+	       shifterCode = shifterCode @ (match outputFormat with 
+                                                  D   : ( "res_resh, " )
+                                                  DD  : ( "res_resh, res_resm, " )
+                                                  TD  : ( "res_resh, res_resm, res_resl, " )
+                                           );
+               shifterCode = shifterCode @ (match variableFormat with 
+                                                  D   : ( "t" )
+                                                  DD  : ( "th, tm" )
+                                                  TD  : ( "th, tm, tl" )
+                                           );
+               shifterCode = shifterCode @ ");\n\n";
+	       shifterCode = shifterCode @ "}\n";
+	       write(shifterCode) >> implementationFile;
+          };
+
+	  return res;
+};
+
+/* implements a function by polynomial approximation in a small interval
+   while issuing appropriate range translation code if the interval 
+   is not centered in zero.
+
+   Returns a structure that 
+
+     - always contains an element okay which is true if everything is fine
+       respectively false if some error happened
+     - contains, if everything is fine, the following elements
+          * approxerr    the approximation error
+          * implerr      the implementation (round-off) error
+          * centerpoint  the point the original interval got centered at
+          * outputformat the D/DD/TD format the result is produced in
+          * functionname the eventual name of the function after argument
+                         translation
+          * poly         the polynomial that has been used
+          * pstar        the best approximation polynomial used for 
+                         floating-point approximation
+
+   The function to be implemented may have at most 1 zero in the domain.
+   No test for this condition is made.
+
+*/
+procedure implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName) {
+	  var res, resultat, outputFormat, resShifter;
+
+	  resultat = { .okay = false };
+
+	  res = implementsmall(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName);
+
+	  if (res[0]) then {
+	     /* Get the information returned by the implementer function working on a small interval */
+	     resultat.okay = true;
+	     resultat.approxerr = res[3];
+	     resultat.implerr = res[4];
+	     resultat.poly = res[2];
+	     resultat.pstar = res[5];
+	     resultat.centerpoint = res[1];
+
+	     /* Determine the output format of the implemented polynomial */
+	     outputFormat = parse(bashevaluate("cat "@implementationFile@" | grep \"void "@polynomialName@"\" | sed -n 's/double x.*//g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, double \\*"@polynomialName@"_resm, double \\*"@polynomialName@"_resl, /TD/g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, double \\*"@polynomialName@"_resm, /DD/g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, /D/g;p'"));
+	     resultat.outputformat = outputFormat;
+
+	     /* Generate the code that shifts the domain with the centerpoint determined beforehand */
+	     if (resultat.centerpoint != 0) then {
+	       resultat.functionname = polynomialName@ "_shifter";
+	       resShifter = implementShifter(resultat.centerpoint, dom, variableFormat, outputFormat, polynomialName, resultat.functionname, implementationFile);
+	       if (!resShifter.okay) then {
+	       	  resultat = { .okay = false };
+	       };
+	     } else {
+	       resultat.functionname = polynomialName;
+	     };
+	  }; 
+
+	  return resultat;
+};
+
+

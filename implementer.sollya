@@ -62,7 +62,7 @@ iterations = 1b11;
 
 trim = 1/2;
 
-polynomialName = "q";
+polynomialName = "f_approx";
 gappaOutputTmpFile = "gappaOutput.sollya";
 
 /* -------------------------------------------------------- 
@@ -80,10 +80,8 @@ write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n
    Launch implementer
 ----------------------------------------------------------- */ 
 
-
-res = implementsmall(f, dom, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
-                     gappaOutputTmpFile,gappaExecutable,polynomialName);
-
+resultat = implementsmallwithcentering(f, dom, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
+                                       gappaOutputTmpFile,gappaExecutable,polynomialName);
 
 /* -------------------------------------------------------- 
    Print out results of the implementer, do timing and plotting
@@ -91,15 +89,15 @@ res = implementsmall(f, dom, trim * target, (trim + trim + trim * trim), variabl
 
 write("\n");
 
-if (res[0]) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
+if (resultat.okay) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
 
 sollyapath = sollyaPath;
 if sollyapath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";
 
-if (res[0]) then {
+if (resultat.okay) then {
    
    write("The implemented polynomial is:\n\t");
-   printexpansion(res[2]);
+   printexpansion(resultat.poly);
    
    if (variableFormat == D) then
 	signature = "D_TO_"
@@ -108,17 +106,26 @@ if (res[0]) then {
 		signature = "DD_TO_"
 	else 
 		signature = "TD_TO_";
+		
+   signature = signature @ (match resultat.outputformat with 
+                                  D       : ("D") 
+                                  DD      : ("DD")
+                                  TD      : ("TD")
+                                  default : ("")); 
 
-   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@"`cat "@implementationFile@" | grep \"void "@polynomialName@"\" | sed -n 's/double x.*//g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, double \\*"@polynomialName@"_resm, double \\*"@polynomialName@"_resl, /TD/g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, double \\*"@polynomialName@"_resm, /DD/g;p' | sed -n 's/void "@polynomialName@"(double \\*"@polynomialName@"_resh, /D/g;p'` "@polynomialName);
+   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@" "@resultat.functionname);
 
 
    if (doplots) then {
 
-      plot(res[2]/f(x + res[1]) - 1, [inf(dom) - res[1]; sup(dom) - res[1]]);	    
-      plot(res[5]/f(x + res[1]) - 1, [inf(dom) - res[1]; sup(dom) - res[1]]);	    
-      plot(res[2]/f(x + res[1]) - 1,res[5]/f(x + res[1]) - 1, [inf(dom) - res[1]; sup(dom) - res[1]]);	    
-      externalplot(sollyapath@"implementation",relative,res[2],[inf(dom) - res[1]; sup(dom) - res[1]],12);
-      externalplot(sollyapath@"implementation",relative,f(x + res[1]),[inf(dom) - res[1]; sup(dom) - res[1]],12);
+      plot(resultat.poly/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
+      plot(resultat.pstar/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
+      plot(resultat.poly/f(x + resultat.centerpoint) - 1,resultat.pstar/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
+
+      externalplotPrecision = 12;
+      if (resultat.centerpoint != 0) then externalplotPrecision = 18;
+      externalplot(sollyapath@"implementation",relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision);
+      externalplot(sollyapath@"implementation",relative,f,dom,externalplotPrecision);
 
    };
 
@@ -133,13 +140,13 @@ if (res[0]) then {
 	print("Time needed for evaluating the polynomial implemented:", evaltime,"time units");
 
 	display = dyadic!;
-	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", evaltime, "|],\n") >> resultfile; 
+	write("[|", f, ", ", resultat.centerpoint, ", ", resultat.poly, ", ", dom, ", ", target, ", ", round((1 + resultat.approxerr) * (1 + resultat.implerr) - 1,12,RD) , ", ", evaltime, "|],\n") >> resultfile; 
 	display = default!;
 
    } else {
 
      	display = dyadic!;	
-	write("[|", f, ", ", res[1], ", ", res[2], ", ", dom, ", ", target, ", ", round((1 + res[3]) * (1 + res[4]) - 1,12,RD) , ", ", infty, "|],\n") >> resultfile; 
+	write("[|", f, ", ", resultat.centerpoint, ", ", resultat.poly, ", ", dom, ", ", target, ", ", round((1 + resultat.approxerr) * (1 + resultat.implerr) - 1,12,RD) , ", ", infty, "|],\n") >> resultfile; 
 	display = default!;
 
    };
