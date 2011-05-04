@@ -64,6 +64,7 @@ trim = 1/2;
 
 polynomialName = "f_approx";
 gappaOutputTmpFile = "gappaOutput.sollya";
+compiledCode = "implementation.so";
 
 /* -------------------------------------------------------- 
    Print out problem configuration 
@@ -113,7 +114,7 @@ if (resultat.okay) then {
                                   TD      : ("TD")
                                   default : ("")); 
 
-   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@" "@resultat.functionname);
+   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@" "@resultat.functionname@" "@compiledCode);
 
 
    if (doplots) then {
@@ -124,8 +125,8 @@ if (resultat.okay) then {
 
       externalplotPrecision = 12;
       if (resultat.centerpoint != 0) then externalplotPrecision = 18;
-      externalplot(sollyapath@"implementation",relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision);
-      externalplot(sollyapath@"implementation",relative,f,dom,externalplotPrecision);
+      externalplot(sollyapath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision);
+      externalplot(sollyapath@compiledCode,relative,f,dom,externalplotPrecision);
 
    };
 
@@ -133,7 +134,7 @@ if (resultat.okay) then {
 
    if (dotiming) then {
 
-        externalproc(timefunc, sollyapath@"implementation", (constant, constant, integer, integer) -> integer);
+        externalproc(timefunc, sollyapath@compiledCode, (constant, constant, integer, integer) -> integer);
 
 	evaltime = round(timefunc(inf(dom), sup(dom), 2000, iterations) / iterations, 12, RN);
 
