@@ -589,18 +589,20 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polynomialName, functionName, implementationFile) {
 	  var res;
 	  var shifterCode, oldDisplay;
+	  var sterbenzOkay;
 
 	  res = { .okay = false };
 
 	  /* Check if centerPoint is a double precision number in the domain
              and if Sterbenz' lemma will be verified for the whole domain */
 	  if ((D(centerPoint) - centerPoint == 0) && 
-              (centerPoint in dom) && 
-              ((inf(dom) >= centerPoint/2) && (sup(dom) <= 2 * centerPoint))) then {
+              (centerPoint in dom)) then {	      
+              sterbenzOkay = (((inf(dom) * sup(dom) >= 0) && (inf(dom) * centerPoint >= 0)) && ((abs(inf(dom)) >= abs(centerPoint)/2) && (abs(sup(dom)) <= 2 * abs(centerPoint))));
+	      if (sterbenzOkay) then {
                res.okay = true;
 	       oldDisplay = display;
 	       display = decimal!;
-	       shifterCode = "\n\n#define centerpoint " @ centerPoint;
+	       shifterCode = "\n\n#define " @ functionName @ "_centerpoint " @ centerPoint;
 	       display = oldDisplay!;
 	       shifterCode = shifterCode @ "\n\nvoid "@functionName@"(";
 	       shifterCode = shifterCode @ (match outputFormat with 
@@ -620,9 +622,9 @@ procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polyn
                                                   TD  : ( "double th, tm, tl;\ndouble temp;\n\n" )
                                            );
                shifterCode = shifterCode @ (match variableFormat with 
-                                                  D   : ( "t = x - centerpoint;" )
-                                                  DD  : ( "temp = xh - centerpoint;\nAdd12(th,tm,temp,xm);" )
-                                                  TD  : ( "temp = xh - centerpoint;\nRenormalize3(&th,&tm,&tl,temp,xm,xl);" )
+                                                  D   : ( "t = x - " @ functionName @ "_centerpoint;" )
+                                                  DD  : ( "temp = xh - " @ functionName @ "_centerpoint;\nAdd12(th,tm,temp,xm);" )
+                                                  TD  : ( "temp = xh - " @ functionName @ "_centerpoint;\nRenormalize3(&th,&tm,&tl,temp,xm,xl);" )
                                            );
                shifterCode = shifterCode @ "\n\n";
 	       shifterCode = shifterCode @ polynomialName @ "(";
@@ -639,7 +641,10 @@ procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polyn
                shifterCode = shifterCode @ ");\n\n";
 	       shifterCode = shifterCode @ "}\n";
 	       write(shifterCode) >> implementationFile;
-          };
+          } else {
+	    write("Error: Sterbenz condition not fulfilled for argument center ", centerPoint, " and domain ", dom, "\n");
+	  };
+	  };
 
 	  return res;
 };
@@ -702,4 +707,410 @@ procedure implementsmallwithcentering(func, dom, target, beta, variableFormat, i
 	  return resultat;
 };
 
+procedure splitList(l, i) {
+	  var res;
+	  var lA, lB, k, lenL;
+
+	  lenL = length(l);
+	  if ((i < 0) || (i >= lenL)) then {
+	     res.lA = l;
+	     res.lB = [||];
+	  } else {
+	    lA = [||];
+	    for k from 0 to i - 1 do {
+	    	lA = lA :. (l[k]);
+	    };
+	    lB = [||];
+	    for k from i to lenL - 1 do {
+	    	lB = lB :. (l[k]);
+	    };
+	    res.lA = lA;
+	    res.lB = lB;
+	  };
+
+	  return res;
+};
+
+procedure generateRecursiveSplitter(splitPointName, domains, functionNames, outputFormats, variableFormat, globalOutputFormat) {
+	  var resultat;
+	  var lenDomains, lenFunctionNames, lenOutputFormats, splitterCode, middleIndex, res;
+	  var splitPointA, splitPointB;
+	  var temp;
+	  var domainsLeft, domainsRight, functionNamesLeft, functionNamesRight, outputFormatsLeft, outputFormatsRight;
+	  var oldDisplay, resLeft, resRight, myDefines;
+
+	  resultat = { .okay = false };
+
+	  lenDomains = length(domains);
+	  lenFunctionNames = length(functionNames);
+	  lenOutputFormats = length(outputFormats);
+	  
+	  if ((lenDomains == lenFunctionNames) &&
+	      (lenFunctionNames == lenOutputFormats) &&
+	      (lenDomains != 0)) then {
+
+	      if (lenDomains == 1) then {
+	          resultat.okay = true;
+		  resultat.defines = "";
+		  splitterCode = functionNames[0] @ "(";
+		  splitterCode = splitterCode @ (match (outputFormats[0]) with 
+		                                       D  :    ("res_resh, ")
+                                                       DD :    ("res_resh, res_resm, ")
+                                                       TD :    ("res_resh, res_resm, res_resl, ")
+                                                );
+                  splitterCode = splitterCode @ (match (variableFormat) with 
+                                                       D  :    ("xh")
+                                                       DD :    ("xh, xm")
+                                                       TD :    ("xh, xm, xl")
+                                                );
+                  splitterCode = splitterCode @ ");\n";
+                  match (globalOutputFormat) with 
+                        TD : {
+                                match (outputFormats[0]) with 
+                                      DD :  {
+                                                splitterCode = splitterCode @ "*res_resl = 0.0;\n";
+                                            }
+                                      D  :  {
+                                                splitterCode = splitterCode @ "*res_resm = 0.0;\n";
+                                                splitterCode = splitterCode @ "*res_resl = 0.0;\n";
+                                            }
+                                      default : { };
+                             }
+                        DD : {
+                                if (outputFormats[0] == D) then {
+                                   splitterCode = splitterCode @ "*res_resm = 0.0;\n";
+                                };
+                             }
+                        default : { };
+	          resultat.splitterCode = splitterCode;
+	      } else {
+	      	  middleIndex = floor(lenDomains / 2);
+		  splitPointA = inf(domains[middleIndex]);
+		  splitPointB = sup(domains[middleIndex - 1]);
+                  if (splitPointA == splitPointB) then {
+		     temp = splitList(domains, middleIndex);
+		     domainsLeft = temp.lA;
+		     domainsRight = temp.lB;
+		     temp = splitList(functionNames, middleIndex);
+		     functionNamesLeft = temp.lA;
+		     functionNamesRight = temp.lB;
+		     temp = splitList(outputFormats, middleIndex);
+		     outputFormatsLeft = temp.lA;
+		     outputFormatsRight = temp.lB;
+		     resLeft = generateRecursiveSplitter(splitPointName @ "_0", domainsLeft, functionNamesLeft, outputFormatsLeft, variableFormat, globalOutputFormat);
+		     resRight = generateRecursiveSplitter(splitPointName @ "_1", domainsRight, functionNamesRight, outputFormatsRight, variableFormat, globalOutputFormat);
+		     if (resLeft.okay && resRight.okay) then {
+		         resultat.okay = true;
+			 oldDisplay = display;
+			 display = decimal!;
+			 myDefines = "#define " @ splitPointName @ "_splitpoint " @ splitPointA @ "\n";
+			 display = oldDisplay!;
+			 splitterCode = "if ( xh < " @ splitPointName @ "_splitpoint ) {\n" @
+                                        resLeft.splitterCode @ "} else {\n" @
+                                        resRight.splitterCode @ "}\n";
+			 resultat.defines = resLeft.defines @ myDefines @ resRight.defines;
+			 resultat.splitterCode = splitterCode;
+		     };
+		  };
+	      };
+	  };
+
+	  return resultat;
+};
+
+
+/* implements a function by polynomial approximation in small intervals
+   obtained by cutting the interval at given points
+
+   Returns a structure that 
+
+     - always contains an element okay which is true if everything is fine
+       respectively false if some error happened
+     - contains, if everything is fine, the following elements
+          * approxerr    the maximum approximation error
+          * implerr      the maximum implementation (round-off) error
+          * outputformat the D/DD/TD format the result is produced in
+          * functionname the eventual name of the function after argument
+                         reduction
+
+   The function to be implemented may have at most 1 zero in each sub-domain.
+   No test for this condition is made.
+
+*/
+procedure implementwithdomainsplitlist(func, dom, splitPoints, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
+	  var resultat;
+	  var okay, sp;
+	  var mySplitPoints;
+	  var approxerr, implerr, outputFormats, functionNames;
+	  var domains, i, numberSplitPoints, myDom, mySuffix, myImplementationFile;
+	  var res, implementationFiles, implFile, myOutputFormat, opF, myOutputFormatNum;
+	  var myFunctionName, splitterCode, oldDisplay, recursiveSplitterRes;
+
+	  resultat = { .okay = false };
+
+	  /* First of all, if no splitPoints are given, the domain is not
+	     split and we can simply call implementsmallwithcentering
+	  */
+	  if (splitPoints == [||]) then {
+	     resultat = implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+	  } else {	   
+	  /* To start with, check if all splitPoints are doubles and 
+             if they are contained in the given domain 
+          */
+	  okay = true;
+	  for sp in splitPoints do {
+	      okay = okay && ((D(sp) - sp == 0) && (sp in dom));
+	  };
+	  if (okay) then {
+	     /* Now sort the split points by increasing order, 
+	     adding the bounds to the list */
+	     mySplitPoints = sort(splitPoints @ [| inf(dom), sup(dom) |]);
+
+	     /* While we succeed in implementing the subdomains,
+	        cut out a new subdomain, generate function and
+		file names and try implementation.
+             */
+	     approxerr = 0;
+	     implerr = 0;
+	     outputformats = [||];
+  	     functionNames = [||];
+	     domains = [||];
+	     implementationFiles = [||];
+	     i = 0;
+	     numberSplitPoints = length(mySplitPoints);
+	     while ((okay) && (i <= numberSplitPoints - 2)) do {
+	     	   myDom = [ mySplitPoints[i], mySplitPoints[i + 1] ];
+		   write("\nStarting implementation on subdomain ",myDom,"\n");
+		   mySuffix = "_subdomain_" @ i ;
+		   domains = domains :. myDom;
+		   myImplementationFile = implementationFile @ mySuffix;
+		   implementationFiles = implementationFiles :. myImplementationFile;
+		   res = implementsmallwithcentering(func, myDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix);
+		   if (res.okay) then {
+		         write("Subdomain ",myDom," done\n");
+			 approxerr = max(approxerr, abs(res.approxerr));
+			 implerr = max(implerr, abs(res.implerr));
+			 outputformats = outputformats :. (res.outputformat);
+			 functionNames = functionNames :. (res.functionname);
+		   } else {
+		     write("Error on subdomain ",myDom,", check ", gappaFile @ mySuffix, "\n");
+		     okay = false;
+		   };
+		   i := i + 1;
+	     };
+	     
+	     /* Now generate the argument reduction code if 
+	        we succeeded in generating code for all 
+		subdomains and combine all files.
+             */
+	     if (okay) then {
+	        oldDisplay = display;
+		display = dyadic!;
+	     	write("/* Implementation for function ",func, " in domain ", dom, " for target error ", target, " with argument range splitting */\n\n") > implementationFile;
+                display = oldDisplay!;
+		for implFile in implementationFiles do {
+		    bashexecute("cat " @ implFile @ " >> " @ implementationFile);
+		};
+		write("\n\n") >> implementationFile;
+		myOutputFormatNum = 1;
+		for opF in outputformats do {
+		    myOutputFormatNum = max(myOutputFormatNum,
+                                            match opF with 
+                                                  D  : (1) 
+                                                  DD : (2) 
+                                                  TD : (3)
+                                                  default : { okay = false; return 0; });
+		};
+		if (okay) then {
+		   myOutputFormat = match myOutputFormatNum with 1 : (D) 2 : (DD) 3 : (TD);
+                   myFunctionName = polynomialBaseName @ "_splitter";
+		   splitterCode = "\n\n";
+		   recursiveSplitterRes = generateRecursiveSplitter(myFunctionName, domains, functionNames, outputformats, variableFormat, myOutputFormat); 
+		   if (!recursiveSplitterRes.okay) then okay = false;
+		   if (okay) then {
+		        splitterCode = splitterCode @ recursiveSplitterRes.defines;
+             	        splitterCode = splitterCode @ "\n\nvoid "@myFunctionName@"(";
+	       	        splitterCode = splitterCode @ (match myOutputFormat with 
+                   	                                     D   : ( "double *res_resh, " )
+                                                             DD  : ( "double *res_resh, double *res_resm, " )
+                                                             TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
+                                                      );
+                        splitterCode = splitterCode @ (match variableFormat with 
+                                                             D   : ( "double xh" )
+                                                             DD  : ( "double xh, double xm" )
+                                                             TD  : ( "double xh, double xm, double xl" )
+                                                      );
+                        splitterCode = splitterCode @ ") {\n";
+		        splitterCode = splitterCode @ recursiveSplitterRes.splitterCode;
+                        splitterCode = splitterCode @ "}\n\n";
+		        write(splitterCode) >> implementationFile; 
+                   };
+		   if (okay) then {
+		      resultat.okay = true;
+		      resultat.approxerr = approxerr;
+		      resultat.implerr = implerr;
+		      resultat.outputformat = myOutputFormat;
+		      resultat.functionname = myFunctionName;
+		   };
+		};
+	     };
+	  };
+	  };
+
+	  return resultat;
+};
+
+procedure computeDomainSplitting(func, dom, maxDegree, target) {
+	  var resultat;
+	  var poly;
+	  var deg;
+	  var subdomains, splitpoints, aSp, bSp, sd;
+	  var res, recursiveSplitPoints, y, guess;
+	  var midpoint;
+	  var remezFunc, remezDom;
+	  var zeros, t, z;
+
+	  resultat = { .okay = false };
+	  deg = -1;
+
+	  if ((!(0 in dom)) && 
+	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) then {
+	      /* We have to split because the Sterbenz condition will
+	         not be fulfilled for center points on this subdomain 
+
+		 We simultate the case with a dummy degree that is too huge
+	       */
+	       deg = maxDegree * 2;
+
+	  } else {
+
+	  remezFunc = func;
+	  remezDom = dom;
+	  if (0 in evaluate(func,dom)) then {
+	     y = evaluate(func, 0);
+	     if (!((inf(y) <= 0) && (sup(y) >= 0))) then {
+	     	/* func has a zero in dom but not in 0 */
+		zeros = dirtyfindzeros(func, dom);
+		if (zeros != [||]) then {
+		   /* I found zeros of func in dom,
+		      let's look for the zero farthest
+		      from 0
+		   */
+		   t = zeros[0];
+		   for z in zeros do {
+		       if (abs(z) > abs(t)) then t = z;
+		   };
+		   /* Now translate the function so 
+		      that it has a zero in 0
+                   */
+		   remezFunc = func(x + t);
+		   remezDom = dom - t;
+		};
+	     };
+	  };
+
+	  if (0 in remezDom) then { y = evaluate(remezFunc, 0); } else { y = 1; };
+	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
+	     { guess = guessdegreewrapper(1,remezDom,abs(target),x/remezFunc); };
+	     guess = guess + 1;
+	  } else {
+	     { guess = guessdegreewrapper(1,remezDom,abs(target),1/remezFunc); };
+	  };
+
+	  if ((guess == guess) && (guess != false)) then {
+	          deg = inf(guess);
+	  } else {
+	  	  write("Computing a remez polynomial for ", func, " in ", dom, " with target ", target,"\n");
+	  	  poly = simpleRemezWrapper(remezFunc, remezDom, target, 20);
+		  if ((poly == poly) && (poly != false)) then {
+		     deg = degree(poly);
+		  };
+          };
+
+	  };
+
+	     if (deg > 0) then { 
+	     	if (deg <= maxDegree) then {
+		   resultat.okay = true;
+		   resultat.splitPoints = [||];
+		} else {
+		   if (inf(dom) * sup(dom) < 0) then {
+		      aSp = D(inf(dom)/3);
+		      bSp = D(sup(dom)/3);
+		      splitpoints = [| aSp , bSp |];
+		      subdomains = [| [ inf(dom) , aSp ], [ aSp, bSp ], [ bSp, sup(dom) ] |];
+		   } else {
+		      aSp = D(mid(dom));
+		      splitpoints = [| aSp |];
+		      subdomains = [| [ inf(dom), aSp ], [ aSp, sup(dom) ] |];
+		   };
+		   okay = true;
+		   recursiveSplitPoints = [||];
+		   while ((okay) && (subdomains != [||])) do {
+		   	 sd = head(subdomains);
+			 subdomains = tail(subdomains);
+			 res = computeDomainSplitting(func, sd, maxDegree, target);
+			 if (res.okay) then {
+			    recursiveSplitPoints = recursiveSplitPoints @ (res.splitPoints);
+			 } else {
+			   okay = false;
+			 };
+		   };
+		   if (okay) then {
+		      resultat.okay = true;
+		      resultat.splitPoints = recursiveSplitPoints @ splitpoints;
+		   };
+	     	};
+	     };
+	    
+
+	  return resultat;
+};
+
+
+/* implements a function by polynomial approximation in small intervals
+   that are automatically computed using a maximum polynomial degree
+   indication
+
+   Returns a structure that 
+
+     - always contains an element okay which is true if everything is fine
+       respectively false if some error happened
+     - contains, if everything is fine, the following elements
+          * approxerr    the maximum approximation error
+          * implerr      the maximum implementation (round-off) error
+          * outputformat the D/DD/TD format the result is produced in
+          * functionname the eventual name of the function after argument
+                         reduction
+          * nbSplitPoints the number of split points used
+	  * splitPoints  the split points used
+
+   The function to be implemented may have at most 1 zero in each sub-domain.
+   No test for this condition is made.
+
+*/
+procedure implementwithdomainsplitting(func, dom, maxDegree, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
+	  var resultat, res, splitPoints;
+
+	  resultat = { .okay = false };
+
+	  res = computeDomainSplitting(func, dom, maxDegree, target);
+
+	  if (res.okay) then {
+	     splitPoints = sort(res.splitPoints);
+
+	     write("The domain will be split at the following points: ", splitPoints, "\n");
+
+	     res = implementwithdomainsplitlist(func, dom, splitPoints, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+
+	     if (res.okay) then {
+	     	resultat = res;
+		resultat.nbSplitPoints = length(splitPoints);
+		resultat.splitPoints = splitPoints;
+	     };
+
+	  };
+
+	  return resultat;
+};
 

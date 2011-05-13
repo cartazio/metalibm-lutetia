@@ -1,4 +1,5 @@
-f = exp(x);
-dom = [1; 1.125];
+f = erf(x);
+dom = [-0.69; 0.69];
 target = 1b-60;
+maxDegree = 18;
 

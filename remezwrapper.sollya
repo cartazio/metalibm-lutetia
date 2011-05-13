@@ -107,6 +107,7 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  };
 
 	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
 	     res = sup(guess);
 	     poly = remezbugreport(f,res,d,w);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
@@ -139,6 +140,9 @@ procedure remezbugreport(f,d,m,w) {
 
 	  qual = 2621b-19;
 	  res = false;
+
+	  /* "remez(",f,",",d,",",m,",",w,",",qual,")"; */
+
 	  res = remez(f,d,m,w,qual);
 	  if (!(res == res)) then res = false;
 

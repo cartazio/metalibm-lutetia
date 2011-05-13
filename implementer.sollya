@@ -81,7 +81,7 @@ write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n
    Launch implementer
 ----------------------------------------------------------- */ 
 
-resultat = implementsmallwithcentering(f, dom, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
+resultat = implementwithdomainsplitting(f, dom, maxDegree, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
                                        gappaOutputTmpFile,gappaExecutable,polynomialName);
 
 /* -------------------------------------------------------- 
@@ -97,8 +97,14 @@ if sollyapath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";
 
 if (resultat.okay) then {
    
-   write("The implemented polynomial is:\n\t");
-   printexpansion(resultat.poly);
+   match (resultat) with 
+         { .poly = default } : {
+                                  write("The implemented polynomial is:\n\t");
+                                  printexpansion(resultat.poly);
+                               }
+         default :             { 
+                                  write("Argument reduction code implies use of more than one polynomial\n");
+                               };
    
    if (variableFormat == D) then
 	signature = "D_TO_"
@@ -118,16 +124,48 @@ if (resultat.okay) then {
 
 
    if (doplots) then {
+      externalplotPrecision = 18;
+      match (resultat) with 
+            { .centerpoint = default } : {
+                                             match (resultat) with 
+                                                   { .poly = default } : {
+                                 	                                     plot(resultat.poly/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
+                                                                         }
+                                                   default :             {
+                                                                             write("Argument reduction code implies use of more than one polynomial\n");
+                                                                         };
+                                             match (resultat) with 
+                                                   { .poly = default, 
+                                                     .pstar = default } : {
+                                 	                                     plot(resultat.poly/f(x + resultat.centerpoint) - 1,resultat.pstar/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
+                                                                         }
+                                                   default :             {
+                                                                             write("Argument reduction code implies use of more than one polynomial and pstar\n");
+                                                                         };
+                                             match (resultat) with 
+                                                   { .pstar = default } : {
+                                					     plot(resultat.pstar/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
+                                                                         }
+                                                   default :             {
+                                                                             write("Argument reduction code implies use of more than one pstar\n");
+                                                                         };
 
-      plot(resultat.poly/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
-      plot(resultat.pstar/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
-      plot(resultat.poly/f(x + resultat.centerpoint) - 1,resultat.pstar/f(x + resultat.centerpoint) - 1, [inf(dom) - resultat.centerpoint; sup(dom) - resultat.centerpoint]);	    
-
-      externalplotPrecision = 12;
-      if (resultat.centerpoint != 0) then externalplotPrecision = 18;
-      externalplot(sollyapath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision);
-      externalplot(sollyapath@compiledCode,relative,f,dom,externalplotPrecision);
-
+                                             if (resultat.centerpoint == 0) then externalplotPrecision = 12;
+                                             if (0 in dom) then externalplotPrecision = 14;
+                                             match (resultat) with 
+                                                   { .poly = default } : {
+                                                                             externalplot(sollyapath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision);
+                                                                         }
+                                                   default :             {
+                                                                             write("Argument reduction code implies use of more than one polynomial\n");
+                                                                         };
+                                         }
+            default :                    {
+                                             write("Argument reduction code implies use of more than one centerpoint\n");
+                                         };
+       
+       if (0 in dom) then externalplotPrecision = 14;
+       externalplot(sollyapath@compiledCode,relative,f,dom,externalplotPrecision); 
    };
 
    resultfile = resumedImplementationFile;
@@ -139,16 +177,6 @@ if (resultat.okay) then {
 	evaltime = round(timefunc(inf(dom), sup(dom), 2000, iterations) / iterations, 12, RN);
 
 	print("Time needed for evaluating the polynomial implemented:", evaltime,"time units");
-
-	display = dyadic!;
-	write("[|", f, ", ", resultat.centerpoint, ", ", resultat.poly, ", ", dom, ", ", target, ", ", round((1 + resultat.approxerr) * (1 + resultat.implerr) - 1,12,RD) , ", ", evaltime, "|],\n") >> resultfile; 
-	display = default!;
-
-   } else {
-
-     	display = dyadic!;	
-	write("[|", f, ", ", resultat.centerpoint, ", ", resultat.poly, ", ", dom, ", ", target, ", ", round((1 + resultat.approxerr) * (1 + resultat.implerr) - 1,12,RD) , ", ", infty, "|],\n") >> resultfile; 
-	display = default!;
 
    };
 
