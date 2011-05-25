@@ -1,16 +1,23 @@
 /*
- * Copyright 2008 by 
+ * Copyright 2008-2011 by 
  * 
  * Laboratoire de l'Informatique du Parallélisme, 
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
  *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
  * Sollya wrapper scripts for the Remez algorithm in Sollya
  * Implements an algorithm published in the proceedings of the RNC'8 conference
  *
- * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN) 
+ *              christoph.lauter@ens-lyon.org
  *
  * This file is part of the metalibm library developed by the Arenaire
- * project at Ecole Normale Superieure de Lyon
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -121,15 +128,66 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  return res;
 };
 
+/* guessdegreewrapperwithbound */
+procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
+	  var res, guess;
+	  var poly;
 
+	  guess = guessdegree(f,d,eps,w,b);
+	  if (!(guess == guess)) then {
+	     guess = [1,1];
+	  };
+
+	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
+	     res = sup(guess);
+	     poly = remezbugreport(f,res,d,w);
+	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
+	     	   res := res - 1;
+	     	   poly = remezbugreport(f,res,d,w);		   
+	     };
+	     if (poly == false) then res = inf(guess);
+	  } else {
+	    if (sup(guess) == infty) then {
+                res = b + 1;
+            } else {
+    	        res = inf(guess);
+            };
+	  };
+
+	  return res;
+};
 
 /* remezbugreport */
-procedure remezbugreport(f,d,m,w) {
+procedure remezbugreport(f,m,d,w) {
 	  var res;
 	  var oldpoints;
 	  var qual;
 	  var oldprec;
 	  var oldverb;
+	  var myDom;
+	  var func, isAList, y;
+
+	  myDom = d;
+	  if ((inf(d) == 0) || (sup(d) == 0)) then {
+	     isAList = false;
+	     match (m) with a @ [||] : { isAList = true; }
+                            default : { };
+             if (isAList) then {
+	     	if (m[0] != 0) then {
+		   func = simplifysafe(f/w);
+		   y = evaluate(func,[0]);
+		   if (0 in y) then {
+		      if (inf(myDom) == 0) then {
+		      	 myDom = [ 1b-1074; sup(myDom) ];
+		      };
+		      if (sup(myDom) == 0) then {
+		      	 myDom = [ inf(myDom); -1b-1074 ];
+		      };
+		   };
+	     	};
+             };
+	  };
 
 	  oldpoints = points = ?;
 	  points = 65!;
@@ -141,9 +199,9 @@ procedure remezbugreport(f,d,m,w) {
 	  qual = 2621b-19;
 	  res = false;
 
-	  /* "remez(",f,",",d,",",m,",",w,",",qual,")"; */
+	  /* "remez(",f,",",m,",",myDom,",",w,",",qual,")"; */
 
-	  res = remez(f,d,m,w,qual);
+	  res = remez(f,m,myDom,w,qual);
 	  if (!(res == res)) then res = false;
 
 	  verbosity = oldverb!;

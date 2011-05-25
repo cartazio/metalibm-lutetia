@@ -1,5 +1,6 @@
-f = erf(x);
-dom = [-0.69; 0.69];
+f = sin(x);
+dom = [-1; 1];
 target = 1b-60;
-maxDegree = 18;
+maxDegree = 12;
+minWidth = (sup(dom) - inf(dom)) * 1/8192;
 

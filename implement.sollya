@@ -1,16 +1,23 @@
 /*
- * Copyright 2008 by 
+ * Copyright 2008-2011 by 
  * 
  * Laboratoire de l'Informatique du Parallélisme, 
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
  *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
  * Sollya metalibm main procedures for implementing functions 
  * with polynomial approximation and Horner scheme evaluation
  *
- * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN) 
+ *              christoph.lauter@ens-lyon.org
  *
  * This file is part of the metalibm library developed by the Arenaire
- * project at Ecole Normale Superieure de Lyon
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -329,6 +336,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 	     ii = 1;
 	     targetlog = round(log2(targeterr),12,RN);
 	     while ((!found) && (t <= lastConfigNumber)) do {
+	           // "Configuration t = ", t, ", lastConfigNumber = ", lastConfigNumber;
 	     	   configuration = numberToConfig(t,optimisationPermut,numbercoefficients);
 		   if (isHigherPrecisionConfig(configuration,lowerbounds) && isLowerPrecisionConfig(configuration,upperbounds)) then {
 		      write("Trying configuration #",ii," ",configuration,":\n");
@@ -419,7 +427,7 @@ procedure implementcentered(func, dom, target, beta, variableFormat, galoptimize
 
 	  res = [| false, 0, 0, 0, 0 |];
 
-	  Pstar = remezwrapper(func, dom, target, 20);
+	  Pstar = remezwrapper(func, dom, target, 3);
 
 	  if (Pstar != false) then {
 	  
@@ -545,7 +553,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 		      midpoint := D(symetrypoint);
 		   } else {
 		     if (target < 1b-50) then {
-	              Pstar = simplify(horner(simplify(substitute(remezwrapper(func(x + D(mid(dom))), [inf(dom) - D(mid(dom));sup(dom) - D(mid(dom))], target, 7),(x - D(mid(dom)))))));
+	              Pstar = simplifysafe(horner(simplifysafe(substitute(remezwrapper(func(x + D(mid(dom))), [inf(dom) - D(mid(dom));sup(dom) - D(mid(dom))], target, 3),(x - D(mid(dom)))))));
 	              if (Pstar != false) then {
 	                 startmidpoint := D(mid(dom));
 			 galoptim = galoptimisation(Pstar,func,dom,target,startmidpoint);
@@ -597,7 +605,7 @@ procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polyn
              and if Sterbenz' lemma will be verified for the whole domain */
 	  if ((D(centerPoint) - centerPoint == 0) && 
               (centerPoint in dom)) then {	      
-              sterbenzOkay = (((inf(dom) * sup(dom) >= 0) && (inf(dom) * centerPoint >= 0)) && ((abs(inf(dom)) >= abs(centerPoint)/2) && (abs(sup(dom)) <= 2 * abs(centerPoint))));
+              sterbenzOkay = (((inf(dom) * sup(dom) > 0) && (inf(dom) * centerPoint > 0)) && ((abs(inf(dom)) >= abs(centerPoint)/2) && (abs(sup(dom)) <= 2 * abs(centerPoint))));
 	      if (sterbenzOkay) then {
                res.okay = true;
 	       oldDisplay = display;
@@ -837,14 +845,14 @@ procedure generateRecursiveSplitter(splitPointName, domains, functionNames, outp
    No test for this condition is made.
 
 */
-procedure implementwithdomainsplitlist(func, dom, splitPoints, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
+procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
 	  var resultat;
 	  var okay, sp;
 	  var mySplitPoints;
 	  var approxerr, implerr, outputFormats, functionNames;
 	  var domains, i, numberSplitPoints, myDom, mySuffix, myImplementationFile;
 	  var res, implementationFiles, implFile, myOutputFormat, opF, myOutputFormatNum;
-	  var myFunctionName, splitterCode, oldDisplay, recursiveSplitterRes;
+	  var myFunctionName, splitterCode, oldDisplay, recursiveSplitterRes, symmetrizedDom, recovered;
 
 	  resultat = { .okay = false };
 
@@ -876,27 +884,69 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, target, beta, var
   	     functionNames = [||];
 	     domains = [||];
 	     implementationFiles = [||];
-	     i = 0;
 	     numberSplitPoints = length(mySplitPoints);
-	     while ((okay) && (i <= numberSplitPoints - 2)) do {
-	     	   myDom = [ mySplitPoints[i], mySplitPoints[i + 1] ];
+	     myDomains = [||];
+	     for i from 0 to numberSplitPoints - 2 do {
+	     	 myDomains = myDomains :. ( [ mySplitPoints[i], mySplitPoints[i + 1] ] );
+	     };
+	     i = 0;
+	     while ((okay) && (myDomains != [||])) do {
+	     	   myDom = head(myDomains);
+		   myDomains = tail(myDomains);
 		   write("\nStarting implementation on subdomain ",myDom,"\n");
 		   mySuffix = "_subdomain_" @ i ;
-		   domains = domains :. myDom;
-		   myImplementationFile = implementationFile @ mySuffix;
-		   implementationFiles = implementationFiles :. myImplementationFile;
+		   myImplementationFile = implementationFile @ mySuffix;	
 		   res = implementsmallwithcentering(func, myDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix);
 		   if (res.okay) then {
 		         write("Subdomain ",myDom," done\n");
+   		         domains = domains :. myDom;
+		         implementationFiles = implementationFiles :. myImplementationFile;
 			 approxerr = max(approxerr, abs(res.approxerr));
 			 implerr = max(implerr, abs(res.implerr));
 			 outputformats = outputformats :. (res.outputformat);
 			 functionNames = functionNames :. (res.functionname);
+			 i := i + 1;
 		   } else {
-		     write("Error on subdomain ",myDom,", check ", gappaFile @ mySuffix, "\n");
-		     okay = false;
+		     if (abs(sup(myDom) - inf(myDom)) < minWidth) then {
+		        write("Error on subdomain ",myDom,", check ", gappaFile @ mySuffix, "\n");
+		        okay = false;
+	             } else {
+		        recovered = false;
+		        symmetrizedDom = myDom;
+			if (inf(myDom) == 0) then { 
+			   symmetrizedDom = [-sup(myDom),sup(myDom)];
+			};
+			if (sup(myDom) == 0) then {
+			   symmetrizedDom = [inf(myDom),-inf(myDom)];
+			};
+			if ((inf(myDom) == 0) || (sup(myDom) == 0)) then {
+			   if (symmetrizedDom in definitionDomain) then {
+			      write("Using symmetrized domain around 0 instead of original domain to exploit symmetries of the function\n");
+			      res = implementsmallwithcentering(func, symmetrizedDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix);
+      		              if (res.okay) then {
+		                 write("Subdomain ",myDom," done\n");
+   		                 domains = domains :. myDom;
+		                 implementationFiles = implementationFiles :. myImplementationFile;
+			         approxerr = max(approxerr, abs(res.approxerr));
+			         implerr = max(implerr, abs(res.implerr));
+			         outputformats = outputformats :. (res.outputformat);
+			         functionNames = functionNames :. (res.functionname);
+			         i := i + 1;
+				 recovered = true;
+		              };
+			   };
+			};
+
+			if (!recovered) then {
+			   write("Resplitting on subdomain ",myDom,"\n");
+		           if (inf(myDom) * sup(myDom) < 0) then {
+			      myDomains = [ inf(myDom) , D(inf(myDom) / 3) ] .: ( [ D(inf(myDom) / 3) , D(sup(myDom) / 3) ] .: ( [ D(sup(myDom) / 3) , sup(myDom) ] .: myDomains )); 	  
+			   } else {
+			      myDomains = [ inf(myDom) , D(mid(myDom)) ] .: ( [ D(mid(myDom)) , sup(myDom) ] .: myDomains ); 	  
+			   };
+			};
+		     };
 		   };
-		   i := i + 1;
 	     };
 	     
 	     /* Now generate the argument reduction code if 
@@ -906,7 +956,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, target, beta, var
 	     if (okay) then {
 	        oldDisplay = display;
 		display = dyadic!;
-	     	write("/* Implementation for function ",func, " in domain ", dom, " for target error ", target, " with argument range splitting */\n\n") > implementationFile;
+	     	write("\n\n") > implementationFile;
                 display = oldDisplay!;
 		for implFile in implementationFiles do {
 		    bashexecute("cat " @ implFile @ " >> " @ implementationFile);
@@ -1011,17 +1061,17 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
 
 	  if (0 in remezDom) then { y = evaluate(remezFunc, 0); } else { y = 1; };
 	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
-	     { guess = guessdegreewrapper(1,remezDom,abs(target),x/remezFunc); };
+	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),x/remezFunc,maxDegree+2); };
 	     guess = guess + 1;
 	  } else {
-	     { guess = guessdegreewrapper(1,remezDom,abs(target),1/remezFunc); };
+	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),1/remezFunc,maxDegree+2); };
 	  };
 
 	  if ((guess == guess) && (guess != false)) then {
 	          deg = inf(guess);
 	  } else {
 	  	  write("Computing a remez polynomial for ", func, " in ", dom, " with target ", target,"\n");
-	  	  poly = simpleRemezWrapper(remezFunc, remezDom, target, 20);
+	  	  poly = simpleRemezWrapper(remezFunc, remezDom, target, 3);
 		  if ((poly == poly) && (poly != false)) then {
 		     deg = degree(poly);
 		  };
@@ -1082,14 +1132,12 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
           * outputformat the D/DD/TD format the result is produced in
           * functionname the eventual name of the function after argument
                          reduction
-          * nbSplitPoints the number of split points used
-	  * splitPoints  the split points used
 
    The function to be implemented may have at most 1 zero in each sub-domain.
    No test for this condition is made.
 
 */
-procedure implementwithdomainsplitting(func, dom, maxDegree, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
+procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
 	  var resultat, res, splitPoints;
 
 	  resultat = { .okay = false };
@@ -1099,18 +1147,451 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, target, beta, varia
 	  if (res.okay) then {
 	     splitPoints = sort(res.splitPoints);
 
-	     write("The domain will be split at the following points: ", splitPoints, "\n");
+	     write("The domain will first be split at the following points: ", splitPoints, "\n");
 
-	     res = implementwithdomainsplitlist(func, dom, splitPoints, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+	     res = implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
 
 	     if (res.okay) then {
 	     	resultat = res;
-		resultat.nbSplitPoints = length(splitPoints);
-		resultat.splitPoints = splitPoints;
 	     };
 
 	  };
 
 	  return resultat;
+};
+
+
+procedure tryImplementationThroughDomainSplitting(problemdef, parametrization) {
+	  var result, definitionDomain;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default } } : {
+				                definitionDomain = problemdef.dom;
+						match (problemdef) with 
+                                                      { .definitionDomain = default } : { definitionDomain = problemdef.definitionDomain; }
+                                                      default : { };
+					        result = implementwithdomainsplitting(problemdef.func, 
+						                                      problemdef.dom, 
+                                                                                      parametrization.maxDegree, 
+                                                                                      parametrization.minWidth, 
+										      definitionDomain,
+                                                                                      problemdef.target, 
+                                                                                      parametrization.beta, 
+                                                                                      problemdef.variableFormat, 
+                                                                                      parametrization.implementationFile, 
+										      parametrization.gappaFile, 
+										      parametrization.gappaOutputFile, 
+										      parametrization.gappaExecutable, 
+										      parametrization.functionBasename);
+					}
+                default : { };
+
+	  return result;
+};
+
+procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
+	  var resultat;
+	  var poly;
+	  var deg;
+	  var y, guess;
+	  var remezFunc, remezDom;
+	  var zeros, t, z;
+
+	  resultat = { .okay = false };
+	  deg = -1;
+
+	  if ((!(0 in dom)) && 
+	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) then {
+	      /* We have to split because the Sterbenz condition will
+	         not be fulfilled for center points on this subdomain 
+
+		 We simultate the case with a dummy degree that is too huge
+	       */
+	       deg = maxDegree * 2;
+
+	  } else {
+
+	  remezFunc = func;
+	  remezDom = dom;
+	  if (0 in evaluate(func,dom)) then {
+	     y = evaluate(func, 0);
+	     if (!((inf(y) <= 0) && (sup(y) >= 0))) then {
+	     	/* func has a zero in dom but not in 0 */
+		zeros = dirtyfindzeros(func, dom);
+		if (zeros != [||]) then {
+		   /* I found zeros of func in dom,
+		      let's look for the zero farthest
+		      from 0
+		   */
+		   t = zeros[0];
+		   for z in zeros do {
+		       if (abs(z) > abs(t)) then t = z;
+		   };
+		   /* Now translate the function so 
+		      that it has a zero in 0
+                   */
+		   remezFunc = func(x + t);
+		   remezDom = dom - t;
+		};
+	     };
+	  };
+
+	  if (0 in remezDom) then { y = evaluate(remezFunc, 0); } else { y = 1; };
+	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
+	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),x/remezFunc,maxDegree+2); };
+	     guess = guess + 1;
+	  } else {
+	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),1/remezFunc,maxDegree+2); };
+	  };
+
+	  if ((guess == guess) && (guess != false)) then {
+	          deg = inf(guess);
+	  } else {
+	  	  write("Computing a remez polynomial for ", func, " in ", dom, " with target ", target,"\n");
+	  	  poly = simpleRemezWrapper(remezFunc, remezDom, target, 3);
+		  if ((poly == poly) && (poly != false)) then {
+		     deg = degree(poly);
+		  };
+          };
+
+	  };
+
+	     if (deg > 0) then { 
+	     	if (deg <= maxDegree) then {
+		   resultat.okay = true;
+		   resultat.sufficientDegree = true;
+		} else {
+		   resultat.okay = true;
+		   resultat.sufficientDegree = false;
+	     	};
+	     };
+	    
+
+	  return resultat;
+};
+
+procedure tryDetectSymmetry(func, dom, target) {
+	  var res, testfunc, zerosUpper, zerosLower, myDom, y;
+
+	  res = { .okay = false };
+
+	  myDom = [0; min(sup(dom), -inf(dom))];
+	  testfunc = simplifysafe((func/(func(-x))) - 1);
+	  y = evaluate(testfunc, min(sup(dom), -inf(dom)) / 2);
+	  if (y in [-target, target]) then {
+	  	  zerosUpper = dirtyfindzeros(testfunc + target, myDom);
+	  	  zerosLower = dirtyfindzeros(testfunc - target, myDom);
+          } else {
+	          zerosUpper = [| 0 |];
+		  zerosLower = [| 0 |];
+	  };		  
+
+	  if ((zerosUpper == [||]) && (zerosLower == [||])) then {
+	     res.okay = true;
+	     res.evenSymmetry = true;
+	  } else {
+	     testfunc = simplifysafe((func/(-func(-x))) - 1);
+   	     y = evaluate(testfunc, min(sup(dom), -inf(dom)) / 2);
+	     if (y in [-target, target]) then {
+	  	  zerosUpper = dirtyfindzeros(testfunc + target, myDom);
+	  	  zerosLower = dirtyfindzeros(testfunc - target, myDom);
+             } else {
+	          zerosUpper = [| 0 |];
+		  zerosLower = [| 0 |];
+	     };		  
+
+	     if ((zerosUpper == [||]) && (zerosLower == [||])) then {
+	        res.okay = true;
+	        res.evenSymmetry = false;
+	     };
+	  };
+
+	  return res;
+};
+
+procedure tryImplementationThroughSymmetryDetectionAroundZero(problemdef, parametrization) {
+	  var result, splitPoints, needToDetectSymmetry, res, evenSymmetry, myDom, oppositeOnNegative;
+	  var suffix, myProblemdef, myParametrization, origDefDom, symmetryCode;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default } } : {
+				       
+				       /* Start with a test if zero is actually inside the domain */
+				       if (sup(problemdef.dom) * inf(problemdef.dom) < 0) then {
+
+				       /* Continue with a test if the domain actually needs 
+                                          to be split in order to stay below the maximum 
+					  polynomial degree 
+				        */	     
+				       needToDetectSymmetry = true;
+				       res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                               if (res.okay) then {
+   	                                   if (res.sufficientDegree) then needToDetectSymmetry = false;
+				       } else {
+				           needToDetectSymmetry = false;
+				       };
+
+				       if (needToDetectSymmetry) then {
+				       
+				            /* Try to detect a symmetry of func around 0 */
+					    res = tryDetectSymmetry(problemdef.func, problemdef.dom, problemdef.target * 13/32);
+
+					    if (res.okay) then {
+					       /* If we detected a symmetry */
+					       if (res.evenSymmetry) then {
+					       	  write("Detected an even symmetry\n");
+					       } else {
+					          write("Detected an odd symmetry\n");
+					       };
+					       /* Now compute the reduced domain and determine
+					          when we have to compute the opposite of the argument.
+					       */
+                                               if (-inf(dom) < sup(dom)) then {
+					           myDom = [ 0, sup(dom) ];
+						   oppositeOnNegative = true;
+					       } else {
+					           myDom = [ inf(dom), 0 ];
+						   oppositeOnNegative = false;
+					       };
+					       evenSymmetry = res.evenSymmetry;
+					       write("The subdomain after range reduction for symmetry is: ", myDom, "\n");
+					       
+					       /* Now call the implementer recursively on the reduced domain */
+					       suffix = "_symmetrical";
+					       myProblemdef = problemdef;
+					       myProblemdef.dom = myDom;
+					       myProblemdef.target = problemdef.target * 13/32;
+					       origDefDom = dom;
+					       match (problemdef) with { .definitionDomain = default } : { 
+					                       if (origDefDom in problemdef.definitionDomain) then {
+                                                                  origDefDom = problemdef.definitionDomain;
+                                                               }; }
+                                                                       default : {};
+					       myProblemdef.definitionDomain = origDefDom;
+					       myParametrization = parametrization;
+					       myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+					       myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+					       myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+					       res = tryImplementation(myProblemdef, myParametrization);
+					       
+					       if (res.okay) then {
+					       	  /* The implementation worked on the subdomain 
+
+						     Now generate the reduction code.
+
+						  */
+						  symmetryCode = "";
+						  symmetryCode = symmetryCode @ "\n\nvoid "@parametrization.functionBasename@"(";
+						  symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                       D   : ( "double *res_resh, " )
+                                                                                       DD  : ( "double *res_resh, double *res_resm, " )
+                                                                                       TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
+                                                                                );
+                                                  symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                       D   : ( "double xh" )
+                                                                                       DD  : ( "double xh, double xm" )
+                                                                                       TD  : ( "double xh, double xm, double xl" )
+                                                                                );
+                                                  symmetryCode = symmetryCode @ ") {\n";
+						  if (evenSymmetry) then {
+						     if (oppositeOnNegative) then {
+						     	symmetryCode = symmetryCode @ "if (xh < 0.0) {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "res_resh, " )
+                                                                                             DD  : ( "res_resh, res_resm, " )
+                                                                                             TD  : ( "res_resh, res_resm, res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "-xh" )
+                                                                                             DD  : ( "-xh, -xm" )
+                                                                                             TD  : ( "-xh, -xm, -xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+						     	symmetryCode = symmetryCode @ "} else {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "res_resh, " )
+                                                                                             DD  : ( "res_resh, res_resm, " )
+                                                                                             TD  : ( "res_resh, res_resm, res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "xh" )
+                                                                                             DD  : ( "xh, xm" )
+                                                                                             TD  : ( "xh, xm, xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+							symmetryCode = symmetryCode @ "}\n";
+						     } else {
+						     	symmetryCode = symmetryCode @ "if (xh > 0.0) {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "res_resh, " )
+                                                                                             DD  : ( "res_resh, res_resm, " )
+                                                                                             TD  : ( "res_resh, res_resm, res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "-xh" )
+                                                                                             DD  : ( "-xh, -xm" )
+                                                                                             TD  : ( "-xh, -xm, -xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+						     	symmetryCode = symmetryCode @ "} else {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "res_resh, " )
+                                                                                             DD  : ( "res_resh, res_resm, " )
+                                                                                             TD  : ( "res_resh, res_resm, res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "xh" )
+                                                                                             DD  : ( "xh, xm" )
+                                                                                             TD  : ( "xh, xm, xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+							symmetryCode = symmetryCode @ "}\n";
+						     };
+						  } else {
+						     symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                          D   : ( "double sym_res_resh;" )
+                                                                                          DD  : ( "double sym_res_resh, sym_res_resm;" )
+                                                                                          TD  : ( "double sym_res_resh, sym_res_resm, sym_res_resl;" )
+                                                                                   );
+						     symmetryCode = symmetryCode @ "\n";
+						     if (oppositeOnNegative) then {
+						     	symmetryCode = symmetryCode @ "if (xh < 0.0) {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "&sym_res_resh, " )
+                                                                                             DD  : ( "&sym_res_resh, &sym_res_resm, " )
+                                                                                             TD  : ( "&sym_res_resh, &sym_res_resm, &sym_res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "-xh" )
+                                                                                             DD  : ( "-xh, -xm" )
+                                                                                             TD  : ( "-xh, -xm, -xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "*res_resh = -sym_res_resh;" )
+                                                                                             DD  : ( "*res_resh = -sym_res_resh; *res_resm = -sym_res_resm;" )
+                                                                                             TD  : ( "*res_resh = -sym_res_resh; *res_resm = -sym_res_resm; *res_resl = -sym_res_resl;" )
+                                                                                      );
+						        symmetryCode = symmetryCode @ "\n";
+						     	symmetryCode = symmetryCode @ "} else {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "res_resh, " )
+                                                                                             DD  : ( "res_resh, res_resm, " )
+                                                                                             TD  : ( "res_resh, res_resm, res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "xh" )
+                                                                                             DD  : ( "xh, xm" )
+                                                                                             TD  : ( "xh, xm, xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+							symmetryCode = symmetryCode @ "}\n";
+						     } else {
+						     	symmetryCode = symmetryCode @ "if (xh > 0.0) {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "&sym_res_resh, " )
+                                                                                             DD  : ( "&sym_res_resh, &sym_res_resm, " )
+                                                                                             TD  : ( "&sym_res_resh, &sym_res_resm, &sym_res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "-xh" )
+                                                                                             DD  : ( "-xh, -xm" )
+                                                                                             TD  : ( "-xh, -xm, -xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "*res_resh = -sym_res_resh;" )
+                                                                                             DD  : ( "*res_resh = -sym_res_resh; *res_resm = -sym_res_resm;" )
+                                                                                             TD  : ( "*res_resh = -sym_res_resh; *res_resm = -sym_res_resm; *res_resl = -sym_res_resl;" )
+                                                                                      );
+						        symmetryCode = symmetryCode @ "\n";
+						     	symmetryCode = symmetryCode @ "} else {\n";
+                                                        symmetryCode = symmetryCode @ res.functionname @ "(";
+ 						        symmetryCode = symmetryCode @ (match res.outputformat with 
+                                          	                                             D   : ( "res_resh, " )
+                                                                                             DD  : ( "res_resh, res_resm, " )
+                                                                                             TD  : ( "res_resh, res_resm, res_resl, " )
+                                                                                      );
+                                                        symmetryCode = symmetryCode @ (match problemdef.variableFormat with 
+                                                                                             D   : ( "xh" )
+                                                                                             DD  : ( "xh, xm" )
+                                                                                             TD  : ( "xh, xm, xl" )
+                                                                                );
+							symmetryCode = symmetryCode @ ");\n";
+							symmetryCode = symmetryCode @ "}\n";
+						     };
+						  };						  
+						  symmetryCode = symmetryCode @ "}\n";
+						  write(symmetryCode) >> parametrization.implementationFile;
+						  result = res;
+						  result.functionname = parametrization.functionBasename;
+					       }; 
+					    };
+				       };
+				       };
+				     }
+                default : { };
+
+	  return result;
+};
+
+
+procedure tryImplementation(problemdef, parametrization) {
+	  var result, res, tryImplementationInstance, tryImplementationChoices;
+	  var okay;
+
+	  result = { .okay = false };
+
+	  tryImplementationChoices = [| tryImplementationThroughSymmetryDetectionAroundZero, tryImplementationThroughDomainSplitting |];
+
+	  okay = false;
+	  while ((!okay) && (tryImplementationChoices != [||])) do {
+	          tryImplementationInstance = head(tryImplementationChoices);
+		  tryImplementationChoices = tail(tryImplementationChoices);
+	          res = tryImplementationInstance(problemdef, parametrization);
+
+		  if (res.okay) then {
+		     result = res;
+		     okay = true;
+		  };
+	  };
+
+	  return result;
 };
 

@@ -1,16 +1,23 @@
 /*
- * Copyright 2008 by 
+ * Copyright 2008-2011 by 
  * 
  * Laboratoire de l'Informatique du Parallélisme, 
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
  *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
  * Sollya metalibm main exploitation script for implementing functions 
  * with polynomial approximation and Horner scheme evaluation
  *
- * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN) 
+ *              christoph.lauter@ens-lyon.org
  *
  * This file is part of the metalibm library developed by the Arenaire
- * project at Ecole Normale Superieure de Lyon
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -81,8 +88,22 @@ write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n
    Launch implementer
 ----------------------------------------------------------- */ 
 
-resultat = implementwithdomainsplitting(f, dom, maxDegree, trim * target, (trim + trim + trim * trim), variableFormat, implementationFile, gappaFile, 
-                                       gappaOutputTmpFile,gappaExecutable,polynomialName);
+problemdef.func = f;
+problemdef.dom = dom;
+problemdef.target = trim * target;
+problemdef.variableFormat = variableFormat;
+
+parametrization.maxDegree = maxDegree;
+parametrization.minWidth = minWidth;
+parametrization.beta = trim + trim + trim * trim;
+parametrization.implementationFile = implementationFile;
+parametrization.gappaFile = gappaFile;
+parametrization.gappaOutputFile = gappaOutputTmpFile;
+parametrization.gappaExecutable = gappaExecutable;
+parametrization.functionBasename = polynomialName;
+
+
+resultat = tryImplementation(problemdef, parametrization);
 
 /* -------------------------------------------------------- 
    Print out results of the implementer, do timing and plotting
