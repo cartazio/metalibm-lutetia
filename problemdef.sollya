@@ -1,6 +1,7 @@
-f = sin(x);
-dom = [-1; 1];
+f = exp(x);
+dom = [-400; 500];
 target = 1b-60;
-maxDegree = 12;
+maxDegree = 7;
 minWidth = (sup(dom) - inf(dom)) * 1/8192;
+tableIndexWidth = 6;
 

@@ -1571,6 +1571,803 @@ procedure tryImplementationThroughSymmetryDetectionAroundZero(problemdef, parame
 	  return result;
 };
 
+procedure tryDetectExponentialArgRed(func, dom, target) {
+	  var result, base, a, b, c, d, ratio, oldPrec, testfunc;
+	  var y, zerosUpper, zerosLower;
+
+	  result = { .okay = false };
+
+	  /* We have to detect if func behaves in dom 
+	     like 
+
+	     base^x for some unknown base
+
+	     We say that func behaves like base^x 
+	     if 
+
+	     base^x = func * (1 + eps) with abs(eps) <= target.
+	     
+	     We start by computing a possible base
+	     as
+
+	     base = exp((log(f(c+d)/f(c))/d))
+	     
+	     with 
+
+	       - d = b - a                  if b - a < 5
+	         c = a
+
+	       - d = 5                      otherwise
+                 c = max(a, (a+b)/2 - 2.5) 
+
+             where dom = [a;b]
+
+	     We can stop trying if f(c+d)/f(c) is 
+	     negative.
+	  */	     
+	  a = inf(dom);
+	  b = sup(dom);
+	  if (b - a < 5) then {
+	     d = b - a;
+	     c = a;
+	  } else {
+	     d = 5;
+	     c = max(a, (a + b)/2 - 2.5);
+	  };
+	  ratio = f(c + d) / f(c);
+	  if (ratio > 0) then {
+	     /* Here, f(c + d) / f(c) is positive 
+
+	        So we can compute a presumed base 
+		as 
+
+		base = exp(log(ratio)/d)
+
+		where ratio = f(c + d) / f(c)
+
+		We need to perform this evaluation 
+		with an accuracy of at least the 
+		double of the prevailing precision
+		as the rest of the argument reduction
+		code must receive a pretty accurate 
+		base.
+
+	     */
+	     oldPrec = prec;
+	     prec = max(2 * prec, ceil(-log2(abs(target))) * 3)!;
+	     base := exp(log(ratio) / d);
+	     prec = oldPrec!;
+
+	     /* Now we have to check if base^x effectively approximates func with 
+	        an accuracy of target 
+	     */
+	     testfunc = simplifysafe((base^x)/func - 1);
+	     y = evaluate(testfunc, mid(dom));
+	     if (y in [-target, target]) then {
+	  	  zerosUpper = dirtyfindzeros(testfunc + target, dom);
+	  	  zerosLower = dirtyfindzeros(testfunc - target, dom);
+
+		  if ((zerosUpper == [||]) && (zerosLower == [||])) then {
+	              result.okay = true;
+		      result.exponentialFunc = base^x;
+		      result.exponentialBase = base;
+	          };  
+             };		  
+	  };
+	  return result;
+};
+
+procedure tryGenerateExponentialArgumentReduction(base, dom, functionName, polynomialFunctionName, outputformat, polynomialVariableFormat, variableFormat, argRedTarget, reconstructTableTarget, tableWidth) {
+	  var result, code, table, okay, variableDeclarations, reductionCode, reconstructionCode;
+	  var oldDisplay, tableFormat, i, tblEntry, tblEntryExact, logBaseOfTwoFormat, logBaseOfTwoExact;
+
+	  result = { .okay = false };
+	  okay = true;
+
+	  table = "\n";
+	  oldDisplay = display;
+	  display = decimal!;
+	  if (tableWidth > 0) then {
+	        if (3/8 * reconstructTableTarget < 1b-107) then tableFormat = TD
+                else if (3/8 * reconstructTableTarget < 1b-53) then tableFormat = DD 
+		else tableFormat = D;
+	  	table = table @ "static const double " @ functionName @ "_twoPower_Index_Hi[" @ (~(2^tableWidth)) @ "] = {\n";
+		for i from 0 to 2^tableWidth - 1 do {
+		    tblEntryExact = 2^(i * 2^(-tableWidth));
+		    tblEntry = simplifysafe(D(tblEntryExact));
+		    table = table @ " " @ tblEntry;
+		    if (i != 2^tableWidth - 1) then table = table @ ",";
+		    table = table @ "\n";
+		};
+		table = table @ "};\n\n";
+		if ((tableFormat == DD) || (tableFormat == TD)) then {
+	           table = table @ "static const double " @ functionName @ "_twoPower_Index_Mi[" @ (~(2^tableWidth)) @ "] = {\n";
+		   for i from 0 to 2^tableWidth - 1 do {
+		       tblEntryExact = 2^(i * 2^(-tableWidth));
+		       tblEntry = simplifysafe(D(tblEntryExact - D(tblEntryExact)));
+		       table = table @ " " @ tblEntry;
+		       if (i != 2^tableWidth - 1) then table = table @ ",";
+		       table = table @ "\n";
+		   };
+		   table = table @ "};\n\n";
+		};
+	        if (tableFormat == TD) then {
+	           table = table @ "static const double " @ functionName @ "_twoPower_Index_Lo[" @ (~(2^tableWidth)) @ "] = {\n";
+		   for i from 0 to 2^tableWidth - 1 do {
+		       tblEntryExact = 2^(i * 2^(-tableWidth));
+		       tblEntry = simplifysafe(D(tblEntryExact - (D(tblEntryExact) + D(tblEntryExact - D(tblEntryExact)))));
+		       table = table @ " " @ tblEntry;
+		       if (i != 2^tableWidth - 1) then table = table @ ",";
+		       table = table @ "\n";
+		   };
+		   table = table @ "};\n\n";
+		};
+          };
+
+	  table = table @ "#define " @ functionName @ "_argred_log2_of_base_times_two_to_w " @ (simplifysafe(D(log2(base) * 2^tableWidth))) @ "\n";
+
+	  if (argRedTarget * 2^(-tableWidth - 2) < 1b-106) then logBaseOfTwoFormat = TD
+	  else if (argRedTarget * 2^(-tableWidth - 2) < 1b-53) then logBaseOfTwoFormat = DD
+	  else logBaseOfTwoFormat = D;
+
+	  logBaseOfTwoExact = -2^(-tableWidth) * log(2)/log(base);
+	  table = table @ "#define " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_hi " @ (simplifysafe(D(logBaseOfTwoExact))) @ "\n";
+	  if ((logBaseOfTwoFormat == DD) || (logBaseOfTwoFormat == TD)) then {
+	     table = table @ "#define " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_mi " @ (simplifysafe(D(logBaseOfTwoExact - D(logBaseOfTwoExact)))) @ "\n";
+	  };
+	  if (logBaseOfTwoFormat == TD) then {
+	     table = table @ "#define " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_lo " @ (simplifysafe(D(logBaseOfTwoExact - (D(logBaseOfTwoExact) + D(logBaseOfTwoExact - D(logBaseOfTwoExact)))))) @ "\n";
+	  };
+
+	  table = table @ "#define " @ functionName @ "_argred_shifter 6755399441055744.0\n";
+	  table = table @ "#define " @ functionName @ "_argred_w " @ tableWidth @ "\n";
+	  table = table @ "#define " @ functionName @ "_argred_idx_mask " @ (simplifysafe(2^tableWidth - 1)) @ "ull\n";
+	  table = table @ "#define " @ functionName @ "_argred_lower_32_bits 0xffffffffull\n";
+	  display=oldDisplay!;
+
+	  variableDeclarations = "\n";
+	  reductionCode = "\n";
+	  reconstructionCode = "\n";
+	  
+ 	  variableDeclarations = variableDeclarations @ "double t;\n";
+	  reductionCode = reductionCode @ "t = xh * " @ functionName @ "_argred_log2_of_base_times_two_to_w;\n";
+ 	  variableDeclarations = variableDeclarations @ "double shifted_t;\n";
+	  reductionCode = reductionCode @ "shifted_t = t + " @ functionName @ "_argred_shifter;\n";
+ 	  variableDeclarations = variableDeclarations @ "double mAsDouble;\n";
+	  reductionCode = reductionCode @ "mAsDouble = shifted_t - " @ functionName @ "_argred_shifter;\n";
+ 	  variableDeclarations = variableDeclarations @ "db_number argRedCaster;\n";
+ 	  variableDeclarations = variableDeclarations @ "int mAsInt;\n";
+	  reductionCode = reductionCode @ "argRedCaster.d = shifted_t;\n";
+	  reductionCode = reductionCode @ "mAsInt = (int) (argRedCaster.l & " @ functionName @ "_argred_lower_32_bits);\n";
+ 	  variableDeclarations = variableDeclarations @ "int E;\n";
+	  reductionCode = reductionCode @ "E = mAsInt >> " @ functionName @ "_argred_w;\n";
+ 	  variableDeclarations = variableDeclarations @ "int E1;\n";
+	  reductionCode = reductionCode @ "E1 = E >> 1;\n";
+ 	  variableDeclarations = variableDeclarations @ "int E2;\n";
+	  reductionCode = reductionCode @ "E2 = E - E1;\n";
+ 	  variableDeclarations = variableDeclarations @ "int idx;\n";
+	  reductionCode = reductionCode @ "idx = mAsInt & " @ functionName @ "_argred_idx_mask;\n";
+
+	  match (logBaseOfTwoFormat) with 
+	  	D  : {
+		        variableDeclarations = variableDeclarations @ "double rescaled_m_hi;\n";
+	                reductionCode = reductionCode @ "rescaled_m_hi = mAsDouble * " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_hi;\n";
+		     }
+		DD : {
+		        variableDeclarations = variableDeclarations @ "double rescaled_m_hi;\n";
+		        variableDeclarations = variableDeclarations @ "double rescaled_m_mi;\n";
+	                reductionCode = reductionCode @ "Mul122(&rescaled_m_hi, &rescaled_m_mi, mAsDouble, " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_hi, " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_mi);\n";
+	             }
+		TD : {
+		        variableDeclarations = variableDeclarations @ "double rescaled_m_hi;\n";
+		        variableDeclarations = variableDeclarations @ "double rescaled_m_mi;\n";
+		        variableDeclarations = variableDeclarations @ "double rescaled_m_lo;\n";
+	                reductionCode = reductionCode @ "Mul133(&rescaled_m_hi, &rescaled_m_mi, &rescaled_m_lo, mAsDouble, " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_hi, " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_mi, " @ functionName @ "_argred_minus_logbase_of_2_times_two_to_minus_w_lo);\n";
+	             };
+	  
+	  match (logBaseOfTwoFormat) with 
+	  	D  : {
+		          match (variableFormat) with 
+			  	D  : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = xh + rescaled_m_hi;\n";
+					       	    }
+					       DD : {
+	                                                reductionCode = reductionCode @ "zh = xh + rescaled_m_hi;\n";
+	                                                reductionCode = reductionCode @ "zm = 0.0;\n";
+					       	    }
+					       TD : {
+	                                                reductionCode = reductionCode @ "zh = xh + rescaled_m_hi;\n";
+	                                                reductionCode = reductionCode @ "zm = 0.0;\n";
+	                                                reductionCode = reductionCode @ "zl = 0.0;\n";
+					       	    };
+				     }
+			  	DD : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = (xh + rescaled_m_hi) + xm;\n";
+					       	    }
+					       DD : {
+					                variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+	                                                reductionCode = reductionCode @ "Add12Cond(zh,zm,tempArgRed,xm);\n";
+					       	    }
+					       TD : {
+					                variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+	                                                reductionCode = reductionCode @ "Add12Cond(zh,zm,tempArgRed,xm);\n";
+                                                        reductionCode = reductionCode @ "zl = 0.0;\n";												       	  
+					       	    };
+				     }
+			  	TD : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = (xh + rescaled_m_hi) + (xm + xl);\n";
+					       	    }
+					       DD : {
+					                variableDeclarations = variableDeclarations @ "double tempArgRed1;\n";
+					                variableDeclarations = variableDeclarations @ "double tempArgRed2;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed1 = xh + rescaled_m_hi;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed2 = xm + xl;\n";
+	                                                reductionCode = reductionCode @ "Add12Cond(zh,zm,tempArgRed1,tempArgRed2);\n";
+					       	    }
+					       TD : {
+					                variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+					                variableDeclarations = variableDeclarations @ "double tempArgRed_hi;\n";
+					                variableDeclarations = variableDeclarations @ "double tempArgRed_mi;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+	                                                reductionCode = reductionCode @ "Add12Cond(tempArgRed_hi,tempArgRed_mi,tempArgRed,xm);\n";
+                                                        reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed_hi,tempArgRed_mi,xl);\n";
+					       	    };
+				     };				     
+		     }
+		DD : {
+		          match (variableFormat) with 
+			  	D  : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = (xh + rescaled_m_hi) + rescaled_m_mi;\n";
+					       	    }
+					       DD : {
+					       	        variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+						        reductionCode = reductionCode @ "Add12Cond(zh,zm,tempArgRed,rescaled_m_mi);\n";
+					       	    }
+					       TD : {
+					       	        variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+						        reductionCode = reductionCode @ "Add12Cond(zh,zm,tempArgRed,rescaled_m_mi);\n";
+						        reductionCode = reductionCode @ "zl = 0.0;\n";
+					       	    };
+				     }
+			  	DD : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "tempArgRed = ((xh + rescaled_m_hi) + xm) + rescaled_m_mi;\n";	
+					       	    }
+					       DD : {
+					                reductionCode = reductionCode @ "Add22(&zh,&zm,xh,xm,rescaled_m_hi,rescaled_m_mi);\n";
+					       	    }
+					       TD : {
+					       	        variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_lo;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Add12Cond(tempArgRed2_hi,tempArgRed2_lo,xm,rescaled_m_hi);\n";
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed,tempArgRed2_hi,tempArgRed2_lo);\n";
+					       	    };
+				     }
+			  	TD : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+					                reductionCode = reductionCode @ "tempArgRed = (((xh + rescaled_m_hi) + xm) + rescaled_m_mi) + xl;\n";	
+					       	    }
+					       DD : {
+					       	        variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_lo;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,xl);\n";
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
+					       	    }
+					       TD : {
+					       		variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed4;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,xl);\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed3_hi,&tempArgRed3_mi,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
+							tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed3_hi,tempArgRed3_mi,tempArgRed4);\n";
+					       	    };
+				     };				     
+	             }
+		TD : {
+		          match (variableFormat) with 
+			  	D  : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = ((xh + rescaled_m_hi) + rescaled_m_mi) + rescaled_m_lo;\n";
+					       	    }
+					       DD : {
+							variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&tempArgRed2,tempArgRed,rescaled_m_mi,rescaled_m_lo);\n";
+					       	    }
+					       TD : {
+							variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed,rescaled_m_mi,rescaled_m_lo);\n";
+					       	    };
+				     }
+			  	DD : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = (((xh + rescaled_m_hi) + xm) + rescaled_m_mi) + rescaled_m_lo;\n";
+					       	    }
+					       DD : {
+					       		variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed4;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed5;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,rescaled_m_lo);\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed3_hi,&tempArgRed3_mi,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
+							tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&tempArgRed5,tempArgRed3_hi,tempArgRed3_mi,tempArgRed4);\n";
+					       	    }
+					       TD : {
+					       		variableDeclarations = variableDeclarations @ "double tempArgRed;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed3_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed4;\n";
+	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,rescaled_m_lo);\n";
+							reductionCode = reductionCode @ "Renormalize3(&tempArgRed3_hi,&tempArgRed3_mi,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
+							tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed3_hi,tempArgRed3_mi,tempArgRed4);\n";
+					       	    };
+				     }
+			  	TD : {
+				         match (polynomialVariableFormat) with 
+					       D  : {
+	                                                reductionCode = reductionCode @ "zh = ((((xh + rescaled_m_hi) + xm) + rescaled_m_mi) + xl) + rescaled_m_lo;\n";
+					       	    }
+					       DD : {
+							variableDeclarations = variableDeclarations @ "double tempArgRed_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed_lo;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed2;\n";     
+							reductionCode = reductionCode @ "Add33(&tempArgRed_hi,&tempArgRed_mi,&tempArgRed_lo,xh,xm,xl,rescaled_m_hi,rescaled_m_mi,rescaled_m_lo);\n";
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&tempArgRed2,tempArgRed_hi,tempArgRed_mi,tempArgRed_lo);\n";
+					       	    }
+					       TD : {
+							variableDeclarations = variableDeclarations @ "double tempArgRed_hi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed_mi;\n";
+							variableDeclarations = variableDeclarations @ "double tempArgRed_lo;\n";
+							reductionCode = reductionCode @ "Add33(&tempArgRed_hi,&tempArgRed_mi,&tempArgRed_lo,xh,xm,xl,rescaled_m_hi,rescaled_m_mi,rescaled_m_lo);\n";
+							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed_hi,tempArgRed_mi,tempArgRed_lo);\n";
+					       	    };
+				     };				     
+	             };
+
+	  if (tableWidth > 0) then {
+          match (outputformat) with 
+                D  : {
+			match (tableFormat) with 
+			      D  : {
+					variableDeclarations = variableDeclarations @ "double table_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "tableTimesPoly_hi = table_hi * poly_resh;\n";
+			      	   }
+			      DD : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr2;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_mi = " @ functionName @ "_twoPower_Index_Mi[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul12(&tempReconstr_hi,&tempReconstr_lo,table_hi,poly_resh);\n";
+					reconstructionCode = reconstructionCode @ "tempReconstr2 = table_mi * poly_resh;\n";					
+					reconstructionCode = reconstructionCode @ "tableTimesPoly_hi = tempReconstr_hi + (tempReconstr_lo + tempReconstr2);\n";					
+			      	   }
+		              TD : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_mi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr2_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr2_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr3_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr3_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr4;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_mi = " @ functionName @ "_twoPower_Index_Mi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_lo = " @ functionName @ "_twoPower_Index_Lo[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul12(&tempReconstr_hi,&tempReconstr_lo,table_hi,poly_resh);\n";
+					reconstructionCode = reconstructionCode @ "Mul12(&tempReconstr2_hi,&tempReconstr2_lo,table_mi,poly_resh);\n";
+					reconstructionCode = reconstructionCode @ "Add12Cond(tempReconstr3_hi,tempReconstr3_lo,tempReconstr_lo,tempReconstr2_hi);\n";		
+					reconstructionCode = reconstructionCode @ "tempReconstr4 = table_lo * poly_resh;\n";										
+					reconstructionCode = reconstructionCode @ "tableTimesPoly_hi = (((tempReconstr4 + tempReconstr2_lo) + tempReconstr3_lo) + tempReconstr3_hi) + tempReconstr_hi;\n";
+			      	   };
+		     }
+                DD : {
+		        match (tableFormat) with 
+			      D  : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_mi;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul122(&tableTimesPoly_hi,&tableTimesPoly_mi,table_hi,poly_resh,poly_resm);\n";					
+			      	   }
+			      DD : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_mi;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_mi = " @ functionName @ "_twoPower_Index_Mi[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul22(&tableTimesPoly_hi,&tableTimesPoly_mi,table_hi,table_mi,poly_resh,poly_resm);\n";					
+			      	   }
+		              TD : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_mi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tempReconstr2;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_mi = " @ functionName @ "_twoPower_Index_Mi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_lo = " @ functionName @ "_twoPower_Index_Lo[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul233(&tempReconstr_hi,&tempReconstr_mi,&tempReconstr_lo,poly_resh,poly_resm,table_hi,table_mi,table_lo);\n";					
+					reconstructionCode = reconstructionCode @ "Renormalize3(&zh,&zm,&tempReconstr2,tempReconstr_hi,tempReconstr_mi,tempReconstr_lo);\n";					
+			      	   };
+                     }
+                TD : {
+			match (tableFormat) with 
+			      D  : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_lo;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul133(&tableTimesPoly_hi,&tableTimesPoly_mi,&tableTimesPoly_lo,table_hi,poly_resh,poly_resm,poly_resl);\n";					
+			      	   }
+			      DD : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_lo;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_mi = " @ functionName @ "_twoPower_Index_Mi[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul233(&tableTimesPoly_hi,&tableTimesPoly_mi,&tableTimesPoly_lo,table_hi,table_mi,poly_resh,poly_resm,poly_resl);\n";
+			      	   }
+		              TD : {
+				        variableDeclarations = variableDeclarations @ "double table_hi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_mi;\n";
+				        variableDeclarations = variableDeclarations @ "double table_lo;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_hi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_mi;\n";
+					variableDeclarations = variableDeclarations @ "double tableTimesPoly_lo;\n";
+					reconstructionCode = reconstructionCode @ "table_hi = " @ functionName @ "_twoPower_Index_Hi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_mi = " @ functionName @ "_twoPower_Index_Mi[idx];\n";
+					reconstructionCode = reconstructionCode @ "table_lo = " @ functionName @ "_twoPower_Index_Lo[idx];\n";
+					reconstructionCode = reconstructionCode @ "Mul33(&tableTimesPoly_hi,&tableTimesPoly_mi,&tableTimesPoly_lo,table_hi,table_mi,table_lo,poly_resh,poly_resm,poly_resl);\n";
+			      	   };
+                     };
+          };
+          
+	  variableDeclarations = variableDeclarations @ "db_number twoE1;\n";
+	  reconstructionCode = reconstructionCode @ "twoE1.l = E1 + 1023ll;\n"; 
+	  reconstructionCode = reconstructionCode @ "twoE1.l <<= 52;\n"; 
+	  variableDeclarations = variableDeclarations @ "db_number twoE2;\n";
+	  reconstructionCode = reconstructionCode @ "twoE2.l = E2 + 1023ll;\n"; 
+	  reconstructionCode = reconstructionCode @ "twoE2.l <<= 52;\n"; 
+
+	  if (tableWidth > 0) then {
+          match (outputformat) with 
+                D  : {
+		         variableDeclarations = variableDeclarations @ "double twoE1tablePoly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1tablePoly_hi = twoE1.d * tableTimesPoly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resh = twoE2.d * twoE1tablePoly_hi;\n";
+		     }
+		DD : {
+		         variableDeclarations = variableDeclarations @ "double twoE1tablePoly_hi;\n";
+		         variableDeclarations = variableDeclarations @ "double twoE1tablePoly_mi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1tablePoly_hi = twoE1.d * tableTimesPoly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1tablePoly_mi = twoE1.d * tableTimesPoly_mi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resh = twoE2.d * twoE1tablePoly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resm = twoE2.d * twoE1tablePoly_mi;\n";
+		     }
+		TD : {
+		         variableDeclarations = variableDeclarations @ "double twoE1tablePoly_hi;\n";
+		         variableDeclarations = variableDeclarations @ "double twoE1tablePoly_mi;\n";
+		         variableDeclarations = variableDeclarations @ "double twoE1tablePoly_lo;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1tablePoly_hi = twoE1.d * tableTimesPoly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1tablePoly_mi = twoE1.d * tableTimesPoly_mi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1tablePoly_lo = twoE1.d * tableTimesPoly_lo;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resh = twoE2.d * twoE1tablePoly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resm = twoE2.d * twoE1tablePoly_mi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resl = twoE2.d * twoE1tablePoly_lo;\n";
+		     };
+          } else {          
+          match (outputformat) with 
+                D  : {
+		         variableDeclarations = variableDeclarations @ "double twoE1Poly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1Poly_hi = twoE1.d * poly_resh;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resh = twoE2.d * twoE1Poly_hi;\n";
+		     }
+		DD : {
+		         variableDeclarations = variableDeclarations @ "double twoE1Poly_hi;\n";
+		         variableDeclarations = variableDeclarations @ "double twoE1Poly_mi;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1Poly_hi = twoE1.d * poly_resh;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1Poly_mi = twoE1.d * poly_resm;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resh = twoE2.d * twoE1Poly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resm = twoE2.d * twoE1Poly_mi;\n";
+		     }
+		TD : {
+		         variableDeclarations = variableDeclarations @ "double twoE1Poly_hi;\n";
+		         variableDeclarations = variableDeclarations @ "double twoE1Poly_mi;\n";
+		         variableDeclarations = variableDeclarations @ "double twoE1Poly_lo;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1Poly_hi = twoE1.d * poly_resh;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1Poly_mi = twoE1.d * poly_resm;\n";
+			 reconstructionCode = reconstructionCode @ "twoE1Poly_lo = twoE1.d * poly_resl;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resh = twoE2.d * twoE1Poly_hi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resm = twoE2.d * twoE1Poly_mi;\n";
+			 reconstructionCode = reconstructionCode @ "*res_resl = twoE2.d * twoE1Poly_lo;\n";
+		     };
+	  };
+
+	  code = "\n";
+	  code = code @ "void " @ functionName @ "(";
+	  code = code @ (match outputformat with 
+                               D   : ( "double *res_resh, " )
+                               DD  : ( "double *res_resh, double *res_resm, " )
+                               TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
+                        );
+          code = code @ (match variableFormat with 
+                               D   : ( "double xh" )
+                               DD  : ( "double xh, double xm" )
+                               TD  : ( "double xh, double xm, double xl" )
+                        );
+          code = code @ ") {\n";
+          code = code @ (match polynomialVariableFormat with 
+                               D   : ( "double zh;" )
+                               DD  : ( "double zh, zm;" )
+                               TD  : ( "double zh, zm, zl;" )
+                        );
+          code = code @ "\n";
+          code = code @ (match outputformat with 
+                               D   : ( "double poly_resh;" )
+                               DD  : ( "double poly_resh, poly_resm;" )
+                               TD  : ( "double poly_resh, poly_resm, poly_resl;" )
+                        );
+          code = code @ "\n";
+	  code = code @ variableDeclarations @ "\n";
+	  code = code @ reductionCode @ "\n";
+          code = code @ polynomialFunctionName @ "(";				  
+          code = code @ (match outputformat with 
+                               D   : ( "&poly_resh, " )
+                               DD  : ( "&poly_resh, &poly_resm, " )
+                               TD  : ( "&poly_resh, &poly_resm, &poly_resl, " )
+                        );
+          code = code @ (match polynomialVariableFormat with 
+                               D   : ( "zh" )
+                               DD  : ( "zh, zm" )
+                               TD  : ( "zh, zm, zl" )
+                        );
+          code = code @ ");\n";				  
+	  code = code @ reconstructionCode @ "\n";
+          code = code @ "}\n";
+
+	  if (okay) then {
+	     result.code = table @ code;
+	     result.okay = true;
+	  };
+
+	  return result;
+};
+
+procedure tryImplementationThroughArgumentReductionExponential(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, myTableWidth, base, myDom, reducedFunc;
+	  var doNotPerformExponentialArgRed, argRedTarget, myVariableFormat, myProblemdef, myParametrization;
+	  var suffix, origDefDom, resArgRed;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default, 
+				       .tableIndexWidth = default } } : {
+				       
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       doNotPerformExponentialArgRed = false;
+				       match (parametrization) with 
+				             { .doNotPerformExponentialArgRed = true } : { doNotPerformExponentialArgRed = true; }
+					     default : { };
+
+				       if (!doNotPerformExponentialArgRed) then {
+				           /* Start with a test if the domain actually needs 
+                                              argument reduction in order to stay below the maximum 
+					      polynomial degree 
+				           */	     
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+				       	      /* Here, we need to detect if we can use 
+					         the exponential argument reduction 
+					         for the given function 
+					      */
+					      res = tryDetectExponentialArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8);
+					       
+					      if (res.okay) then {
+					         /* Here we can use the argument reduction for (res.exponentialBase)^x = res.exponentialFunc 
+
+					            We start by computing the range of the reduced argument.
+						
+						    We have
+
+						    base^x = 2^k * a^(x - k * log(2)/log(base))
+
+						    where k is computed as
+
+						    k = 2^(-w) * nearestint(x * log2(base) * 2^w)
+
+						    where w is the table index width.
+
+						    Hence the reduced argument z = x - k * log(2)/log(base)
+						    varies in the domain
+
+						    myDom = [ -2^(-w-1) * log(2)/log(base) ; 2^(-w-1) * log(2)/log(base) ]
+					         */
+					         base = res.exponentialBase;
+					         reducedFunc = res.exponentialFunc;
+		                                 write("Detected possible argument reduction as base^x, where base is approximately: ", round(base,24,RN), "\n");
+					         myTableWidth = parametrization.tableIndexWidth;
+					         if (myTableWidth < 0) then myTableWidth = 0;
+					     
+					         myDom = [ -2^(-myTableWidth-1) * log(2)/log(base);
+					                    2^(-myTableWidth-1) * log(2)/log(base)];
+							
+					         write("The reduced argument domain is ", myDom, "\n");
+
+				                 /* Now we have to check if the "argument reduction"
+					            actually reduces the size of the argument range.
+						    If not, base is too small for our table size
+						    and we'd better apply some other technique.
+				                 */
+					         if (sup(myDom) - inf(myDom) < sup(problemdef.dom) - inf(problemdef.dom)) then {
+					     	    /* Now we can try to implement our reduced function.
+						       We have to add a marker to the parametrization
+						       in order not to re-perform an argument reduction
+						       of the same type.
+
+						       To do so, we have to determine the precision
+						       needed for the reduced argument.
+						       						       
+						       It is pretty easy to show that the amplified
+                                                       forward error of the argument reduction eps2 
+						       can be expressed as
+
+						       eps2 = base^(eps1 * z) - 1
+
+						       where z is the reduced argument and eps1 is
+						       the relative error on the reduced argument.
+						       In order to keep eps2 at 1/8 * target, eps1
+						       must hence be bounded by
+
+						       abs(eps1) <= min( abs(log(1 - 1/8 * target) / log(base^inf(myDom))),
+						                         abs(log(1 - 1/8 * target) / log(base^sup(myDom))),
+						                         abs(log(1 + 1/8 * target) / log(base^inf(myDom))),
+						                         abs(log(1 + 1/8 * target) / log(base^sup(myDom))) )
+						    */
+						    argRedTarget = min( abs(log(1 - 1/8 * (problemdef.target)) / log(base^inf(myDom))),
+						                        abs(log(1 - 1/8 * (problemdef.target)) / log(base^sup(myDom))),
+						                        abs(log(1 + 1/8 * (problemdef.target)) / log(base^inf(myDom))),
+						                        abs(log(1 + 1/8 * (problemdef.target)) / log(base^sup(myDom))) );
+
+					            write("The maximum error allowed for argument reduction is 2^(", round(log2(argRedTarget),12,RN), ")\n");
+						    if (argRedTarget < 1b-102) then myVariableFormat = TD
+						    else if (argRedTarget < 1b-51) then myVariableFormat = DD
+						    else myVariableFormat = D;
+						    if (problemdef.variableFormat == TD) then myVariableFormat = TD
+						    else if (problemdef.variableFormat == DD) then myVariableFormat = DD;
+						    write("This means the reduced argument will be represented on a ", myVariableFormat, "\n");
+						    
+						    myProblemdef.func = reducedFunc;
+						    myProblemdef.dom = myDom;
+						    myProblemdef.target = 1/8 * (problemdef.target);
+						    myProblemdef.variableFormat = myVariableFormat;
+						    suffix = "_exp_arg_red";
+					            origDefDom = problemdef.dom;
+					            match (problemdef) with { .definitionDomain = default } : { 
+					                                         if (origDefDom in problemdef.definitionDomain) then {
+                                                                                    origDefDom = problemdef.definitionDomain;
+                                                                                 }; }
+                                                                            default : {};
+					            myProblemdef.definitionDomain = origDefDom;
+					            myParametrization = parametrization;
+					            myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+					            myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+						    myParametrization.doNotPerformExponentialArgRed = true;
+						    
+					            res = tryImplementation(myProblemdef, myParametrization);
+
+						    if (res.okay) then {
+						       write("Implementation of the approximation on the reduced domain worked, generating argument reduction and tables\n");
+						       resArgRed = tryGenerateExponentialArgumentReduction(base, problemdef.dom, parametrization.functionBasename, 
+						                                                           res.functionname, res.outputformat, myVariableFormat, problemdef.variableFormat, 
+													   argRedTarget, 1/8 * (problemdef.target), myTableWidth);
+
+						       if (resArgRed.okay) then {
+						          write("Argument reduction code correctly generated\n");
+						          write(resArgRed.code) >> parametrization.implementationFile;
+							  result.okay = true;
+	                                                  result.approxerr = res.approxerr;
+							  result.implerr = res.implerr;
+							  result.outputformat = res.outputformat;
+						          result.functionname = parametrization.functionBasename;
+						       } else {
+                                                          write("No argument reduction code could be generated\n");
+						       };
+						    };						    
+					         };
+					      };
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
 
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
@@ -1578,7 +2375,7 @@ procedure tryImplementation(problemdef, parametrization) {
 
 	  result = { .okay = false };
 
-	  tryImplementationChoices = [| tryImplementationThroughSymmetryDetectionAroundZero, tryImplementationThroughDomainSplitting |];
+	  tryImplementationChoices = [| tryImplementationThroughArgumentReductionExponential, tryImplementationThroughSymmetryDetectionAroundZero, tryImplementationThroughDomainSplitting |];
 
 	  okay = false;
 	  while ((!okay) && (tryImplementationChoices != [||])) do {

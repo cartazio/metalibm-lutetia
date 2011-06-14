@@ -60,7 +60,7 @@ execute("problemdef.sollya");
    Put additional configuration data here
 ----------------------------------------------------------- */ 
 
-variableFormat = D;
+variableFormat = DD;
 
 doplots = true;
 dotiming = true;
@@ -95,6 +95,7 @@ problemdef.variableFormat = variableFormat;
 
 parametrization.maxDegree = maxDegree;
 parametrization.minWidth = minWidth;
+parametrization.tableIndexWidth = tableIndexWidth;
 parametrization.beta = trim + trim + trim * trim;
 parametrization.implementationFile = implementationFile;
 parametrization.gappaFile = gappaFile;
