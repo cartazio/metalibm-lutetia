@@ -79,9 +79,9 @@ procedure minimaMaxima(func,dom) {
 	var minimum, maximum, t;
 
 	deriv = diff(func);
-	zerosIntRaw = findzeros(deriv,dom);
+	zerosIntRaw = myfindzeros(deriv,dom);
 	zerosInt = [||];
-	for z in zerosIntRaw do zerosInt = zerosInt @ (findzeros(deriv,z));
+	for z in zerosIntRaw do zerosInt = zerosInt @ (myfindzeros(deriv,z));
 	zeros = [||];
 	for z in zerosInt do zeros = zeros @ (dirtyfindzeros(deriv,z));
 	zeros = sort(zeros);
@@ -167,6 +167,8 @@ procedure remezbugreport(f,m,d,w) {
 	  var oldverb;
 	  var myDom;
 	  var func, isAList, y;
+	  var oldDisplay;
+	  var remezTime;
 
 	  myDom = d;
 	  if ((inf(d) == 0) || (sup(d) == 0)) then {
@@ -199,10 +201,17 @@ procedure remezbugreport(f,m,d,w) {
 	  qual = 2621b-19;
 	  res = false;
 
-	  /* "remez(",f,",",m,",",myDom,",",w,",",qual,")"; */
+	  oldDisplay = display;
+	  display = dyadic!;
+	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,");"; 
+	  display = oldDisplay!;
 
-	  res = remez(f,m,myDom,w,qual);
-	  if (!(res == res)) then res = false;
+	  remezTime = time({
+                         	  res = remez(f,m,myDom,w,qual);
+	                          if (!(res == res)) then res = false;
+		           });
+	  "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";
+	  wholeRemezTime := wholeRemezTime + remezTime;
 
 	  verbosity = oldverb!;
 	  points = oldpoints!;

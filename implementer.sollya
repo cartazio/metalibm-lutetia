@@ -36,7 +36,7 @@
 
 roundingwarnings=off!;
 prec = 350!;
-verbosity = 0!;
+verbosity = 1!;
 
 /* --------------------------------------------------------
    Read in configuration
@@ -60,7 +60,7 @@ execute("problemdef.sollya");
    Put additional configuration data here
 ----------------------------------------------------------- */ 
 
-variableFormat = DD;
+variableFormat = D;
 
 doplots = true;
 dotiming = true;
@@ -72,6 +72,12 @@ trim = 1/2;
 polynomialName = "f_approx";
 gappaOutputTmpFile = "gappaOutput.sollya";
 compiledCode = "implementation.so";
+
+/* -------------------------------------------------------- 
+   Initialize performance counters
+----------------------------------------------------------- */ 
+
+wholeRemezTime = 0;
 
 /* -------------------------------------------------------- 
    Print out problem configuration 
@@ -102,9 +108,11 @@ parametrization.gappaFile = gappaFile;
 parametrization.gappaOutputFile = gappaOutputTmpFile;
 parametrization.gappaExecutable = gappaExecutable;
 parametrization.functionBasename = polynomialName;
+parametrization.minimalReductionRatio = minimalReductionRatio;
 
-
-resultat = tryImplementation(problemdef, parametrization);
+implementationTime = time({
+		   resultat = tryImplementation(problemdef, parametrization);
+		   });
 
 /* -------------------------------------------------------- 
    Print out results of the implementer, do timing and plotting
@@ -113,6 +121,8 @@ resultat = tryImplementation(problemdef, parametrization);
 write("\n");
 
 if (resultat.okay) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
+
+write("Implementation took ", nearestint(implementationTime), " sec. out of which ", nearestint(wholeRemezTime), " sec. were spent on remez (",nearestint(wholeRemezTime/implementationTime * 100),"%)\n");
 
 sollyapath = sollyaPath;
 if sollyapath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";

@@ -39,10 +39,10 @@ procedure testEvenSymetry(func, dom, target) {
 	  fa := func(a);
 	  olddiam = (diam = ?);
 	  diam = olddiam * 1b-10!;
-	  possibleRawBs2 = findzeros(func - fa, dom);
+	  possibleRawBs2 = myfindzeros(func - fa, dom);
 	  possibleRawBs = [||];
 	  for pbs in possibleRawBs2 do 
-	      possibleRawBs = possibleRawBs @ (findzeros(func - fa, pbs));
+	      possibleRawBs = possibleRawBs @ (myfindzeros(func - fa, pbs));
 	  diam = olddiam!;
 	  possibleBs = [||];
 	  for pbs in possibleRawBs do 

@@ -42,6 +42,55 @@ execute("galoptimisation.sollya");
 execute("symetries.sollya");
 
 
+procedure myfindzeros(func,dom) {
+	  var zeros, numZeros, nz, minBound, maxBound, i, len, dist, z;
+	  var oldPoints, valid, ya, yb;
+
+	  oldPoints = points;
+	  points = 1001!;
+	  
+	  numZeros = dirtyfindzeros(func,dom);
+	  len = length(numZeros);
+	  zeros = [||];
+	  if ((len > 0) && (len < 500)) then {
+	     	  dist = ((sup(dom) - inf(dom)) * diam)/2;
+	  	  minBound = inf(dom);
+	  	  for i from 0 to len-1 do {
+		      if (i != len-1) then {
+		      	maxBound = numZeros[i + 1] - dist;
+		      } else {
+		      	maxBound = sup(dom);
+		      };
+		      nz = numZeros[i];
+		      z = [ max(minBound, nz - dist) ; min(maxBound, nz + dist) ];
+		      zeros = zeros :. z;
+		      minBound = maxBound;
+	  	  };
+		  valid = true;
+		  for z in zeros do {
+		      ya = mid(evaluate(func,inf(z)));
+		      yb = mid(evaluate(func,sup(z)));
+		      if (ya * yb > 0) then {
+		      	 valid = false;
+		      };
+		  };
+		  if (!valid) then {
+		     zeros = findzeros(func,dom);
+		  };
+          } else {
+	    	  if (len >= 500) then {
+		    zeros = findzeros(func,dom);
+		  } else {
+		    zeros = [||];
+		  };
+	  };
+
+	  points = oldPoints!;
+
+	  return zeros;
+};
+
+
 /* Quickly checks if the infinite norm of func 
    in dom is less than target 
 
@@ -514,14 +563,12 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  var galoptim;		  
 	  var galoptimizedMonomials;
 
+	  /* write("implementsmall(",func,",", dom,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialName,")\n"); */
 	  
 	  galoptimizedMonomials = [||];
 	  okay = true;
 	  
-
 	  if (inf(dom) * sup(dom) >= 0) then {
-
-
 	       zerosInInterval = [||];
 	       oldprec = (prec = ?);
 	       prec = oldprec * 3!;
@@ -529,10 +576,10 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	       points = oldpoints * 6!;
 	       olddiam = (diam = ?);
 	       diam = olddiam / 1b8!;
- 	       zerosInIntervalRaw2 = findzeros(func,dom);
+ 	       zerosInIntervalRaw2 = myfindzeros(func,dom);
 	       zerosInIntervalRaw = [||];
 	       for zr in zerosInIntervalRaw2 do 
-	          zerosInIntervalRaw = zerosInIntervalRaw @(findzeros(func,zr));
+	          zerosInIntervalRaw = zerosInIntervalRaw @(myfindzeros(func,zr));
 	       for zr in zerosInIntervalRaw do 
 	          zerosInInterval = zerosInInterval @ (dirtyfindzeros(func,zr));
 	       prec = oldprec!;
@@ -854,6 +901,8 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  var res, implementationFiles, implFile, myOutputFormat, opF, myOutputFormatNum;
 	  var myFunctionName, splitterCode, oldDisplay, recursiveSplitterRes, symmetrizedDom, recovered;
 
+	  /* write("implementwithdomainsplitlist(",func,",", dom,",", splitPoints,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); */
+
 	  resultat = { .okay = false };
 
 	  /* First of all, if no splitPoints are given, the domain is not
@@ -1079,7 +1128,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
 
 	  };
 
-	     if (deg > 0) then { 
+	     if (deg >= 0) then { 
 	     	if (deg <= maxDegree) then {
 		   resultat.okay = true;
 		   resultat.splitPoints = [||];
@@ -1140,6 +1189,8 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
 procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
 	  var resultat, res, splitPoints;
 
+	  /* write("implementwithdomainsplitting(",func,",", dom,",", maxDegree,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); */
+
 	  resultat = { .okay = false };
 
 	  res = computeDomainSplitting(func, dom, maxDegree, target);
@@ -1155,6 +1206,8 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
 	     	resultat = res;
 	     };
 
+	  } else {
+	    write("Could not compute a domain splitting\n");
 	  };
 
 	  return resultat;
@@ -2369,13 +2422,494 @@ procedure tryImplementationThroughArgumentReductionExponential(problemdef, param
 	  return result;
 };
 
+procedure dirtyEvaluateImage(f,dom) {
+	  var fDiff, zeros, z, fmin, fmax, y;
+
+	  fDiff = diff(f);
+	  zeros = (dirtyfindzeros(fDiff,dom)) :. (sup(dom));
+	  fmin = inf(evaluate(f,inf(dom)));
+	  fmax = sup(evaluate(f,inf(dom)));
+	  for z in zeros do {
+	      y = evaluate(f,z);
+	      if (inf(y) < fmin) then fmin = inf(y);
+	      if (sup(y) > fmax) then fmax = sup(y);
+	  };
+	  
+	  return [ fmin; fmax ];
+};
+
+procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
+	  var result, base, a, b, c, d, ratio, oldPrec, testfunc;
+	  var yOrig, yReduc, widthOrig, withReduc, reducRatio;
+
+
+	  result = { .okay = false };
+
+	  /* We have to detect if func behaves in dom 
+	     like 
+
+	     base^x for some unknown base
+
+	     We say that func behaves like base^x 
+	     if 
+
+	     base^x = func * (1 + eps) with abs(eps) <= target.
+	     
+	     We start by computing a possible base
+	     as
+
+	     base = exp((log(f(c+d)/f(c))/d))
+	     
+	     with 
+
+	       - d = b - a                  if b - a < 5
+	         c = a
+
+	       - d = 5                      otherwise
+                 c = max(a, (a+b)/2 - 2.5) 
+
+             where dom = [a;b]
+
+	     We can stop trying if f(c+d)/f(c) is 
+	     negative.
+	  */	     
+	  a = inf(dom);
+	  b = sup(dom);
+	  if (b - a < 5) then {
+	     d = b - a;
+	     c = a;
+	  } else {
+	     d = 5;
+	     c = max(a, (a + b)/2 - 2.5);
+	  };
+	  ratio = f(c + d) / f(c);
+	  if (ratio > 0) then {
+	     /* Here, f(c + d) / f(c) is positive 
+
+	        So we can compute a presumed base 
+		as 
+
+		base = exp(log(ratio)/d)
+
+		where ratio = f(c + d) / f(c)
+
+		We need to perform this evaluation 
+		with an accuracy of at least the 
+		double of the prevailing precision
+		as the rest of the argument reduction
+		code must receive a pretty accurate 
+		base.
+
+	     */
+	     oldPrec = prec;
+	     prec = max(2 * prec, ceil(-log2(abs(target))) * 3)!;
+	     base := exp(log(ratio) / d);
+	     prec = oldPrec!;
+
+	     /* Now check if dividing the given function by 
+	        base^x reduces the output domain for the factor g(x):
+
+		f(x) = base^x * g(x).
+             */
+ 	     testfunc = simplifysafe(func/(base^x));
+	     yOrig = dirtyEvaluateImage(func,dom);
+	     yReduc = dirtyEvaluateImage(testfunc,dom);
+	     widthOrig = sup(yOrig) - inf(yOrig);
+	     widthReduc = sup(yReduc) - inf(yReduc);
+	     reducRatio = widthReduc / widthOrig;
+
+	     if (reducRatio <= maxReducRatio) then {
+	     	result.okay = true;
+		result.g = base^x;
+		result.h = testfunc;
+	     };
+	  };
+	  return result;
+};
+
+procedure tryImplementationThroughArgumentReductionWithExponentialBehavior(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, myTableWidth, base, myDom, reducedFunc;
+	  var doNotPerformExponentialArgRed, argRedTarget, myVariableFormat, myProblemdef, myParametrization;
+	  var suffix, origDefDom, resArgRed, doNotPerformExponentialBehaviorArgRed, g, h, res2, myOutputFormat;
+	  var implementationcode;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default, 
+				       .tableIndexWidth = default,
+				       .minimalReductionRatio = default } } : {
+				       
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       doNotPerformExponentialArgRed = false;
+				       doNotPerformExponentialBehaviorArgRed = false;
+				       match (parametrization) with 
+				             { .doNotPerformExponentialArgRed = true } : { doNotPerformExponentialArgRed = true; }
+					     { .doNotPerformExponentialBehaviorArgRed = true } : { doNotPerformExponentialBehaviorArgRed = true; }
+					     default : { };
+
+				       if (!(doNotPerformExponentialArgRed || doNotPerformExponentialBehaviorArgRed)) then {
+				           /* Start with a test if the domain actually needs 
+                                              argument reduction in order to stay below the maximum 
+					      polynomial degree 
+				           */	     
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+				       	      /* Here, we need to detect if we can use 
+					         the exponential argument reduction 
+					         for the given function 
+					      */
+					      res = tryDetectExponentialBehaviorArgRed(problemdef.func, problemdef.dom, (1 / parametrization.minimalReductionRatio));
+					       
+					      if (res.okay) then {
+					      	 write("Argument reduction detection detected that the function can be split into f = g * h with\n");
+						 write("    g(x) = ", res.g, " and\n");
+						 write("    h(x) = ", res.h, "\n");
+						 g = res.g;
+						 h = res.h;
+
+						 write("Trying to implement g\n");
+						 myProblemdef.func = g;
+						 myProblemdef.dom = problemdef.dom;
+						 myProblemdef.target = 1/8 * (problemdef.target);
+						 myProblemdef.variableFormat = problemdef.variableFormat;
+						 suffix = "_exp_behav_split_g";
+					         origDefDom = problemdef.dom;
+					         match (problemdef) with { .definitionDomain = default } : { 
+					                                      if (origDefDom in problemdef.definitionDomain) then {
+                                                                                 origDefDom = problemdef.definitionDomain;
+                                                                              }; }
+                                                                         default : {};
+					         myProblemdef.definitionDomain = origDefDom;
+					         myParametrization = parametrization;
+					         myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+					         myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+					         myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+						 myParametrization.doNotPerformExponentialBehaviorArgRed = true;
+						 
+					         res = tryImplementation(myProblemdef, myParametrization);
+
+						 if (res.okay) then {
+						    write("Subfunction g correctly implemented\n");
+
+						    write("Trying to implement h\n");
+						    myProblemdef.func = h;
+						    myProblemdef.dom = problemdef.dom;
+						    myProblemdef.target = 1/8 * (problemdef.target);
+						    myProblemdef.variableFormat = problemdef.variableFormat;
+						    suffix = "_exp_behav_split_h";
+					            origDefDom = problemdef.dom;
+					            match (problemdef) with { .definitionDomain = default } : { 
+					                                         if (origDefDom in problemdef.definitionDomain) then {
+                                                                                    origDefDom = problemdef.definitionDomain;
+                                                                                 }; }
+                                                                            default : {};
+					            myProblemdef.definitionDomain = origDefDom;
+					            myParametrization = parametrization;
+					            myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+					            myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+						    myParametrization.doNotPerformExponentialBehaviorArgRed = true;
+						    myParametrization.implementationFile = parametrization.implementationFile @ "_subfunction_h";
+						 
+					            res2 = tryImplementation(myProblemdef, myParametrization);
+
+						    if (res2.okay) then {
+						       write("Subfunction h correctly implemented\n");
+						 
+						       bashexecute("cat " @ parametrization.implementationFile @ "_subfunction_h >> " @ parametrization.implementationFile);
+						       myOutputFormat = res.outputformat;
+						       match (res2.outputformat) with 
+						       	     D  : { }
+							     DD : { if (myOutputFormat == D) then myOutputFormat = DD; }
+							     TD : { myOutputFormat = TD; };
+						       implementationcode = "\n";
+						       implementationcode = implementationcode @ "void " @ parametrization.functionBasename @ "(";
+						       implementationcode = implementationcode @ (match myOutputFormat with
+						       			    		       	 	D  : ( "double *res_resh, " )
+													DD : ( "double *res_resh, double *res_resm, " )
+													TD : ( "double *res_resh, double *res_resm, double *res_resl, " ));
+						       implementationcode = implementationcode @ (match problemdef.variableFormat with 
+						       			    		       	 	D  : ( "double xh" )
+													DD : ( "double xh, double xm" )
+													TD : ( "double xh, double xm, double xl"));
+				                       implementationcode = implementationcode @ ") {\n";
+						       match (res.outputformat) with 
+						       	     D  : {
+									implementationcode = implementationcode @ "double res_g_resh;\n";									
+							     	  }
+						       	     DD : {
+									implementationcode = implementationcode @ "double res_g_resh;\n";									
+									implementationcode = implementationcode @ "double res_g_resm;\n";									
+							     	  }
+						       	     TD : {
+									implementationcode = implementationcode @ "double res_g_resh;\n";									
+									implementationcode = implementationcode @ "double res_g_resm;\n";									
+									implementationcode = implementationcode @ "double res_g_resl;\n";									
+							     	  };
+						       match (res2.outputformat) with 
+						       	     D  : {
+									implementationcode = implementationcode @ "double res_h_resh;\n";									
+							     	  }
+						       	     DD : {
+									implementationcode = implementationcode @ "double res_h_resh;\n";									
+									implementationcode = implementationcode @ "double res_h_resm;\n";									
+							     	  }
+						       	     TD : {
+									implementationcode = implementationcode @ "double res_h_resh;\n";									
+									implementationcode = implementationcode @ "double res_h_resm;\n";									
+									implementationcode = implementationcode @ "double res_h_resl;\n";									
+							     	  };
+						       implementationcode = implementationcode @ "\n";
+						       implementationcode = implementationcode @ res.functionname @ "(";
+						       implementationcode = implementationcode @ (match (res.outputformat) with 
+						       			    		       	 	D  : ( "&res_g_resh, " )
+													DD : ( "&res_g_resh, &res_g_resm, " )
+													TD : ( "&res_g_resh, &res_g_resm, &res_g_resl, "));
+						       implementationcode = implementationcode @ (match (problemdef.variableFormat) with 
+						       			    		       	 	D  : ( "xh" )
+													DD : ( "xh, xm" )
+													TD : ( "xh, xm, xl" ));
+						       implementationcode = implementationcode @ ");\n";
+                                                       implementationcode = implementationcode @ res2.functionname @ "(";
+						       implementationcode = implementationcode @ (match (res2.outputformat) with 
+						       			    		       	 	D  : ( "&res_h_resh, " )
+													DD : ( "&res_h_resh, &res_h_resm, " )
+													TD : ( "&res_h_resh, &res_h_resm, &res_h_resl, "));
+						       implementationcode = implementationcode @ (match (problemdef.variableFormat) with 
+						       			    		       	 	D  : ( "xh" )
+													DD : ( "xh, xm" )
+													TD : ( "xh, xm, xl" ));
+						       implementationcode = implementationcode @ ");\n";
+						       match (myOutputFormat) with 
+						       	     D  : {
+									implementationcode = implementationcode @ "*res_resh = res_g_resh * res_h_resh;\n";
+                                                                  }
+						             DD : {
+									match (res.outputformat) with 
+									      D  : {
+											implementationcode = implementationcode @ "Mul122(res_resh,res_resm,res_g_resh,res_h_resh,res_h_resm);\n";
+									      	   }
+								              DD : {
+											match (res2.outputformat) with 
+											      D  : {
+											      	        implementationcode = implementationcode @ "Mul122(res_resh,res_resm,res_h_resh,res_g_resh,res_g_resm);\n";
+												   }
+										              DD : {
+											                implementationcode = implementationcode @ "Mul22(res_resh,res_resm,res_g_resh,res_g_resm,res_h_resh,res_h_resm);\n";
+												   };
+									      	   };
+							          }
+							     TD : {
+									match (res.outputformat) with 
+									      D  : {
+									      		implementationcode = implementationcode @ "Mul133(res_resh,res_resm,res_resl,res_g_resh,res_h_resh,res_h_resm,res_h_resl);\n";   
+									      	   }
+									      DD : {
+									      		implementationcode = implementationcode @ "Mul233(res_resh,res_resm,res_resl,res_g_resh,res_g_resm,res_h_resh,res_h_resm,res_h_resl);\n";   
+									      	   }
+									      TD : {
+											match (res2.outputformat) with
+											      D  : {
+											      	        implementationcode = implementationcode @ "Mul133(res_resh,res_resm,res_resl,res_h_resh,res_g_resh,res_g_resm,res_g_resl);\n";
+											      	   }
+											      DD : {
+											      	        implementationcode = implementationcode @ "Mul233(res_resh,res_resm,res_resl,res_h_resh,res_h_resm,res_g_resh,res_g_resm,res_g_resl);\n";
+											      	   }
+											      TD : {
+											      	        implementationcode = implementationcode @ "Mul33(res_resh,res_resm,res_resl,res_h_resh,res_h_resm,res_h_resl,res_g_resh,res_g_resm,res_g_resl);\n";
+											      	   };
+									      	   };								              
+							     	  };					
+						       implementationcode = implementationcode @ "}\n";
+						       write(implementationcode) >> parametrization.implementationFile;
+						       result = res;
+						       result.outputformat = myOutputFormat;
+						       result.functionname = parametrization.functionBasename;
+						    } else {
+						      write("Could not implement subfunction h\n");
+						    };
+						 } else {
+						   write("Could not implement subfunction g\n");
+						 };
+					      };
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
+
+procedure tryImplementationConstant(problemdef, parametrization) {
+	  var result, func, dom, target, ya, yb, yc, myConst, testfunc, oldPrec;
+	  var y, zerosUpper, zerosLower, myConstHi, myConstMi, myConstLo, myConstFormat;
+	  var implementation, oldDisplay;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default 
+				     } } : {
+				       func = problemdef.func;
+				       dom = problemdef.dom;
+				       target = problemdef.target;
+				       oldPrec = prec;
+				       prec = max(prec, -floor(log2(target)) * 4)!;
+				       ya = mid(evaluate(func,inf(dom)));
+				       yb = mid(evaluate(func,sup(dom)));
+				       yc = mid(evaluate(func,mid(dom)));
+				       myConst := (ya + yb + yc) / 3;
+				       prec = oldPrec!;
+				       if ((abs(ya - yb) <= abs(ya * 1/4 * target)) && 
+				       	   (abs(ya - yc) <= abs(ya * 1/4 * target)) && 
+					   (abs(yb - yc) <= abs(yb * 1/4 * target))) then {
+					  testfunc = simplifysafe((myConst/func) - 1);
+          	                          y = evaluate(testfunc, mid(dom));
+	                                  if (y in [-1/4 * target, 1/4 * target]) then {
+	  	                             zerosUpper = dirtyfindzeros(testfunc + 1/4 * target, dom);
+	  	                             zerosLower = dirtyfindzeros(testfunc - 1/4 * target, dom);
+
+		                             if ((zerosUpper == [||]) && (zerosLower == [||])) then {
+		  			     	write("Trying to replace the given function by the constant ", myConst, "\n");
+						myConstHi = simplifysafe(D(myConst));
+						myConstMi = simplifysafe(D(myConst - myConstHi));
+						myConstLo = simplifysafe(D(myConst - (myConstHi + myConstMi)));
+						if (abs(1/4 * target) < 1b-107) then {
+						   myConstFormat = TD;
+						   if (myConstLo == 0) then {
+						      myConstFormat = DD;
+						      if (myConstMi == 0) then {
+						      	 myConstFormat = D; 
+						      };
+						   };
+						} else {
+						  if (abs(1/4 * target) < 1b-53) then {
+						    myConstFormat = DD;
+						    if (myConstMi == 0) then {
+						       myConstFormat = D;
+						    };
+						  } else {
+						    myConstFormat = D;
+						  };
+						};
+						
+						implementation = "\n";
+						oldDisplay = display;
+						display = decimal!;
+						match myConstFormat with 
+						      D  : {
+								implementation = implementation @ "#define " @ parametrization.functionBasename @ "_const_hi " @ myConstHi @ "\n";
+						           }
+						      DD : {
+								implementation = implementation @ "#define " @ parametrization.functionBasename @ "_const_hi " @ myConstHi @ "\n";
+								implementation = implementation @ "#define " @ parametrization.functionBasename @ "_const_mi " @ myConstMi @ "\n";
+						           }
+						      TD : {
+								implementation = implementation @ "#define " @ parametrization.functionBasename @ "_const_hi " @ myConstHi @ "\n";
+								implementation = implementation @ "#define " @ parametrization.functionBasename @ "_const_mi " @ myConstMi @ "\n";
+								implementation = implementation @ "#define " @ parametrization.functionBasename @ "_const_lo " @ myConstLo @ "\n";
+						           };
+						implementation = implementation @ "\n";	   
+						display = oldDisplay!;
+						implementation = implementation @ "void " @ parametrization.functionBasename @ "(";
+						match myConstFormat with 
+						      D  : { 
+						      	     implementation = implementation @ "double *res_resh, ";
+							   }
+						      DD : { 
+						      	     implementation = implementation @ "double *res_resh, double *res_resm, ";
+							   }
+						      TD : { 
+						      	     implementation = implementation @ "double *res_resh, double *res_resm, double *res_resl, ";
+							   };							   			
+						match problemdef.variableFormat with 
+						      D  : {
+							     implementation = implementation @ "double xh";
+							   }
+						      DD : {
+							     implementation = implementation @ "double xh, double xm";
+							   }
+						      TD : {
+							     implementation = implementation @ "double xh, double xm, double xl";
+							   };
+					        implementation = implementation @ ") {\n";
+						match myConstFormat with 
+						      D  : { 
+						      	     implementation = implementation @ "*res_resh = " @ parametrization.functionBasename @ "_const_hi;\n";
+							   }
+						      DD : { 
+						      	     implementation = implementation @ "*res_resh = " @ parametrization.functionBasename @ "_const_hi;\n";
+						      	     implementation = implementation @ "*res_resm = " @ parametrization.functionBasename @ "_const_mi;\n";
+							   }
+						      TD : { 
+						      	     implementation = implementation @ "*res_resh = " @ parametrization.functionBasename @ "_const_hi;\n";
+						      	     implementation = implementation @ "*res_resm = " @ parametrization.functionBasename @ "_const_mi;\n";
+						      	     implementation = implementation @ "*res_resl = " @ parametrization.functionBasename @ "_const_lo;\n";
+							   };							   			
+					        implementation = implementation @ "}\n\n";
+						write(implementation) > parametrization.implementationFile;
+						result.okay = true;
+						myFinalConst = match myConstFormat with 
+						 	       	     D  : (myConstHi)
+								     DD : (myConstHi + myConstMi)
+								     TD : (myConstHi + myConstMi + myConstLo);
+						result.approxerr = dirtyinfnorm(myFinalConst/func - 1,dom);
+						result.implerr = 0;    
+         					result.outputformat = myConstFormat;
+          					result.functionname = parametrization.functionBasename;
+				             };
+				          };
+				       };
+				     }
+                default : { };
+
+	  return result;
+};
+
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay;
 
 	  result = { .okay = false };
 
-	  tryImplementationChoices = [| tryImplementationThroughArgumentReductionExponential, tryImplementationThroughSymmetryDetectionAroundZero, tryImplementationThroughDomainSplitting |];
+	  tryImplementationChoices = [| tryImplementationConstant,
+	                                tryImplementationThroughArgumentReductionExponential, 
+                                        tryImplementationThroughArgumentReductionWithExponentialBehavior, 
+                                        tryImplementationThroughSymmetryDetectionAroundZero, 
+                                        tryImplementationThroughDomainSplitting |];
 
 	  okay = false;
 	  while ((!okay) && (tryImplementationChoices != [||])) do {
