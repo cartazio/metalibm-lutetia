@@ -1,7 +1,7 @@
-f = erf(x) - 23384026017035665375962589797670955209666840562391b-164;
-dom = [4; 10];
-target = 1b-36;
-maxDegree = 6;
+f = asin(x);
+dom = [-0.75; 0.75];
+target = 1b-60;
+maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/(2^14);
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;

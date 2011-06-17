@@ -957,7 +957,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 			 i := i + 1;
 		   } else {
 		     if (abs(sup(myDom) - inf(myDom)) < minWidth) then {
-		        write("Error on subdomain ",myDom,", check ", gappaFile @ mySuffix, "\n");
+		        write("Error on subdomain ",myDom,", the minimal domain width is too large\n");
 		        okay = false;
 	             } else {
 		        recovered = false;
@@ -1059,7 +1059,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  return resultat;
 };
 
-procedure computeDomainSplitting(func, dom, maxDegree, target) {
+procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	  var resultat;
 	  var poly;
 	  var deg;
@@ -1071,6 +1071,8 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
 
 	  resultat = { .okay = false };
 	  deg = -1;
+
+	  if (abs(sup(dom) - inf(dom)) >= minWidth) then {
 
 	  if ((!(0 in dom)) && 
 	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) then {
@@ -1148,7 +1150,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
 		   while ((okay) && (subdomains != [||])) do {
 		   	 sd = head(subdomains);
 			 subdomains = tail(subdomains);
-			 res = computeDomainSplitting(func, sd, maxDegree, target);
+			 res = computeDomainSplitting(func, sd, maxDegree, target, minWidth);
 			 if (res.okay) then {
 			    recursiveSplitPoints = recursiveSplitPoints @ (res.splitPoints);
 			 } else {
@@ -1162,6 +1164,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target) {
 	     	};
 	     };
 	    
+	  };
 
 	  return resultat;
 };
@@ -1193,7 +1196,7 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
 
 	  resultat = { .okay = false };
 
-	  res = computeDomainSplitting(func, dom, maxDegree, target);
+	  res = computeDomainSplitting(func, dom, maxDegree, target, minWidth);
 
 	  if (res.okay) then {
 	     splitPoints = sort(res.splitPoints);
@@ -1454,6 +1457,8 @@ procedure tryImplementationThroughSymmetryDetectionAroundZero(problemdef, parame
 					       myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 					       myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 					       myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+					       myParametrization.minWidth = (sup(myDom) - inf(myDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
+
 					       res = tryImplementation(myProblemdef, myParametrization);
 					       
 					       if (res.okay) then {
@@ -1660,14 +1665,25 @@ procedure tryDetectExponentialArgRed(func, dom, target) {
 	  */	     
 	  a = inf(dom);
 	  b = sup(dom);
-	  if (b - a < 5) then {
-	     d = b - a;
-	     c = a;
+	  if ((0 in dom) && (max(-a,b) > 5))then {
+	     if (-a > b) then {
+	     	c = -5;
+		d = 5;
+	     } else {
+	        c = 0;
+		d = 5;
+	     };
 	  } else {
-	     d = 5;
-	     c = max(a, (a + b)/2 - 2.5);
+	  	  if (b - a < 5) then {
+	  	     d = b - a;
+		     c = a;
+	  	  } else {
+	     	     d = 5;
+	             c = max(a, (a + b)/2 - 2.5);
+	          };
 	  };
-	  ratio = f(c + d) / f(c);
+	  ratio = func(c + d) / func(c);
+
 	  if (ratio > 0) then {
 	     /* Here, f(c + d) / f(c) is positive 
 
@@ -1701,9 +1717,11 @@ procedure tryDetectExponentialArgRed(func, dom, target) {
 	  	  zerosLower = dirtyfindzeros(testfunc - target, dom);
 
 		  if ((zerosUpper == [||]) && (zerosLower == [||])) then {
-	              result.okay = true;
-		      result.exponentialFunc = base^x;
-		      result.exponentialBase = base;
+		      if (base != 1) then {
+		      	              result.okay = true;
+		      		      result.exponentialFunc = base^x;
+				      result.exponentialBase = base;
+		      };
 	          };  
              };		  
 	  };
@@ -2298,6 +2316,7 @@ procedure tryImplementationThroughArgumentReductionExponential(problemdef, param
 					         the exponential argument reduction 
 					         for the given function 
 					      */
+
 					      res = tryDetectExponentialArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8);
 					       
 					      if (res.okay) then {
@@ -2391,6 +2410,7 @@ procedure tryImplementationThroughArgumentReductionExponential(problemdef, param
 					            myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
 						    myParametrization.doNotPerformExponentialArgRed = true;
+						    myParametrization.minWidth = (sup(myDom) - inf(myDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
 						    
 					            res = tryImplementation(myProblemdef, myParametrization);
 
@@ -2475,14 +2495,25 @@ procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
 	  */	     
 	  a = inf(dom);
 	  b = sup(dom);
-	  if (b - a < 5) then {
-	     d = b - a;
-	     c = a;
+	  if ((0 in dom) && (max(-a,b) > 5))then {
+	     if (-a > b) then {
+	     	c = -5;
+		d = 5;
+	     } else {
+	        c = 0;
+		d = 5;
+	     };
 	  } else {
-	     d = 5;
-	     c = max(a, (a + b)/2 - 2.5);
+	  	  if (b - a < 5) then {
+	  	     d = b - a;
+		     c = a;
+	  	  } else {
+	     	     d = 5;
+	             c = max(a, (a + b)/2 - 2.5);
+	          };
 	  };
-	  ratio = f(c + d) / f(c);
+	  ratio = func(c + d) / func(c);
+
 	  if (ratio > 0) then {
 	     /* Here, f(c + d) / f(c) is positive 
 
@@ -2899,15 +2930,238 @@ procedure tryImplementationConstant(problemdef, parametrization) {
 	  return result;
 };
 
+procedure computeAmplification(func,dom,maxeps) {
+	  var fp, fs, condf, theta, res;
+
+	  fp = diff(func);
+	  fs = diff(fp);
+	  cond = simplifysafe((x * fp)/func);
+	  theta = simplifysafe((x^2)/func);
+	  
+	  res = dirtyEvaluateImage(cond,dom) + 
+	        [-abs(maxeps);abs(maxeps)] * dirtyEvaluateImage(theta,dom) * dirtyEvaluateImage(fs,[inf(dom) * (1 - abs(maxeps));sup(dom) * (1 + abs(maxeps))]);
+
+	  return sup(abs(res));
+};
+
+procedure tryImplementationThroughSquaring(problemdef, parametrization) {
+	  var result, splitPoints, needToDetectSymmetry, res;
+	  var g, func, myDom, epsRed, redArgFormat, myProblemdef, myParametrization;
+	  var variableDeclarations, reductionCode, implementationCode;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default } } : {
+				       
+				       /* Start with a test if zero is actually inside the domain */
+				       if (sup(problemdef.dom) * inf(problemdef.dom) < 0) then {
+
+				       /* Continue with a test if the domain actually needs 
+                                          to be split in order to stay below the maximum 
+					  polynomial degree 
+				        */	     
+				       needToDetectSymmetry = true;
+				       res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                               if (res.okay) then {
+   	                                   if (res.sufficientDegree) then needToDetectSymmetry = false;
+				       } else {
+				           needToDetectSymmetry = false;
+				       };
+
+				       if (needToDetectSymmetry) then {
+				       
+				            /* Try to detect a symmetry of func around 0 */
+					    res = tryDetectSymmetry(problemdef.func, problemdef.dom, problemdef.target * 1/8);
+
+					    if (res.okay) then {
+					       /* If we detected a symmetry, check if it
+					          is an even symmetry
+					       */
+					       if (res.evenSymmetry) then {
+					       	  /* Here, we have detected an even symmetry 
+						     
+						     We continue by computing the amplification
+						     alpha of a reduction error eps by the function
+
+						     g(x) = f(sqrt(x))
+
+						     This indicates us the following:
+
+						     g(x^2 * (1 + eps)) = 
+						       = g(x^2) * (1 + alpha * eps)
+						       = f(sqrt(x^2)) * (1 + alpha * eps)
+						       = f(x) * (1 + alpha * eps)
+
+						  */
+						  func = problemdef.func;
+						  g = simplifysafe(func(sqrt(x)));
+						  myDom = [0;(max(inf(problemdef.dom),sup(problemdef.dom)))^2];
+						  alpha = computeAmplification(g,myDom,1b-53);				  
+						  write("The amplification factor of the even function is approximately ", round(alpha,12,RN), " = 2^(", round(log2(alpha),12,RN),")\n");
+						  
+						  /* Now determine a bound epsRed on the error of the reduced argument */
+						  match (problemdef.variableFormat) with 
+						  	D  : {
+								if (1b-53 * alpha < 1/8 * problemdef.target) then {
+								   epsRed = 1b-53;
+								   redArgFormat = D;
+								} else {
+								   epsRed = 0;
+								   redArgFormat = DD;
+								};
+							     }
+						  	DD : {
+								if (1b-102 * alpha < 1/8 * problemdef.target) then {
+								   epsRed = 1b-102;
+								   redArgFormat = DD;
+								} else {
+								   epsRed = 1b-150;
+								   redArgFormat = TD;
+								};
+							     }
+						  	TD : {
+								epsRed = 1b-150;
+								redArgFormat = TD;
+							     };
+							     
+						  /* Now check if we can do the target error with that argument 
+						     reduction 
+						  */
+						  if (epsRed * alpha < 1/8 * problemdef.target) then {
+						     write("Trying to implement the function with a squaring of the argument on the first place\n");
+						     write("The \"reduced\" argument will be represented on a ", redArgFormat, "\n");
+						     write("The reduced function is ", g, "\n");
+						     write("It will be implemented on ", myDom, "\n");
+
+						     myProblemdef.func = g;
+						     myProblemdef.dom = myDom;
+						     myProblemdef.target = 1/8 * (problemdef.target);
+						     myProblemdef.variableFormat = redArgFormat;
+						     suffix = "_squaring";
+					             myProblemdef.definitionDomain = myDom;
+					             myParametrization = parametrization;
+					             myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+					             myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+					             myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+						     myParametrization.minWidth = (sup(myDom) - inf(myDom)) * 1/2;
+						 
+						     res = tryImplementation(myProblemdef, myParametrization);
+
+						     if (res.okay) then {
+						       write("The subfunction has been correctly implemented\n");	
+
+						       /* Now generate the reduction code */
+						       variableDeclarations = "\n";
+						       reductionCode = "\n";
+						       
+						       match (redArgFormat) with 
+						       	     D  : {
+									variableDeclarations = variableDeclarations @ "double zh;\n";
+								  }
+						       	     DD : {
+									variableDeclarations = variableDeclarations @ "double zh;\n";
+									variableDeclarations = variableDeclarations @ "double zm;\n";
+								  }
+						       	     TD : {
+									variableDeclarations = variableDeclarations @ "double zh;\n";
+									variableDeclarations = variableDeclarations @ "double zm;\n";
+									variableDeclarations = variableDeclarations @ "double zl;\n";
+								  };
+
+						       match (redArgFormat) with 
+						       	     D  : {
+									reductionCode = reductionCode @ "zh = xh * xh;\n";
+							          }
+						       	     DD : {
+									match (problemdef.variableFormat) with 
+									      D  : {
+											reductionCode = reductionCode @ "Mul12(&zh,&zm,xh,xh);\n";
+									      	   }
+									      DD : {
+											reductionCode = reductionCode @ "Mul22(&zh,&zm,xh,xm,xh,xm);\n";
+									      	   };
+							          }
+						       	     TD : {
+							     	        match (problemdef.variableFormat) with 
+									      DD : {
+											reductionCode = reductionCode @ "Mul23(&zh,&zm,&zl,xh,xm,xh,xm);\n";
+									      	   }
+									      TD : {
+											reductionCode = reductionCode @ "Mul33(&zh,&zm,&zl,xh,xm,xl,xh,xm,xl);\n";
+									      	   };
+
+							          };
+
+						       reductionCode = reductionCode @ (res.functionname) @ "(";
+						       reductionCode = reductionCode @ (match (res.outputformat) with
+						       		       		        D  : ( "res_resh, " )
+											DD : ( "res_resh, res_resm, " )
+											TD : ( "res_resh, res_resm, res_resl, " ));
+						       reductionCode = reductionCode @ (match (redArgFormat) with 
+						       		       		       	      D  : ( "zh" )
+											      DD : ( "zh, zm" )
+											      TD : ( "zh, zm, zl" ));
+						       reductionCode = reductionCode @ ");\n";
+
+						       implementationCode = "\n";     
+						       implementationCode = implementationCode @ "void " @ parametrization.functionBasename @ "(";
+						       implementationCode = implementationCode @ (match (res.outputformat) with
+						       			    		       	 	D  : ( "double *res_resh, " )
+													DD : ( "double *res_resh, double *res_resm, " )
+													TD : ( "double *res_resh, double *res_resm, double *res_resl, " ));
+						       implementationCode = implementationCode @ (match (problemdef.variableFormat) with 
+						       			    		       	 	D  : ( "double xh" )
+													DD : ( "double xh, double xm" )
+													TD : ( "double xh, double xm, double xl" ));
+						       implementationCode = implementationCode @ ") {\n";
+						       implementationCode = implementationCode @ variableDeclarations @ "\n" @ reductionCode @ "\n}\n";
+
+						       write(implementationCode) >> parametrization.implementationFile;
+						       result.approxerr = res.approxerr;
+						       result.implerr = (1 + abs(res.implerr)) * (1 + abs(epsRed * alpha)) * (1 + abs(1/8 * problemdef.target)) - 1;    
+         					       result.outputformat = res.outputformat;
+          					       result.functionname = parametrization.functionBasename;
+						       result.okay = true;
+						     } else {
+						       write("Could not implement the subfunction\n");
+						     };
+						  };
+					       }; 
+					    };
+				       };
+				       };
+				     }
+                default : { };
+
+	  return result;
+};
+
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay;
 
 	  result = { .okay = false };
 
+	  write("Trying to implement ", problemdef.func, " on ", problemdef.dom, "\n");
+
 	  tryImplementationChoices = [| tryImplementationConstant,
 	                                tryImplementationThroughArgumentReductionExponential, 
                                         tryImplementationThroughArgumentReductionWithExponentialBehavior, 
+					tryImplementationThroughSquaring,
                                         tryImplementationThroughSymmetryDetectionAroundZero, 
                                         tryImplementationThroughDomainSplitting |];
 
