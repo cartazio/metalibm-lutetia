@@ -116,10 +116,10 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
 	     res = sup(guess);
-	     poly = remezbugreport(f,res,d,w);
+	     poly = remezbugreport(f,res,d,w,eps);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	   res := res - 1;
-	     	   poly = remezbugreport(f,res,d,w);		   
+	     	   poly = remezbugreport(f,res,d,w,eps);		   
 	     };
 	     if (poly == false) then res = inf(guess);
 	  } else
@@ -141,10 +141,10 @@ procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
 	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
 	     res = sup(guess);
-	     poly = remezbugreport(f,res,d,w);
+	     poly = remezbugreport(f,res,d,w,eps);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	   res := res - 1;
-	     	   poly = remezbugreport(f,res,d,w);		   
+	     	   poly = remezbugreport(f,res,d,w,eps);		   
 	     };
 	     if (poly == false) then res = inf(guess);
 	  } else {
@@ -159,7 +159,7 @@ procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
 };
 
 /* remezbugreport */
-procedure remezbugreport(f,m,d,w) {
+procedure remezbugreport(f,m,d,w,eps) {
 	  var res;
 	  var oldpoints;
 	  var qual;
@@ -203,7 +203,7 @@ procedure remezbugreport(f,m,d,w) {
 
 	  oldDisplay = display;
 	  display = dyadic!;
-	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,");"; 
+	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,");", " targetErr = ", eps,";"; 
 	  display = oldDisplay!;
 
 	  remezTime = time({
@@ -228,7 +228,7 @@ procedure remezbugreport(f,m,d,w) {
    Uses symetries if possible
 
 */
-procedure remezorfail(func,dom,monomials) {
+procedure remezorfail(func,dom,monomials,eps) {
 	  var poly, poly2;
 	  var d, symetrical, i, firstmonomial;
 	  var deg;
@@ -259,10 +259,10 @@ procedure remezorfail(func,dom,monomials) {
 	    };
 
 	    poly = false;
-	    poly = remezbugreport(1,monomials,d,1/func);
+	    poly = remezbugreport(1,monomials,d,1/func,eps);
 	    if (symetrical) then {
 	          poly2 = false;
-	          poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/func);
+	          poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/func,eps);
 		  if (poly2 != false) then {
 		     if (dirtyinfnorm(poly2/func - 1, dom) < dirtyinfnorm(poly/func - 1, dom)) then {
 		        poly = poly2;
@@ -301,7 +301,7 @@ procedure simpleRemezWrapper(func, dom, targetErr, iterations) {
 	     	monomials = [|1,...,deg|]
 	     else 
 	     	monomials = [|0,...,deg|];
-	     poly = remezorfail(func,dom,monomials);
+	     poly = remezorfail(func,dom,monomials,targetErr);
 	     if (poly != false) then {
 	     	err = dirtyinfnorm(poly/func-1,dom);
 	     };
@@ -366,7 +366,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 	     	monomials = [|1,...,deg|]
 	     else 
 	     	monomials = [|0,...,deg|];
-	     poly = remezorfail(func,dom,monomials);
+	     poly = remezorfail(func,dom,monomials,targetErr);
 	     if (poly != false) then {
 	     	err = dirtyinfnorm(poly/func-1,dom);
 	     };
@@ -425,7 +425,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 			err = dirtyinfnorm(poly/func - 1, dom);
 			write("\t\tcurrent implem. polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
 			if (abs(err) > abs(targetErr)) then {
-		   	   poly = remezorfail(func,dom,correctMonomials);
+		   	   poly = remezorfail(func,dom,correctMonomials,targetErr);
 		   	   if (poly != false) then {
 		      	      errR = dirtyinfnorm(poly/func - 1, dom);
 			      if (abs(errR) > abs(err)) then {
@@ -442,7 +442,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 			if (abs(err) > abs(targetErr)) then {
 		   	   k := k + 1;
 		   	   monomials = monomials:.(simplifysafe(head(revert(monomials)) + 1));
-		   	   poly2 = remezorfail(func,dom,monomials);
+		   	   poly2 = remezorfail(func,dom,monomials,targetErr);
 		   	   if (poly2 != false) then {
 		      	      poly = poly2;
 		      	      err = dirtyinfnorm(poly/func - 1, dom);

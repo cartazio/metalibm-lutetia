@@ -1,7 +1,7 @@
-f = asin(x);
-dom = [-0.75; 0.75];
-target = 1b-60;
-maxDegree = 12;
+f = log(x);
+dom = [1b-1000; 1b1000];
+target = 1b-112;
+maxDegree = 18;
 minWidth = (sup(dom) - inf(dom)) * 1/(2^14);
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;

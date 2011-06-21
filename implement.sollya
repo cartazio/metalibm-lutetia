@@ -1072,7 +1072,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	  resultat = { .okay = false };
 	  deg = -1;
 
-	  if (abs(sup(dom) - inf(dom)) >= minWidth) then {
+	  if (abs(sup(dom) - inf(dom)) - minWidth >= 0) then {
 
 	  if ((!(0 in dom)) && 
 	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) then {
@@ -3150,6 +3150,613 @@ procedure tryImplementationThroughSquaring(problemdef, parametrization) {
 	  return result;
 };
 
+procedure tryDetectLogarithmArgRed(func, dom, target) {
+	  var result, base, a, b, c, d, ratio, oldPrec, testfunc;
+	  var y, zerosUpper, zerosLower;
+
+	  result = { .okay = false };
+
+	  /* We have to detect if func behaves in dom 
+	     like 
+
+	     log(x)/log(base)
+
+	     We say that func behaves like log(x)/log(base)
+	     if 
+
+	     log(x)/log(base) = func * (1 + eps) with abs(eps) <= target.
+	     
+	     We start by computing a possible base
+	     as
+
+	     base = exp()
+	     
+             where dom = [a;b]
+
+	     We can stop trying if the interval contains zero 
+	     or any negative number.
+
+	  */	     
+	  a = inf(dom);
+	  b = sup(dom);
+	  if (a > 0) then {
+   	      oldPrec = prec;
+	      prec = max(2 * prec, ceil(-log2(abs(target))) * 4)!;
+	      base := exp((log(b) - log(a))/(func(b) - func(a)));
+	      prec = oldPrec!;
+
+	      /* Now we have to check if log(x)/log(base) effectively approximates func with 
+	         an accuracy of target 
+	      */
+	      testfunc = simplifysafe((log(x)/log(base))/func - 1);
+	      y = evaluate(testfunc, mid(dom));
+	      if (y in [-target, target]) then {
+	     	  zerosUpper = dirtyfindzeros(testfunc + target, dom);
+	  	  zerosLower = dirtyfindzeros(testfunc - target, dom);
+
+		  if ((zerosUpper == [||]) && (zerosLower == [||])) then {
+		      if (base != 1) then {
+		      	              result.okay = true;
+		      		      result.logarithmicFunc = simplifysafe(log(x)/log(base));
+				      result.logarithmBase = base;
+		      };
+	          };  
+              };
+	  };		  
+	  return result;
+};
+
+procedure tryImplementationThroughArgumentReductionLogarithm(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, base, func, w, minM, maxM, meanM, r;
+	  var doNotPerformLogarithmArgRed, reciprocalTable, oldDisplay, logTableHi, logTableMi, logTableLo;
+	  var minZ, maxZ, logR, logRHi, logRMi, logRLo, reducedDom, alpha, g, minAbsLogM;
+	  var reductionMultiplicationError, multiplicationOnDouble, reductionErrBound;
+	  var reducedArgumentFormat, poundDefines, variableDeclarations, reductionCode, reconstructionCode;
+	  var outputFormat, rcprLog2, rcprLog2Hi, rcprLog2Mi, rcprLog2Lo, implementationCode;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with 
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default, 
+				       .tableIndexWidth = default } } : {
+				       
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       doNotPerformLogarithmArgRed = false;
+				       match (parametrization) with 
+				             { .doNotPerformLogarithmArgRed = true } : { doNotPerformLogarithmArgRed = true; }
+					     default : { };
+
+				       /* Check also if the table index width is large enough for the
+				          argument reduction used for logarithms
+				       */
+				       if ((!doNotPerformLogarithmArgRed) && (parametrization.tableIndexWidth > 2)) then {
+				           /* Start with a test if the domain actually needs 
+                                              argument reduction in order to stay below the maximum 
+					      polynomial degree 
+				           */	     
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+				       	      /* Here, we need to detect if we can use 
+					         the logarithm argument reduction 
+					         for the given function 
+					      */
+
+					      res = tryDetectLogarithmArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8);
+					       
+					      if (res.okay) then {
+					      	 write("Detected that the given function can be replaced with a logarithm with a base that approximately is ", round(res.logarithmBase,53,RN), "\n");
+						 func = res.logarithmicFunc;
+						 base = res.logarithmBase;
+						 
+						 /* We know that we can implement the given function as 
+
+						    func(x) = log2(x)/log2(base) = log2(2^E * m)/log2(base) = 
+						            = (E + log2(m))/log2(base) = 
+							    = E * 1/log2(base) + log(m)/log(base) = 
+							    = E * 1/log2(base) + log(m * r * 1/r)/log(base)
+							    = E * 1/log2(base) + (log(m * r) + log(1/r))/log(base)
+							    = E * 1/log2(base) + log(1/r)/log(base) + log(m * r - 1 + 1)/log(base)  
+							    = E * 1/log2(base) + log(1/r)/log(base) + log1p(m * r - 1)/log(base)
+							    = E * 1/log2(base) + log(1/r)/log(base) + log1p(z)/log(base)
+
+					            with z = m * r - 1
+
+						    The values r and log(1/r)/log(base) are read in tables, indexed
+						    with the first w mantissa bits of m. Here, w is the table width. 
+						    If the index is above some value (approx. sqrt(2)) the exponent
+						    of m gets adjusted so that m finally always stays in
+						    1/sqrt < m < sqrt(2).
+						    The value r approximates 1/m up to w bits (approximately,
+						    the precise value of the error gets computed below).
+						    We round the values of r to w+2 bits, which makes
+						    error analysis easier.
+						    
+						    With a loop, we go now over all indices to the table for
+						    r and determine:
+						      * the value of r
+						      * the minimum and maximum value of m for that index
+						      * the minimum and maximum z = m * r - 1 for that index
+						 */
+						 w = parametrization.tableIndexWidth;
+						 
+						 maxindex.determined = false;
+						 maxindex.index = 0;
+						 minZ = 5;
+						 maxZ = -5;
+						 minAbsLogM = 5;
+						 reciprocalTable = "static const double " @ (parametrization.functionBasename) @ "_rcpr_tbl[" @ (~(2^w + 1)) @ "] = {\n";
+						 logTableHi = "static const double " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_hi[" @ (~(2^w + 1)) @ "] = {\n";
+						 logTableMi = "static const double " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_mi[" @ (~(2^w + 1)) @ "] = {\n";
+						 logTableLo = "static const double " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_lo[" @ (~(2^w + 1)) @ "] = {\n";
+						 oldDisplay = display;
+						 display = decimal!;
+						 for i from 0 to 2^w do {
+						     minM = 1 + (i - 0.5) * 2^(-w);
+						     maxM = 1 + (i + 0.5) * 2^(-w);
+						     meanM = (minM + maxM) / 2;
+						     minM = max(minM, 1);
+						     maxM = min(maxM, 2);
+						     r = round(~(1/meanM),w+2,RN);
+						     if (meanM >= sqrt(2)) then {
+						     	rAdjusted = r * 2;
+							if (!maxindex.determined) then {
+							   maxindex.determined = true;
+							   maxindex.index = i;
+							};
+						     } else {
+						       rAdjusted = r;
+						     };
+						     minZ = min(minZ, minM * r - 1, maxM * r - 1);
+						     maxZ = max(maxZ, minM * r - 1, maxM * r - 1);
+						     reciprocalTable = reciprocalTable @ "   " @ r;
+						     if (i != 2^w) then {
+						     	reciprocalTable = reciprocalTable @ ",";
+						     };
+						     reciprocalTable = reciprocalTable @ "\n";
+						     logR = -log(rAdjusted) / log(base);
+						     logRHi = D(logR);
+						     logRMi = D(logR - logRHi);
+						     logRLo = D(logR - (logRHi + logRMi));
+						     logTableHi = logTableHi @ "   " @ logRHi;
+						     logTableMi = logTableMi @ "   " @ logRMi;
+						     logTableLo = logTableLo @ "   " @ logRLo;
+						     if (i != 2^w) then {
+						     	logTableHi = logTableHi @ ",";
+						     	logTableMi = logTableMi @ ",";
+						     	logTableLo = logTableLo @ ",";
+						     };
+						     logTableHi = logTableHi @ "\n";
+						     logTableMi = logTableMi @ "\n";
+						     logTableLo = logTableLo @ "\n";
+
+						     if (abs(r) != 2^(nearestint(log2(abs(r))))) then {
+						     	minAbsLogM = min(minAbsLogM, inf(abs(log([minM;maxM])/log(base))));
+						     };
+						 };
+						 reciprocalTable = reciprocalTable @ "};\n";
+						 logTableHi = logTableHi @ "};\n";
+						 logTableMi = logTableMi @ "};\n";
+						 logTableLo = logTableLo @ "};\n";
+					         display = oldDisplay!;
+						 reducedDom = [minZ;maxZ];
+
+						 /* Now check if the width of the domain 
+						    after argument reduction is really 
+						    smaller than the one of the original
+						    domain. 
+						 */
+						 if (sup(reducedDom) - inf(reducedDom) < sup(problemdef.dom) - inf(problemdef.dom)) then {
+						    /* Now compute an upper bound on the amplification factor alpha by which a relative 
+						       error on the reduced argument is amplified by the reduced function
+						       log(1 + x)/log(base). This yields the target error on the argument reduction.
+						    */
+						    g = simplifysafe(log1p(x)/log(base));
+						    alpha = computeAmplification(g,reducedDom,1b-53);				  
+						    reductionTargetError = problemdef.target * 1/8 * 1/abs(alpha);
+						    
+						    /* The argument reduction z = m * r - 1 is subject to cancellation
+						       at the substraction of 1, as m * r is approximately 1 due
+						       to r ~ 1/m. 
+						       
+						       There are two cases for the multiplication:
+						       
+						       (i)  The multiplication is always exact as it is performed with 
+						            a Fast2Mul. So the only error comes from the subtraction
+							    or the truncation of the reduced argument to a D, DD or TD.
+
+						       (ii) The multiplication is performed on double precision only.
+						            In the case when r is not an integer power of 2, there 
+							    is some relative multiplication error that gets amplified
+							    by the cancellation at the subtraction. 
+
+							    We have (for E = 0 -- the other cases are simpler):
+
+							    log(x) = log(2^E * m) = E + log(1/r) + log(m * r - 1 + 1) = 
+							           = log(1/r) + log(m * r - 1 + 1)
+
+						            and hence
+							    
+							    log(m * r * (1 + eps) - 1 + 1) = log(m) * (1 + 1/log(m) * log(1 + eps))
+
+							    Here, log(1 + eps) behaves like eps and 1/log(m) like an amplification
+							    factor.
+
+						        So, we determine the overall error 1/log(m) * log(1 + eps) for 
+							abs(eps) <= 1b-53 and abs(1/log(m)) = 1/minAbsLogM. 
+
+							If this error is less than 1/8 * problemdef.target, we can perform
+							the multiplication on a double, otherwise we have to perform it
+							with a Fast2Mul. 
+
+						    */
+						    reductionMultiplicationError = 1/minAbsLogM * sup(abs(log1p([-1b-53;1b-53])/log(base)));
+						    
+						    if (reductionMultiplicationError <= problemdef.target * 1/8) then {
+						       multiplicationOnDouble = true;
+						       reductionErrBound = reductionMultiplicationError;
+						       reducedArgumentFormat = D;
+						    } else {
+						       multiplicationOnDouble = false;
+						       if (abs(reductionTargetError) < 1b-102) then {
+						       	 reducedArgumentFormat = TD;
+						       } else {
+						       	 if (abs(reductionTargetError) < 1b-52) then {
+							    reducedArgumentFormat = DD;
+							    reductionErrBound = 1b-102 * computeAmplification(g,reducedDom,1b-102);
+							 } else {
+							    reducedArgumentFormat = D;
+							    reductionErrBound = 1b-53 * computeAmplification(g,reducedDom,1b-53);
+							 };
+						       };
+						    };
+						    if ((!multiplicationOnDouble) && (problemdef.variableFormat == D)) then {
+						       reducedArgumentFormat = DD;
+						       reductionErrBound = 0;
+						    };
+
+						    /* Now generate the code for the argument reduction */
+						    poundDefines = "\n";
+						    variableDeclarations = "\n";
+						    reductionCode = "\n"; 
+						    reconstructionCode = "\n";
+
+						    /* Decompose x = 2^E * m, compute the index to the tables and if the
+						       variable format is wider than double precision, compute
+						       a scaling to the middle and lower components 
+						    */
+						    variableDeclarations = variableDeclarations @ "db_number argRedCaster;\n";
+						    variableDeclarations = variableDeclarations @ "int E;\n";
+						    variableDeclarations = variableDeclarations @ "int index;\n";
+						    reductionCode = reductionCode @ "argRedCaster.d = xh;\n";
+						    reductionCode = reductionCode @ "E = (int) ((argRedCaster.l >> 52) - 1023ll);\n";
+						    if (problemdef.variableFormat != D) then {
+						       variableDeclarations = variableDeclarations @ "db_number scaleCaster;\n";
+						       variableDeclarations = variableDeclarations @ "double scale;\n";
+						       reductionCode = reductionCode @ "scaleCaster.l = 1023 - E;\n";
+						       reductionCode = reductionCode @ "scaleCaster.l <<= 52;\n";
+						       reductionCode = reductionCode @ "scale = scaleCaster.d;\n";
+						    };
+						    reductionCode = reductionCode @ "index = (int) ((argRedCaster.l & 0x000fffffffffffffull) >> (52 - " @ (parametrization.functionBasename) @ "_tablewidth - 1));\n";
+						    oldDisplay = display;
+						    display = decimal!;
+						    poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_tablewidth " @ w @ "\n";
+						    poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_maxindex " @ (maxindex.index) @ "\n";
+						    display = oldDisplay!;
+						    reductionCode = reductionCode @ "index = (index + 1) >> 1;\n";
+						    reductionCode = reductionCode @ "if (index >= " @ (parametrization.functionBasename) @ "_maxindex) E++;\n";
+						    variableDeclarations = variableDeclarations @ "double ed;\n";
+						    reductionCode = reductionCode @ "ed = (double) E;\n";
+						    reductionCode = reductionCode @ "argRedCaster.l |= 0x3ff0000000000000ull;\n";
+						    variableDeclarations = variableDeclarations @ "double m;\n";
+						    reductionCode = reductionCode @ "m = argRedCaster.d;\n";
+						    
+						    /* Read r in reciprocal table */
+						    variableDeclarations = variableDeclarations @ "double r;\n";
+						    reductionCode = reductionCode @ "r = " @ (parametrization.functionBasename) @ "_rcpr_tbl[index];\n";
+
+						    /* Generate z = m * r - 1 for the different precisions */
+						    if (multiplicationOnDouble) then {
+						       variableDeclarations = variableDeclarations @ "double zh;\n";
+						       match (problemdef.variableFormat) with 
+						       	     D  : { 
+						                      reductionCode = reductionCode @ "zh = m * r - 1.0;\n";
+							     	  }
+						       	     DD : { 
+						                      reductionCode = reductionCode @ "zh = (m * r - 1.0) + ((scale * xm) * r);\n";
+							     	  }
+						       	     TD : { 
+								      variableDeclarations = variableDeclarations @ "double rxmh, rxml, sxm;\n";
+                                                                      reductionCode = reductionCode @ "sxm = scale * xm;\n";
+								      reductionCode = reductionCode @ "Mul12(&rxmh, &rxml, r, sxm);\n";
+								      reductionCode = reductionCode @ "zh = ((m * r - 1.0) + rxmh) + (rxml + scale * xl);\n";
+							     	  };
+						    } else {
+						      match reducedArgumentFormat with 
+						      	    D  : {
+              						              variableDeclarations = variableDeclarations @ "double zh;\n";
+								      variableDeclarations = variableDeclarations @ "double mrh, mrl;\n";
+								      reductionCode = reductionCode @ "Mul12(&mrh,&mrl,m,r);\n";
+								      match (problemdef.variableFormat) with 
+								      	    D  : {
+										     reductionCode = reductionCode @ "zh = (mrh - 1.0) + mrl;\n";
+									       	 }
+								      	    DD : {
+									             variableDeclarations = variableDeclarations @ "double sxm;\n";
+										     variableDeclarations = variableDeclarations @ "double rxmh, rxml;\n";
+                                                                                     reductionCode = reductionCode @ "sxm = scale * xm;\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxmh,&rxml,r,sxm);\n";
+										     reductionCode = reductionCode @ "zh = (((mrh - 1.0) + mrl) + rxmh) + rxml;\n";
+									       	 }
+								      	    TD : {
+										     variableDeclarations = variableDeclarations @ "double sxm;\n";
+										     variableDeclarations = variableDeclarations @ "double sxl;\n";
+										     variableDeclarations = variableDeclarations @ "double rxmh, rxml;\n";
+										     variableDeclarations = variableDeclarations @ "double rxlh, rxll;\n";
+										     variableDeclarations = variableDeclarations @ "double temph, templ;\n";
+                                                                                     reductionCode = reductionCode @ "sxm = scale * xm;\n";
+                                                                                     reductionCode = reductionCode @ "sxl = scale * xl;\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxmh,&rxml,r,sxm);\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxlh,&rxll,r,sxl);\n";
+                                                                                     reductionCode = reductionCode @ "Add12Cond(temph,templ,rxml,rxlh);\n";
+										     reductionCode = reductionCode @ "zh = ((((mrh - 1.0) + mrl) + rxmh) + temph) + templ;\n";
+									       	 };										 
+							       	 }
+						      	    DD : {
+              						              variableDeclarations = variableDeclarations @ "double zh;\n";
+              						              variableDeclarations = variableDeclarations @ "double zm;\n";
+								      variableDeclarations = variableDeclarations @ "double mrh, mrl;\n";
+								      reductionCode = reductionCode @ "Mul12(&mrh,&mrl,m,r);\n";
+								      match (problemdef.variableFormat) with 
+								      	    D  : {
+										     variableDeclarations = variableDeclarations @ "double temp;\n";										     
+									             reductionCode = reductionCode @ "temp = mrh - 1.0;\n";
+										     reductionCode = reductionCode @ "Add12(zh,zm,temp,mrl);\n";
+									       	 }
+								      	    DD : {
+										     variableDeclarations = variableDeclarations @ "double sxm;\n";
+										     variableDeclarations = variableDeclarations @ "double temp;\n";										     
+										     variableDeclarations = variableDeclarations @ "double rxmh, rxml;\n";
+										     variableDeclarations = variableDeclarations @ "double temp2h, temp2l;\n";
+										     variableDeclarations = variableDeclarations @ "double temp3;\n";
+                                                                                     reductionCode = reductionCode @ "sxm = scale * xm;\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxmh,&rxml,r,sxm);\n";
+										     reductionCode = reductionCode @ "temp = mrh - 1.0;\n";
+										     reductionCode = reductionCode @ "Add12(temp2h,temp2l,temp,mrl);\n";
+										     reductionCode = reductionCode @ "temp3 = temp2l + sxm;\n";
+										     reductionCode = reductionCode @ "Add12(zh,zm,temp2h,temp3);\n";
+									       	 }
+								      	    TD : {
+										     variableDeclarations = variableDeclarations @ "double sxm;\n";
+										     variableDeclarations = variableDeclarations @ "double sxl;\n";
+										     variableDeclarations = variableDeclarations @ "double temp;\n";										     
+										     variableDeclarations = variableDeclarations @ "double rxmh, rxml;\n";
+										     variableDeclarations = variableDeclarations @ "double rxlh, rxll;\n";
+                                                                                     reductionCode = reductionCode @ "sxm = scale * xm;\n";
+                                                                                     reductionCode = reductionCode @ "sxl = scale * xl;\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxmh,&rxml,r,sxm);\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxlh,&rxll,r,sxm);\n";
+										     reductionCode = reductionCode @ "temp = mrh - 1.0;\n";
+										     variableDeclarations = variableDeclarations @ "double temp1h, temp1l;\n";
+										     variableDeclarations = variableDeclarations @ "double temp2h, temp2l;\n";
+										     variableDeclarations = variableDeclarations @ "double temp3h, temp3l;\n";
+										     variableDeclarations = variableDeclarations @ "double temp4h, temp4l;\n";
+										     variableDeclarations = variableDeclarations @ "double templo;\n";
+										     reductionCode = reductionCode @ "Add12(temp1h,temp1l,temp,mrl);\n";
+										     reductionCode = reductionCode @ "Add12Cond(temp2h,temp2l,temp1l,rxmh);\n";
+										     reductionCode = reductionCode @ "Add12(temp3h,temp3l,temp1h,temp2h);\n";
+										     reductionCode = reductionCode @ "Add12Cond(temp4h,temp4l,rxml,rxlh);\n";
+										     reductionCode = reductionCode @ "templo = temp3l + (temp2l + (temp4h + (temp4l + rxll)));\n";
+										     reductionCode = reductionCode @ "Add12(zh,zm,temp3h,templo);\n";
+									       	 };
+							       	 }
+						      	    TD : {
+              						              variableDeclarations = variableDeclarations @ "double zh;\n";
+              						              variableDeclarations = variableDeclarations @ "double zm;\n";
+								      variableDeclarations = variableDeclarations @ "double zl;\n";
+								      variableDeclarations = variableDeclarations @ "double mrh, mrl;\n";
+								      reductionCode = reductionCode @ "Mul12(&mrh,&mrl,m,r);\n";
+								      match (problemdef.variableFormat) with 
+								      	    D  : {
+										     variableDeclarations = variableDeclarations @ "double temp;\n";										     
+									             reductionCode = reductionCode @ "temp = mrh - 1.0;\n";
+										     reductionCode = reductionCode @ "Add12(zh,zm,temp,mrl);\n";
+										     reductionCode = reductionCode @ "zl = 0.0;\n";
+									       	 }
+								      	    DD : {
+										     variableDeclarations = variableDeclarations @ "double sxm;\n";
+										     variableDeclarations = variableDeclarations @ "double temp;\n";										     
+										     variableDeclarations = variableDeclarations @ "double rxmh, rxml;\n";
+										     variableDeclarations = variableDeclarations @ "double temp2h, temp2m, temp2l;\n";
+										     variableDeclarations = variableDeclarations @ "double temp3;\n";
+                                                                                     reductionCode = reductionCode @ "sxm = scale * xm;\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxmh,&rxml,r,sxm);\n";
+										     reductionCode = reductionCode @ "temp = mrh - 1.0;\n";
+										     reductionCode = reductionCode @ "Renormalize3(&temp2h,&temp2m,&temp2l,temp,mrl,rxmh);\n";
+										     reductionCode = reductionCode @ "temp3 = temp2l + rxml;\n";
+										     reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,temp2h,temp2m,temp3);\n";
+									       	 }
+								      	    TD : {
+										     variableDeclarations = variableDeclarations @ "double sxm;\n";
+										     variableDeclarations = variableDeclarations @ "double sxl;\n";
+										     variableDeclarations = variableDeclarations @ "double temp;\n";										     
+										     variableDeclarations = variableDeclarations @ "double rxmh, rxml;\n";
+										     variableDeclarations = variableDeclarations @ "double rxlh, rxll;\n";
+										     variableDeclarations = variableDeclarations @ "double temp1h, temp1l;\n";
+										     variableDeclarations = variableDeclarations @ "double temp2h, temp2m, temp2l;\n";
+                                                                                     reductionCode = reductionCode @ "sxm = scale * xm;\n";
+                                                                                     reductionCode = reductionCode @ "sxl = scale * xl;\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxmh,&rxml,r,sxm);\n";
+                                                                                     reductionCode = reductionCode @ "Mul12(&rxlh,&rxll,r,sxm);\n";
+										     reductionCode = reductionCode @ "temp = mrh - 1.0;\n";
+										     reductionCode = reductionCode @ "Add12Cond(temp1h,temp1l,rxml,rxlh);\n";
+										     reductionCode = reductionCode @ "Renormalize3(&temp2h,&temp2m,&temp2l,temp,mrl,rxmh);\n";
+										     reductionCode = reductionCode @ "temp3 = temp2l + (temp1h + (temp1l + rxll));\n";
+										     reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,temp2h,temp2m,temp3);\n";
+									       	 };
+							       	 };
+						    };
+
+						    /* Now produce the code for the reduced function log(1 + z)/log(base) */
+						    myProblemdef.func = g;
+						    myProblemdef.dom = reducedDom;
+						    myProblemdef.target = 1/8 * (problemdef.target);
+						    myProblemdef.variableFormat = reducedArgumentFormat;
+						    suffix = "_log_arg_red";
+					            origDefDom = problemdef.dom - 1;
+					            match (problemdef) with { .definitionDomain = default } : { 
+					                                         if (origDefDom in problemdef.definitionDomain) then {
+                                                                                    origDefDom = problemdef.definitionDomain;
+                                                                                 }; }
+                                                                            default : {};
+					            myProblemdef.definitionDomain = origDefDom;
+					            myParametrization = parametrization;
+					            myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+					            myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+						    myParametrization.doNotPerformLogarithmArgRed = true;
+						    myParametrization.minWidth = (sup(reducedDom) - inf(reducedDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
+						    
+					            res = tryImplementation(myProblemdef, myParametrization);
+
+						    if (res.okay) then {						    
+						        /* The implementation of the reduced function has succeeded.
+							   Now produce the code for the reconstruction
+							*/
+						        outputFormat = res.outputformat;
+							oldDisplay = display;
+							display = decimal!;
+							rcprLog2 = 1/log2(base);
+							rcprLog2Hi = D(rcprLog2);
+							rcprLog2Mi = D(rcprLog2 - rcprLog2Hi);
+							rcprLog2Lo = D(rcprLog2 - (rcprLog2Hi + rcprLog2Mi));
+							match outputFormat with 
+							      D  : {
+									poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_hi " @ rcprLog2Hi @ "\n";
+									poundDefines = poundDefines @ "\n" @ logTableHi @ "\n";
+									variableDeclarations = variableDeclarations @ "double polyHi;\n";
+									variableDeclarations = variableDeclarations @ "double tableHi;\n";
+									variableDeclarations = variableDeclarations @ "double scaledExpoHi;\n";
+									variableDeclarations = variableDeclarations @ "double logMHi;\n";
+									reconstructionCode = reconstructionCode @ "tableHi = " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_hi[index];\n";
+									reconstructionCode = reconstructionCode @ "scaledExpoHi = ed * " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_hi;\n";
+									reconstructionCode = reconstructionCode @ "logMHi = tableHi + polyHi;\n";
+									reconstructionCode = reconstructionCode @ "*res_resh = scaledExpoHi + logMHi;\n";
+							      	   }
+							      DD : {
+									poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_hi " @ rcprLog2Hi @ "\n";
+									poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_mi " @ rcprLog2Mi @ "\n";
+									poundDefines = poundDefines @ "\n" @ logTableHi @ "\n";
+									poundDefines = poundDefines @ "\n" @ logTableMi @ "\n";
+									variableDeclarations = variableDeclarations @ "double polyHi;\n";
+									variableDeclarations = variableDeclarations @ "double polyMi;\n";
+									variableDeclarations = variableDeclarations @ "double tableHi;\n";
+									variableDeclarations = variableDeclarations @ "double tableMi;\n";
+									variableDeclarations = variableDeclarations @ "double scaledExpoHi;\n";
+									variableDeclarations = variableDeclarations @ "double scaledExpoMi;\n";
+									variableDeclarations = variableDeclarations @ "double logMHi;\n";
+									variableDeclarations = variableDeclarations @ "double logMMi;\n";
+									reconstructionCode = reconstructionCode @ "tableHi = " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_hi[index];\n";
+									reconstructionCode = reconstructionCode @ "tableMi = " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_mi[index];\n";
+									reconstructionCode = reconstructionCode @ "Mul122(&scaledExpoHi,&scaledExpoMi,ed," @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_hi," @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_mi);\n";
+									reconstructionCode = reconstructionCode @ "Add22(&logMHi,&logMMi,tableHi,tableMi,polyHi,polyMi);\n";
+									reconstructionCode = reconstructionCode @ "Add22(res_resh,res_resm,scaledExpoHi,scaledExpoMi,logMHi,logMMi);\n";
+							      	   }
+							      TD : {
+									poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_hi " @ rcprLog2Hi @ "\n";
+									poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_mi " @ rcprLog2Mi @ "\n";
+									poundDefines = poundDefines @ "#define " @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_lo " @ rcprLog2Lo @ "\n";
+									poundDefines = poundDefines @ "\n" @ logTableHi @ "\n";
+									poundDefines = poundDefines @ "\n" @ logTableMi @ "\n";
+									poundDefines = poundDefines @ "\n" @ logTableLo @ "\n";
+									variableDeclarations = variableDeclarations @ "double polyHi;\n";
+									variableDeclarations = variableDeclarations @ "double polyMi;\n";
+									variableDeclarations = variableDeclarations @ "double polyLo;\n";
+									variableDeclarations = variableDeclarations @ "double tableHi;\n";
+									variableDeclarations = variableDeclarations @ "double tableMi;\n";
+									variableDeclarations = variableDeclarations @ "double tableLo;\n";
+									variableDeclarations = variableDeclarations @ "double scaledExpoHi;\n";
+									variableDeclarations = variableDeclarations @ "double scaledExpoMi;\n";
+									variableDeclarations = variableDeclarations @ "double scaledExpoLo;\n";
+									variableDeclarations = variableDeclarations @ "double logMHi;\n";
+									variableDeclarations = variableDeclarations @ "double logMMi;\n";
+									variableDeclarations = variableDeclarations @ "double logMLo;\n";
+									reconstructionCode = reconstructionCode @ "tableHi = " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_hi[index];\n";
+									reconstructionCode = reconstructionCode @ "tableMi = " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_mi[index];\n";
+									reconstructionCode = reconstructionCode @ "tableLo = " @ (parametrization.functionBasename) @ "_log_rcpr_tbl_lo[index];\n";
+									reconstructionCode = reconstructionCode @ "Mul133(&scaledExpoHi,&scaledExpoMi,&scaledExpoLo,ed," @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_hi," @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_mi," @ (parametrization.functionBasename) @ "_rcpr_log_two_of_base_lo);\n";
+									reconstructionCode = reconstructionCode @ "Add33(&logMHi,&logMMi,&logMLo,tableHi,tableMi,tableLo,polyHi,polyMi,polyLo);\n";
+									reconstructionCode = reconstructionCode @ "Add33(res_resh,res_resm,res_resl,scaledExpoHi,scaledExpoMi,scaledExpoLo,logMHi,logMMi,logMLo);\n";
+							      	   };
+							display = oldDisplay!;	   							
+							
+							/* Now emit the code */
+							implementationCode = "\n";     
+							implementationCode = implementationCode @ poundDefines @ "\n" @ reciprocalTable @ "\n";
+						        implementationCode = implementationCode @ "void " @ parametrization.functionBasename @ "(";
+						        implementationCode = implementationCode @ (match (outputFormat) with
+						       	 		    		       	 	 D  : ( "double *res_resh, " )
+													 DD : ( "double *res_resh, double *res_resm, " )
+													 TD : ( "double *res_resh, double *res_resm, double *res_resl, " ));
+						        implementationCode = implementationCode @ (match (problemdef.variableFormat) with 
+						       			    		       	 	 D  : ( "double xh" )
+													 DD : ( "double xh, double xm" )
+													 TD : ( "double xh, double xm, double xl" ));
+						        implementationCode = implementationCode @ ") {\n";
+						        implementationCode = implementationCode @ variableDeclarations @ "\n" @ reductionCode @ "\n";
+							implementationCode = implementationCode @ (res.functionname) @ "(";
+							implementationCode = implementationCode @ (match (outputFormat) with 
+									     			  	 D  : ( "&polyHi, " )
+													 DD : ( "&polyHi, &polyMi, " )
+													 TD : ( "&polyHi, &polyMi, &polyLo, "));
+							implementationCode = implementationCode @ (match reducedArgumentFormat with 
+									     			  	 D  : ( "zh" )
+													 DD : ( "zh, zm" )
+													 TD : ( "zh, zm, zl"));
+							implementationCode = implementationCode @ ");\n";
+							implementationCode = implementationCode @ "\n" @ reconstructionCode @ "\n";
+							implementationCode = implementationCode @ "\n}\n";
+
+						        write(implementationCode) >> parametrization.implementationFile;
+						        result.approxerr = res.approxerr;
+						        result.implerr = (1 + abs(res.implerr)) * (1 + abs(1/2 * problemdef.target)) - 1;    // TODO
+         					        result.outputformat = outputFormat;
+          					        result.functionname = parametrization.functionBasename;
+						        result.okay = true;
+					            } else {
+						      write("Could not implement the subfunction ", g, " over ", reducedDom);
+						    };
+						 };						 
+					      };
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
+
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay;
@@ -3159,6 +3766,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	  write("Trying to implement ", problemdef.func, " on ", problemdef.dom, "\n");
 
 	  tryImplementationChoices = [| tryImplementationConstant,
+					tryImplementationThroughArgumentReductionLogarithm,
 	                                tryImplementationThroughArgumentReductionExponential, 
                                         tryImplementationThroughArgumentReductionWithExponentialBehavior, 
 					tryImplementationThroughSquaring,
