@@ -78,6 +78,8 @@ compiledCode = "implementation.so";
 ----------------------------------------------------------- */ 
 
 wholeRemezTime = 0;
+wholeGuessdegreeTime = 0;
+wholeGappaTime = 0;
 
 /* -------------------------------------------------------- 
    Print out problem configuration 
@@ -122,7 +124,11 @@ write("\n");
 
 if (resultat.okay) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
 
-write("Implementation took ", nearestint(implementationTime), " sec. out of which ", nearestint(wholeRemezTime), " sec. were spent on remez (",nearestint(wholeRemezTime/implementationTime * 100),"%)\n");
+write("Implementation took ", 
+      nearestint(implementationTime), " sec. out of which ", 
+      nearestint(wholeRemezTime), " sec. were spent on remez (",nearestint(wholeRemezTime/implementationTime * 100),"%), ",
+      nearestint(wholeGuessdegreeTime), " sec. were spent on guessdegree (",nearestint(wholeGuessdegreeTime/implementationTime * 100),"%) and ",
+      nearestint(wholeGappaTime), " sec. were spent on Gappa (",nearestint(wholeGappaTime/implementationTime * 100),"%)\n");
 
 sollyapath = sollyaPath;
 if sollyapath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";

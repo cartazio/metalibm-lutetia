@@ -97,7 +97,7 @@ procedure findMonomialsToOptimize(Pstar,func,dom,target,steps,startmidpoint) {
 
 	  t := startmidpoint;
 	  d = [inf(dom) - t; sup(dom) - t];
-	  poly = simplify(horner(simplify(Pstar(x + t))));
+	  poly = simplifysafe(horner(simplifysafe(Pstar(x + t))));
 	  f = func(x + t);
 	  monomials = [||];
 	  for i from 0 to degree(poly) do {

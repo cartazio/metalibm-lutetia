@@ -1,9 +1,9 @@
-f = log(x);
-dom = [1b-1000; 1b1000];
-target = 1b-112;
-maxDegree = 18;
-minWidth = (sup(dom) - inf(dom)) * 1/(2^14);
-tableIndexWidth = 8;
+f = x^(1/3);
+dom = [1b-50; 1b50];
+target = 1b-24;
+maxDegree = 5;
+minWidth = (sup(dom) - inf(dom)) * 1b-10;
+tableIndexWidth = 9;
 minimalReductionRatio = 1000;
 
 

@@ -106,12 +106,19 @@ procedure minimaMaxima(func,dom) {
 procedure guessdegreewrapper(f,d,eps,w) {
 	  var res, guess;
 	  var poly;
+	  var guessdegreeTime;
+	  var oldPoints;
 
-
-	  guess = guessdegree(f,d,eps,w);
-	  if (!(guess == guess)) then {
-	     guess = [1,1];
-	  };
+	  oldPoints = points;
+	  points = 65!;
+	  guessdegreeTime = time({
+	                             guess = guessdegree(f,d,eps,w);
+	                             if (!(guess == guess)) then {
+	                                guess = [1,1];
+	                             };
+                                 });
+	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
+	  points = oldPoints!;
 
 	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
@@ -132,11 +139,19 @@ procedure guessdegreewrapper(f,d,eps,w) {
 procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
 	  var res, guess;
 	  var poly;
+	  var guessdegreeTime;
+	  var oldPoints;
 
-	  guess = guessdegree(f,d,eps,w,b);
-	  if (!(guess == guess)) then {
-	     guess = [1,1];
-	  };
+	  oldPoints = points;
+	  points = 65!;
+	  guessdegreeTime = time({
+	                             guess = guessdegree(f,d,eps,w,b);
+	                             if (!(guess == guess)) then {
+	                                guess = [1,1];
+	                             };
+                                 });
+	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
+	  points = oldPoints!;
 
 	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
@@ -203,11 +218,11 @@ procedure remezbugreport(f,m,d,w,eps) {
 
 	  oldDisplay = display;
 	  display = dyadic!;
-	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,");", " targetErr = ", eps,";"; 
+	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,",",[abs(targetErr)/4;abs(targetErr)],");", " targetErr = ", eps,";"; 
 	  display = oldDisplay!;
 
 	  remezTime = time({
-                         	  res = remez(f,m,myDom,w,qual);
+                         	  res = remez(f,m,myDom,w,qual,[abs(targetErr)/4;abs(targetErr)]);
 	                          if (!(res == res)) then res = false;
 		           });
 	  "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";

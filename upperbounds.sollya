@@ -39,7 +39,7 @@ procedure determineupperbounds(poly, func, dom, targetErr, variableFormat, imple
 	  var testpoly, err, i;
 	  var res, coeffi, format;
 
-	  testpoly = implementpoly(poly,dom,targetErr/8,variableFormat,"p",implementationFile);
+	  testpoly = myimplementpoly(poly,dom,targetErr/8,variableFormat,"p",implementationFile);
 	  if (!(testpoly == testpoly)) then {
 	     testpoly = poly;
 	     err = error;
