@@ -3881,7 +3881,12 @@ procedure tryDetectPoweringArgRed(func, dom, target) {
 	  if ((a != 0) && (func(a) != 0)) then {
 	      oldPrec = prec;
 	      prec = max(2 * prec, ceil(-log2(abs(target))) * 4)!;
-	      c := log(abs(func(b)/func(a)))/log(abs(b/a));
+	      c = log(abs(func(b)/func(a)))/log(abs(b/a));
+	      if (abs(c) - 1b-1000 < 0) then {
+	      	 c = 0;
+	      } else {
+	         c := c;
+	      };
 	      c = round(c,floor(prec/2),RN);
 	      prec = oldPrec!;
 
@@ -4922,6 +4927,8 @@ procedure tryImplementation(problemdef, parametrization) {
 	  while ((!okay) && (tryImplementationChoices != [||])) do {
 	          tryImplementationInstance = head(tryImplementationChoices);
 		  tryImplementationChoices = tail(tryImplementationChoices);
+
+		  /* "i = ", i; i := i + 1; */
 	          res = tryImplementationInstance(problemdef, parametrization);
 
 		  if (res.okay) then {
