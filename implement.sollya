@@ -98,7 +98,7 @@ procedure myfindzeros(func,dom) {
 	  oldPoints = points;
 	  points = 1001!;
 
-	  numZeros = dirtyfindzeros(func,dom);
+	  numZeros = mydirtyfindzeros(func,dom);
 	  len = length(numZeros);
 	  zeros = [||];
 	  if ((len > 0) && (len < 500)) then {
@@ -168,7 +168,7 @@ procedure dirtycheckinfnorm(func,dom,target) {
 	  if (maxy > target) then
 	      res = false
 	  else {
-	       infn = dirtyinfnorm(func,dom);
+	       infn = mydirtyinfnorm(func,dom);
 	       if (infn > target) then {
 	       	  write("Warning: dirtycheckinfnorm decides false case by dirtyinfnorm\n");
 	       	  res = false;
@@ -205,7 +205,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 	  q = poly;
 
 	  if (approxerr == false) then {
-	    myapproxerr = dirtyinfnorm(poly/func-1,dom);
+	    myapproxerr = mydirtyinfnorm(poly/func-1,dom);
 	  } else {
 	    myapproxerr = approxerr;
 	  };
@@ -228,7 +228,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 		if (horner(q) == horner(poly)) then {
 		   implapproxerr = myapproxerr;
 		} else {
-		   implapproxerr = dirtyinfnorm(q/func-1,dom);
+		   implapproxerr = mydirtyinfnorm(q/func-1,dom);
 		};
 	        res = (implapproxerr < targeterr);
 		if (res) then {
@@ -403,7 +403,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 	  };
 
 	  if (okay) then {
-	     approxerr = dirtyinfnorm(pstar/func-1,dom);
+	     approxerr = mydirtyinfnorm(pstar/func-1,dom);
 
 	     monomials = [||];
 	     for ii from 0 to degree(pstar) do
@@ -426,7 +426,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 	        d = dom;
 	     };
 
-	     pointlist = dirtyfindzeros(pstar/func-1,d);
+	     pointlist = mydirtyfindzeros(pstar/func-1,d);
 
 	     firstConfigNumber = configToNumber(lowerbounds,optimisationPermut);
 	     lastConfigNumber = configToNumber(upperbounds,optimisationPermut);
@@ -635,7 +635,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	       for zr in zerosInIntervalRaw2 do
 	          zerosInIntervalRaw = zerosInIntervalRaw @(myfindzeros(func,zr));
 	       for zr in zerosInIntervalRaw do
-	          zerosInInterval = zerosInInterval @ (dirtyfindzeros(func,zr));
+	          zerosInInterval = zerosInInterval @ (mydirtyfindzeros(func,zr));
 	       prec = oldprec!;
 	       points = oldpoints!;
 	       diam = olddiam!;
@@ -1153,7 +1153,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	     y = evaluate(func, 0);
 	     if (!((inf(y) <= 0) && (sup(y) >= 0))) then {
 	     	/* func has a zero in dom but not in 0 */
-		zeros = dirtyfindzeros(func, dom);
+		zeros = mydirtyfindzeros(func, dom);
 		if (zeros != [||]) then {
 		   /* I found zeros of func in dom,
 		      let's look for the zero farthest
@@ -1349,7 +1349,7 @@ procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
 	     y = evaluate(func, 0);
 	     if (!((inf(y) <= 0) && (sup(y) >= 0))) then {
 	     	/* func has a zero in dom but not in 0 */
-		zeros = dirtyfindzeros(func, dom);
+		zeros = mydirtyfindzeros(func, dom);
 		if (zeros != [||]) then {
 		   /* I found zeros of func in dom,
 		      let's look for the zero farthest
@@ -1411,8 +1411,8 @@ procedure tryDetectSymmetry(func, dom, target) {
 	  testfunc = simplifysafe((func/(func(-x))) - 1);
 	  y = evaluate(testfunc, min(sup(dom), -inf(dom)) / 2);
 	  if (y in [-target, target]) then {
-	  	  zerosUpper = dirtyfindzeros(testfunc + target, myDom);
-	  	  zerosLower = dirtyfindzeros(testfunc - target, myDom);
+	  	  zerosUpper = mydirtyfindzeros(testfunc + target, myDom);
+	  	  zerosLower = mydirtyfindzeros(testfunc - target, myDom);
           } else {
 	          zerosUpper = [| 0 |];
 		  zerosLower = [| 0 |];
@@ -1425,8 +1425,8 @@ procedure tryDetectSymmetry(func, dom, target) {
 	     testfunc = simplifysafe((func/(-func(-x))) - 1);
    	     y = evaluate(testfunc, min(sup(dom), -inf(dom)) / 2);
 	     if (y in [-target, target]) then {
-	  	  zerosUpper = dirtyfindzeros(testfunc + target, myDom);
-	  	  zerosLower = dirtyfindzeros(testfunc - target, myDom);
+	  	  zerosUpper = mydirtyfindzeros(testfunc + target, myDom);
+	  	  zerosLower = mydirtyfindzeros(testfunc - target, myDom);
              } else {
 	          zerosUpper = [| 0 |];
 		  zerosLower = [| 0 |];
@@ -1775,8 +1775,8 @@ procedure tryDetectExponentialArgRed(func, dom, target) {
 	     testfunc = simplifysafe((base^x)/func - 1);
 	     y = evaluate(testfunc, mid(dom));
 	     if (y in [-target, target]) then {
-	  	  zerosUpper = dirtyfindzeros(testfunc + target, dom);
-	  	  zerosLower = dirtyfindzeros(testfunc - target, dom);
+	  	  zerosUpper = mydirtyfindzeros(testfunc + target, dom);
+	  	  zerosLower = mydirtyfindzeros(testfunc - target, dom);
 
 		  if ((zerosUpper == [||]) && (zerosLower == [||])) then {
 		      if (base != 1) then {
@@ -2514,7 +2514,7 @@ procedure dirtyEvaluateImage(f,dom) {
 	      (sup(yInt) == sup(yInt)) &&
 	      (sup(abs(yInt)) != infty)) then {
 	      fDiff = diff(f);
-	      zeros = (dirtyfindzeros(fDiff,dom)) :. (sup(dom));
+	      zeros = (mydirtyfindzeros(fDiff,dom)) :. (sup(dom));
 	      fmin = inf(evaluate(f,inf(dom)));
 	      fmax = sup(evaluate(f,inf(dom)));
 	      for z in zeros do {
@@ -2903,8 +2903,8 @@ procedure tryImplementationConstant(problemdef, parametrization) {
 					  testfunc = simplifysafe((myConst/func) - 1);
           	                          y = evaluate(testfunc, mid(dom));
 	                                  if (y in [-1/4 * target, 1/4 * target]) then {
-	  	                             zerosUpper = dirtyfindzeros(testfunc + 1/4 * target, dom);
-	  	                             zerosLower = dirtyfindzeros(testfunc - 1/4 * target, dom);
+	  	                             zerosUpper = mydirtyfindzeros(testfunc + 1/4 * target, dom);
+	  	                             zerosLower = mydirtyfindzeros(testfunc - 1/4 * target, dom);
 
 		                             if ((zerosUpper == [||]) && (zerosLower == [||])) then {
 		  			     	write("Trying to replace the given function by the constant ", myConst, "\n");
@@ -2990,7 +2990,7 @@ procedure tryImplementationConstant(problemdef, parametrization) {
 						 	       	     D  : (myConstHi)
 								     DD : (myConstHi + myConstMi)
 								     TD : (myConstHi + myConstMi + myConstLo);
-						result.approxerr = dirtyinfnorm(myFinalConst/func - 1,dom);
+						result.approxerr = mydirtyinfnorm(myFinalConst/func - 1,dom);
 						result.implerr = 0;
          					result.outputformat = myConstFormat;
           					result.functionname = parametrization.functionBasename;
@@ -3264,8 +3264,8 @@ procedure tryDetectLogarithmArgRed(func, dom, target) {
 	      testfunc = simplifysafe((log(x)/log(base))/func - 1);
 	      y = evaluate(testfunc, mid(dom));
 	      if (y in [-target, target]) then {
-	     	  zerosUpper = dirtyfindzeros(testfunc + target, dom);
-	  	  zerosLower = dirtyfindzeros(testfunc - target, dom);
+	     	  zerosUpper = mydirtyfindzeros(testfunc + target, dom);
+	  	  zerosLower = mydirtyfindzeros(testfunc - target, dom);
 
 		  if ((zerosUpper == [||]) && (zerosLower == [||])) then {
 		      if (base != 1) then {
@@ -3902,8 +3902,8 @@ procedure tryDetectPoweringArgRed(func, dom, target) {
 	         testfunc = simplifysafe((sign * x^c)/func - 1);
 	         y = evaluate(testfunc, mid(dom));
 	         if (y in [-target, target]) then {
-	  	    zerosUpper = dirtyfindzeros(testfunc + target, dom);
-	  	    zerosLower = dirtyfindzeros(testfunc - target, dom);
+	  	    zerosUpper = mydirtyfindzeros(testfunc + target, dom);
+	  	    zerosLower = mydirtyfindzeros(testfunc - target, dom);
 
 		    if ((zerosUpper == [||]) && (zerosLower == [||])) then {
 		      	              result.okay = true;

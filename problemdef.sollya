@@ -1,7 +1,7 @@
-f = 5 * log(x);
-dom = [1b-50; 1b50];
+f = 2^x + x^(1/5);
+dom = [60; 80];
 target = 1b-60;
-maxDegree = 5;
+maxDegree = 8;
 minWidth = (sup(dom) - inf(dom)) * 1b-10;
 tableIndexWidth = 9;
 minimalReductionRatio = 1000;

@@ -46,7 +46,7 @@ procedure testEvenSymetry(func, dom, target) {
 	  diam = olddiam!;
 	  possibleBs = [||];
 	  for pbs in possibleRawBs do 
-	     possibleBs = possibleBs@(dirtyfindzeros(func - fa, pbs));
+	     possibleBs = possibleBs@(mydirtyfindzeros(func - fa, pbs));
 	  possibleBs = sort(possibleBs);   	  
 	  
 	  if (possibleBs != [||]) then {
@@ -56,7 +56,7 @@ procedure testEvenSymetry(func, dom, target) {
 	     t := D((a + b) / 2);
 	     shiftedFunc = horner(func(x + t));
 	     shiftedDom = [inf(dom) - t; sup(dom) - t];
-	     errSym = dirtyinfnorm(shiftedFunc(-x)/shiftedFunc(x) - 1, shiftedDom);
+	     errSym = mydirtyinfnorm(shiftedFunc(-x)/shiftedFunc(x) - 1, shiftedDom);
 	     if (errSym <= abs(target)) then {
                 res = t;
 	     } else {

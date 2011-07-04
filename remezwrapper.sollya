@@ -34,6 +34,30 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
+/* A timing wrapper around dirtyinfnorm */
+procedure mydirtyinfnorm(func, dom) {
+	  var res, dirtyinfnormtime;
+
+	  dirtyinfnormtime = time({ 
+	                             res = dirtyinfnorm(func, dom);
+				  });
+	  wholeDirtyinfnormTime := wholeDirtyinfnormTime + dirtyinfnormtime;
+
+	  return res;
+};
+
+/* A timing wrapper around dirtyfindzeros */
+procedure mydirtyfindzeros(func, dom) {
+	  var res, dirtyfindzerostime;
+
+	  dirtyfindzerostime = time({ 
+	                             res = dirtyfindzeros(func, dom);
+				  });
+	  wholeDirtyfindzerosTime := wholeDirtyfindzerosTime + dirtyfindzerostime;
+
+	  return res;
+};
+
 /* Quickly checks if the infinite norm of func 
    in dom is less than target 
 
@@ -61,7 +85,7 @@ procedure quickcheckinfnorm(func,dom,target) {
 	  if (maxy > target) then 
 	      res = false 
 	  else {
-	       infn = dirtyinfnorm(func,dom);
+	       infn = mydirtyinfnorm(func,dom);
 	       if (infn > target) then {
 	       	  write("Warning: quickcheckinfnorm decides false case by dirtyinfnorm\n");
 	       	  res = false; 
@@ -83,7 +107,7 @@ procedure minimaMaxima(func,dom) {
 	zerosInt = [||];
 	for z in zerosIntRaw do zerosInt = zerosInt @ (myfindzeros(deriv,z));
 	zeros = [||];
-	for z in zerosInt do zeros = zeros @ (dirtyfindzeros(deriv,z));
+	for z in zerosInt do zeros = zeros @ (mydirtyfindzeros(deriv,z));
 	zeros = sort(zeros);
 
 	t := func(inf(dom));
@@ -279,7 +303,7 @@ procedure remezorfail(func,dom,monomials,eps) {
 	          poly2 = false;
 	          poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/func,eps);
 		  if (poly2 != false) then {
-		     if (dirtyinfnorm(poly2/func - 1, dom) < dirtyinfnorm(poly/func - 1, dom)) then {
+		     if (mydirtyinfnorm(poly2/func - 1, dom) < mydirtyinfnorm(poly/func - 1, dom)) then {
 		        poly = poly2;
 		     };
 		  };
@@ -318,7 +342,7 @@ procedure simpleRemezWrapper(func, dom, targetErr, iterations) {
 	     	monomials = [|0,...,deg|];
 	     poly = remezorfail(func,dom,monomials,targetErr);
 	     if (poly != false) then {
-	     	err = dirtyinfnorm(poly/func-1,dom);
+	     	err = mydirtyinfnorm(poly/func-1,dom);
 	     };
 	     k := k + 1;
 	  };
@@ -383,7 +407,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 	     	monomials = [|0,...,deg|];
 	     poly = remezorfail(func,dom,monomials,targetErr);
 	     if (poly != false) then {
-	     	err = dirtyinfnorm(poly/func-1,dom);
+	     	err = mydirtyinfnorm(poly/func-1,dom);
 	     };
 	     k := k + 1;
 	  };
@@ -399,11 +423,11 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 			subPolyDone = coeff(poly,head(revMonomials));
 			correctMonomials = [|head(revMonomials)|];
 			revMonomials = tail(revMonomials);
-			infnormPoly = dirtyinfnorm(poly,dom);			
+			infnormPoly = mydirtyinfnorm(poly,dom);			
 			while (revMonomials != [||]) do {
 			      i = head(revMonomials);
 			      g = (x * subPolyDone) / coeff(poly,i);
-			      alpha = dirtyinfnorm(g,dom);
+			      alpha = mydirtyinfnorm(g,dom);
 			      
 		              samesign = false; nocancel = false;
 			      if (alpha > 0.5) then {
@@ -437,12 +461,12 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 
 			uncorrectpoly = poly; 
 			poly = subpoly(poly,correctMonomials);
-			err = dirtyinfnorm(poly/func - 1, dom);
+			err = mydirtyinfnorm(poly/func - 1, dom);
 			write("\t\tcurrent implem. polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
 			if (abs(err) > abs(targetErr)) then {
 		   	   poly = remezorfail(func,dom,correctMonomials,targetErr);
 		   	   if (poly != false) then {
-		      	      errR = dirtyinfnorm(poly/func - 1, dom);
+		      	      errR = mydirtyinfnorm(poly/func - 1, dom);
 			      if (abs(errR) > abs(err)) then {
 			      	 write("Warning: Remez on incomplete base worse than force-and-round\n");
 			      };
@@ -460,7 +484,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 		   	   poly2 = remezorfail(func,dom,monomials,targetErr);
 		   	   if (poly2 != false) then {
 		      	      poly = poly2;
-		      	      err = dirtyinfnorm(poly/func - 1, dom);
+		      	      err = mydirtyinfnorm(poly/func - 1, dom);
 		              uncorrecterr = err;
 			      write("\t\tcurrent remez polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n"); 
 		   	   } else {
@@ -470,7 +494,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 			   if (abs(err) > abs(targetErr)) then {
 			      write("Warning: must use polynomial that is difficult to implement.\n");	
 			      poly = uncorrectpoly;
-			      err = dirtyinfnorm(poly/func - 1, dom);
+			      err = mydirtyinfnorm(poly/func - 1, dom);
 			   } else {
 	                     uncorrecterr = err;
 			     err = 1b1000;

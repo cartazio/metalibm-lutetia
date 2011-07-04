@@ -107,7 +107,7 @@ procedure fpminimaxwrapper(func,dom,monomials,pstar,pointlist,formatlist) {
 	  };
 
 	  if (pointlist == [||]) then {
-	    mypointlist = dirtyfindzeros(pstar/func-1,d);
+	    mypointlist = mydirtyfindzeros(pstar/func-1,d);
 	  } else {
 	    mypointlist = pointlist;
 	  };

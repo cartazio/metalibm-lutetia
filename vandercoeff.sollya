@@ -85,14 +85,14 @@ procedure vandercoeffswrapper(poly, func, dom, target) {
 	     d = dom;
 	  };
 	  
-	  interpolPoints = (inf(d)).:(dirtyfindzeros(diff(poly/func - 1), d)):.(sup(d));
+	  interpolPoints = (inf(d)).:(mydirtyfindzeros(diff(poly/func - 1), d)):.(sup(d));
 
 	  evaluatedPoints = [||];
 	  for p in interpolPoints do evaluatedPoints = evaluatedPoints:.(mid(evaluate(func,p)));
 
 	  if (target == false) then {
 	  	  alpha = 1b-10;
-	  	  maxerr = (dirtyinfnorm(poly/func - 1, dom)) * (1 + alpha);
+	  	  maxerr = (mydirtyinfnorm(poly/func - 1, dom)) * (1 + alpha);
           } else {
 	    	  maxerr = target;
 	  };
