@@ -105,6 +105,7 @@ problemdef.variableFormat = variableFormat;
 
 parametrization.maxDegree = maxDegree;
 parametrization.minWidth = minWidth;
+parametrization.metaSplitMinWidth = metaSplitMinWidth;
 parametrization.tableIndexWidth = tableIndexWidth;
 parametrization.beta = trim + trim + trim * trim;
 parametrization.implementationFile = implementationFile;

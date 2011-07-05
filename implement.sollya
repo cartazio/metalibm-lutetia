@@ -970,6 +970,22 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  if (splitPoints == [||]) then {
 	     doElseCase = false;
 	     resultat = implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+
+	     if (!(resultat.okay)) then {
+	     	/* The implementation did not work out.
+		
+		   We split the interval by "inventing" 
+		   one or two split points.
+
+		*/
+		if (inf(dom) * sup(dom) < 0) then {
+		   splitpoints = [| D(inf(dom) / 3), D(sup(dom) / 3) |];
+		} else {
+		   splitpoints = [| D(mid(dom)) |];
+		};
+		doElseCase = true;
+	        resultat = { .okay = false };
+	     };
 	  };
 
 	  if (doElseCase) then {
@@ -4906,6 +4922,186 @@ procedure tryImplementationThroughArgumentReductionPowering(problemdef, parametr
 	  return result;
 };
 
+procedure doWorkForTryImplementationThroughMetaSplitting(problemdef, parametrization) {
+	  var result, domains, dom, currDom, okay, minWidth, origDefDom;
+	  var myProblemdef, myParametrization, res, suffix, i, oldDisplay, currImplementationFile;
+	  var outputDomains, outputResults, outputFiles, implFile;
+	  var splitterCode, recursiveSplitterRes;
+	  var functionNames, outputFormats, myOutputFormat, myOutputFormatNum;
+	  var implErr, approxErr;
+
+	  result = { .okay = false };
+
+	  dom = problemdef.dom;
+	  minWidth = parametrization.metaSplitMinWidth;
+	  if (inf(dom) * sup(dom) < 0) then {
+	     domains = [| [ inf(dom), D(inf(dom) / 3)], [D(inf(dom) / 3), D(sup(dom) / 3)], [D(sup(dom) / 3), sup(dom)] |];
+	  } else {
+	     domains = [| [inf(dom), D(mid(dom))], [D(mid(dom)), sup(dom)] |];
+	  };
+
+	  okay = true; i = 0;
+	  outputDomains = [||];
+	  outputResults = [||];
+	  outputFiles = [||];
+	  while (okay && (domains != [||])) do {
+	  	currDom = head(domains);
+		domains = tail(domains);
+		if (sup(currDom) - inf(currDom) >= abs(minWidth)) then {
+ 		    oldDisplay = display;
+		    display = decimal!;
+		    suffix = "_metasplit_" @ i;
+		    display = oldDisplay!;
+		    currImplementationFile = parametrization.implementationFile @ suffix;
+                    myProblemdef.func = problemdef.func;
+		    myProblemdef.dom = currDom;
+		    myProblemdef.target = problemdef.target;
+		    myProblemdef.variableFormat = problemdef.variableFormat;
+		    origDefDom = problemdef.dom;
+		    match (problemdef) with { .definitionDomain = default } : {
+		                                 if (origDefDom in problemdef.definitionDomain) then {
+                                                    origDefDom = problemdef.definitionDomain;
+                                                 }; }
+                                            default : {};
+		    myProblemdef.definitionDomain = origDefDom;
+		    myParametrization = parametrization;
+		    myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+		    myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+		    myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+		    myParametrization.implementationFile = currImplementationFile;
+		    myParametrization.doNotPerformMetaSplitArgRed = true;
+		    myParametrization.minWidth = (sup(currDom) - inf(currDom)) * (parametrization.minWidth / (sup(dom) - inf(dom)));
+
+		    write("Trying to implement the given function on ", currDom, "\n");
+		    res = tryImplementation(myProblemdef, myParametrization);
+
+		    if (res.okay) then {
+		       write("The implementation of the function on ", currDom, " has been successful.\n");
+		       outputDomains = outputDomains :. currDom;
+		       outputResults = outputResults :. res;
+		       outputFiles = outputFiles :. currImplementationFile;
+		       i := i + 1;
+		    } else {
+		          write("The implementation of the function on ", currDom, " has failed. Resplitting.\n");
+	                  if (inf(currDom) * sup(currDom) < 0) then {
+	                     domains = [| [ inf(currDom), D(inf(currDom) / 3)], [D(inf(currDom) / 3), D(sup(currDom) / 3)], [D(sup(currDom) / 3), sup(currDom)] |] @ domains;
+	                  } else {
+	                     domains = [| [inf(currDom), D(mid(currDom))], [D(mid(currDom)), sup(currDom)] |] @ domains;
+	                  };
+		    };
+		} else {
+		    okay = false;
+		};
+	  };
+
+	  if (okay) then {
+	     /* Combine all implementation files into one file */
+	     write("\n") > parametrization.implementationFile;
+	     for implFile in outputFiles do {
+	         bashexecute("cat " @ implFile @ " >> " @ (parametrization.implementationFile));
+	     };
+
+	     functionNames = [||];
+	     outputFormats = [||];
+	     myOutputFormatNum = 1;
+	     implErr = 0;
+	     approxErr = 0;
+	     for res in outputResults do {
+	     	 myOutputFormatNum = max(myOutputFormatNum,
+					 match res.outputformat with D : (1) DD : (2) TD : (3));
+		 implErr = max(implErr, abs(res.implerr));
+		 approxErr = max(approxErr, abs(res.approxerr));
+		 outputFormats = outputFormats :. (res.outputformat);
+		 functionNames = functionNames :. (res.functionname);
+	     };
+
+	     myOutputFormat = match myOutputFormatNum with 1 : (D) 2 : (DD) 3 : (TD);	     
+
+	     splitterCode = "\n";
+	     recursiveSplitterRes = generateRecursiveSplitter((parametrization.functionBasename) @ "_metasplit", outputDomains, functionNames, outputFormats, problemdef.variableFormat, myOutputFormat);
+             if (recursiveSplitterRes.okay) then {
+		splitterCode = splitterCode @ recursiveSplitterRes.defines;
+             	splitterCode = splitterCode @ "\n\nvoid " @ (parametrization.functionBasename) @ "(";
+	       	splitterCode = splitterCode @ (match myOutputFormat with
+                                                     D   : ( "double *res_resh, " )
+                                                     DD  : ( "double *res_resh, double *res_resm, " )
+                                                     TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
+                                              );
+                splitterCode = splitterCode @ (match problemdef.variableFormat with
+                                                     D   : ( "double xh" )
+                                                     DD  : ( "double xh, double xm" )
+                                                     TD  : ( "double xh, double xm, double xl" )
+                                              );
+                splitterCode = splitterCode @ ") {\n";
+		splitterCode = splitterCode @ recursiveSplitterRes.splitterCode;
+                splitterCode = splitterCode @ "}\n\n";
+		write(splitterCode) >> parametrization.implementationFile;
+             };
+
+	     result.okay = true;
+	     result.approxerr = approxErr;
+	     result.implErr = implErr;
+	     result.outputformat = myOutputFormat;
+	     result.functionname = (parametrization.functionBasename);
+	  };
+
+	  return result;
+};
+
+procedure tryImplementationThroughMetaSplitting(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, doNotPerformMetaSplitArgRed;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default,
+				       .tableIndexWidth = default,
+				       .metaSplitMinWidth = default } } : {
+
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       doNotPerformMetaSplitArgRed = false;
+				       match (parametrization) with
+				             { .doNotPerformMetaSplitArgRed = true } : { doNotPerformMetaSplitArgRed = true; }
+					     default : { };
+
+				       if (!doNotPerformMetaSplitArgRed) then {
+				           /* Start with a test if the domain actually needs
+                                              argument reduction in order to stay below the maximum
+					      polynomial degree
+				           */
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+					      result = doWorkForTryImplementationThroughMetaSplitting(problemdef, parametrization);
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
+
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay, i;
@@ -4921,7 +5117,8 @@ procedure tryImplementation(problemdef, parametrization) {
                                         tryImplementationThroughArgumentReductionWithExponentialBehavior,
 					tryImplementationThroughSquaring,
                                         tryImplementationThroughSymmetryDetectionAroundZero,
-                                        tryImplementationThroughDomainSplitting |];
+                                        tryImplementationThroughDomainSplitting,
+					tryImplementationThroughMetaSplitting |];
 
 	  okay = false; i = 0;
 	  while ((!okay) && (tryImplementationChoices != [||])) do {
