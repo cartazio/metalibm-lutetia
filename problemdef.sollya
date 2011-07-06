@@ -1,9 +1,9 @@
-f = 2^x + sin(pi * x) + 2;
-dom = [-40; 40];
-target = 1b-30;
-maxDegree = 8;
+f = log2(x^2) + 1b-30 * exp((x/1024)^2);
+dom = [2; 1024];
+target = 1b-40;
+maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/32;
 tableIndexWidth = 9;
 minimalReductionRatio = 1000;
-metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/1024;
+metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/32;
 
