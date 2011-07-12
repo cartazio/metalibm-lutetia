@@ -2654,6 +2654,7 @@ procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
 	     	    result.okay = true;
 		    result.g = base^x;
 		    result.h = testfunc;
+		    result.ratio = reducRatio;
 		};
 	     };
 	  };
@@ -2701,30 +2702,141 @@ procedure tryDetectLogarithmicBehaviorArgRed(func, dom, maxReducRatio) {
 	     	    result.okay = true;
 		    result.g = log2(x);
 		    result.h = testfunc;
+		    result.ratio = reducRatio;
 		};
 	     };
 	  };
 	  return result;
 };
 
+procedure tryDetectPoweringBehaviorArgRed(func, dom, maxReducRatio) {
+	  var result, a, b, c, sign, testfunc;
+	  var yOrig, yReduc, widthOrig, withReduc, reducRatio;
+	  var testfuncjustone;
+
+	  result = { .okay = false };
+
+	  /* We have to detect if func behaves in dom
+	     like
+
+	     x^c for some constant c
+
+	     We start by computing a possible constant c
+	     as
+
+	     c = log(abs(f(b)/f(a)))/log(abs(b/a))
+
+	     where a, b are chosen as follows:
+
+	     * if sup(dom) == 0, a = 2/3 * inf(dom), b = 1/3 * inf(dom)
+	     * otherwise:
+	          - if inf(dom) == 0, a = 1/3 * sup(dom), b = 2/3 * sup(dom)
+		  - otherwise:
+	               + if inf(dom) != -sup(dom), a = inf(dom), b = sup(dom)
+	               + otherwise: a = inf(dom)/2, b = sup(dom)
+
+	  */
+	  if (sup(dom) == 0) then {
+	     a = 2/3 * inf(dom);
+	     b = 1/3 * inf(dom);
+	  } else {
+	     if (inf(dom) == 0) then {
+	     	a = 1/3 * sup(dom);
+		b = 2/3 * sup(dom);
+	     } else {
+	        if (inf(dom) != -sup(dom)) then {
+		  a = inf(dom);
+		  b = sup(dom);
+		} else {
+		  a = inf(dom)/2;
+		  b = sup(dom);
+		};
+	     };
+	  };
+
+	  if ((a != 0) && (func(a) != 0)) then {
+	      oldPrec = prec;
+	      prec = max(2 * prec, ceil(-log2(abs(target))) * 4)!;
+	      c = log(abs(func(b)/func(a)))/log(abs(b/a));
+	      if (abs(c) - 1b-1000 < 0) then {
+	      	 c = 0;
+	      } else {
+	         c := c;
+	      };
+	      c = round(c,floor(prec/2),RN);
+	      prec = oldPrec!;
+
+	      if ((c == c) && (abs(c) != infty) && (c > 0) && (c != 2) && (c != 1)) then {
+	         /* Now we have to check if sign * x^c effectively approximates func with
+
+		    We still have to determine sign: we just take the sign of func(a) * a.
+
+	         */
+
+		 if (func(a) * a < 0) then sign = -1 else sign = 1;
+	         testfunc = simplifysafe(func/(sign * x^c));
+	         yOrig = dirtyEvaluateImage(func,dom);
+	         yReduc = dirtyEvaluateImage(testfunc,dom);
+	         widthOrig = sup(yOrig) - inf(yOrig);
+	         widthReduc = sup(yReduc) - inf(yReduc);
+	         reducRatio = widthReduc / widthOrig;
+
+	         if ((reducRatio == reducRatio) && (abs(reducRatio) != infty) && (reducRatio <= maxReducRatio)) then {
+	     	    /* Now check if the divided function is not 
+		       just 1 or something really close. 
+		       If this were the case, we do not 
+		       really have an argument reduction 
+		       as we can always multiply by 1 without
+		       any change in the problem set.
+		    */
+		    testfuncjustone = false; 
+		    if (sup(abs(yReduc - 1)) <= 2^(-(prec/2))) then {
+		       testfuncjustone = true;
+		    };
+		
+		    if (!testfuncjustone) then {
+	     	        result.okay = true;
+		        result.g = (sign * x^c);
+		        result.h = testfunc;
+		        result.ratio = reducRatio;
+		    };
+	         };
+	      };
+	  };
+
+	  return result;
+};
+
 procedure tryDetectParamountBehaviorArgRed(func, dom, maxReducRatio) {
 	  var detectors, result, res, detector, okay;
+	  var best;
 
-	  detectors = [| tryDetectExponentialBehaviorArgRed, tryDetectLogarithmicBehaviorArgRed |];
+	  detectors = [| 
+                         tryDetectExponentialBehaviorArgRed, 
+	                 tryDetectLogarithmicBehaviorArgRed,
+			 tryDetectPoweringBehaviorArgRed 
+		      |];
 
 	  result = { .okay = false };
 	  okay = false;	  
 
-	  while ((!okay) && (detectors != [||])) do {
-	  	detector = head(detectors);
-		detectors = tail(detectors);
-
+	  for detector in detectors do {
 		res = detector(func, dom, maxReducRatio);
 
 		if (res.okay) then {
-		   result = res;
+		   if (okay) then {
+		     if (abs(res.ratio) < abs(best.ratio)) then {
+		     	best = res;
+		     };
+		   } else {
+		     best = res;
+		   };
 		   okay = true;
 		};
+	  };
+
+	  if (okay) then {
+	     result = best;
 	  };
 
 	  return result;
@@ -2833,7 +2945,7 @@ procedure tryImplementationThroughArgumentReductionWithParamountBehavior(problem
 					            myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 					            myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
-						    /* We do not need that, as h is just "some function": myParametrization.doNotPerformParamountBehaviorArgRed = true; */
+						    /* myParametrization.doNotPerformParamountBehaviorArgRed = true; */
 						    myParametrization.implementationFile = parametrization.implementationFile @ "_subfunction_h";
 
 					            res2 = tryImplementation(myProblemdef, myParametrization);
@@ -3930,6 +4042,7 @@ procedure tryImplementationThroughArgumentReductionLogarithm(problemdef, paramet
 
 procedure tryDetectPoweringArgRed(func, dom, target) {
 	  var result, a, b, c, sign;
+	  var testfunc, y, zerosUpper, zerosLower;
 
 	  result = { .okay = false };
 

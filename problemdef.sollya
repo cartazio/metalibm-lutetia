@@ -1,5 +1,5 @@
-f = log2(x^2) + 1b-30 * exp((x/1024)^2);
-dom = [2; 1024];
+f = x^17.5 + sqrt(x);
+dom = [4; 1024];
 target = 1b-40;
 maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/32;
