@@ -38,6 +38,16 @@ roundingwarnings=off!;
 prec = 350!;
 verbosity = 1!;
 
+/* -------------------------------------------------------- 
+   Initialize performance counters
+----------------------------------------------------------- */ 
+
+wholeRemezTime = 0;
+wholeGuessdegreeTime = 0;
+wholeGappaTime = 0;
+wholeDirtyinfnormTime = 0;
+wholeDirtyfindzerosTime = 0;
+
 /* --------------------------------------------------------
    Read in configuration
 ----------------------------------------------------------- */ 
@@ -73,15 +83,6 @@ polynomialName = "f_approx";
 gappaOutputTmpFile = "gappaOutput.sollya";
 compiledCode = "implementation.so";
 
-/* -------------------------------------------------------- 
-   Initialize performance counters
------------------------------------------------------------ */ 
-
-wholeRemezTime = 0;
-wholeGuessdegreeTime = 0;
-wholeGappaTime = 0;
-wholeDirtyinfnormTime = 0;
-wholeDirtyfindzerosTime = 0;
 
 /* -------------------------------------------------------- 
    Print out problem configuration 

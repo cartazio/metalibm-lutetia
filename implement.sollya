@@ -40,6 +40,7 @@ execute("vandercoeff.sollya");
 execute("fpminimax.sollya");
 execute("galoptimisation.sollya");
 execute("symetries.sollya");
+execute("inverse.sollya");
 
 procedure targetErrorToImplementpolyType(err) {
 	  var res;
@@ -645,7 +646,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	       if (zerosInInterval != [||]) then {
 	           smallestAbsZero = zerosInInterval[0];
 	           for zr in zerosInInterval do
-	     	       if (abs(func(zr)) < abs(func(smallestAbsZero))) then smallestAbsZero = zr;
+	     	       if (~abs(func(zr)) < ~abs(func(smallestAbsZero))) then smallestAbsZero = zr;
 	           midpoint := D(smallestAbsZero);
 	       } else {
 	           symetrypoint = testEvenSymetry(func, dom, 1b-10);
@@ -1762,7 +1763,7 @@ procedure tryDetectExponentialArgRed(func, dom, target) {
 	  };
 	  ratio = func(c + d) / func(c);
 
-	  if (ratio > 0) then {
+	  if (~ratio > 0) then {
 	     /* Here, f(c + d) / f(c) is positive
 
 	        So we can compute a presumed base
@@ -2602,7 +2603,7 @@ procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
 	  };
 	  ratio = func(c + d) / func(c);
 
-	  if (ratio > 0) then {
+	  if (~ratio > 0) then {
 	     /* Here, f(c + d) / f(c) is positive
 
 	        So we can compute a presumed base
@@ -2754,11 +2755,11 @@ procedure tryDetectPoweringBehaviorArgRed(func, dom, maxReducRatio) {
 	     };
 	  };
 
-	  if ((a != 0) && (func(a) != 0)) then {
+	  if ((a != 0) && (~func(a) != 0)) then {
 	      oldPrec = prec;
 	      prec = max(2 * prec, ceil(-log2(abs(target))) * 4)!;
 	      c = log(abs(func(b)/func(a)))/log(abs(b/a));
-	      if (abs(c) - 1b-1000 < 0) then {
+	      if ((~abs(c)) - 1b-1000 < 0) then {
 	      	 c = 0;
 	      } else {
 	         c := c;
@@ -2773,7 +2774,7 @@ procedure tryDetectPoweringBehaviorArgRed(func, dom, maxReducRatio) {
 
 	         */
 
-		 if (func(a) * a < 0) then sign = -1 else sign = 1;
+		 if ((~func(a)) * a < 0) then sign = -1 else sign = 1;
 	         testfunc = simplifysafe(func/(sign * x^c));
 	         yOrig = dirtyEvaluateImage(func,dom);
 	         yReduc = dirtyEvaluateImage(testfunc,dom);
@@ -4089,7 +4090,7 @@ procedure tryDetectPoweringArgRed(func, dom, target) {
 	     };
 	  };
 
-	  if ((a != 0) && (func(a) != 0)) then {
+	  if ((a != 0) && (~func(a) != 0)) then {
 	      oldPrec = prec;
 	      prec = max(2 * prec, ceil(-log2(abs(target))) * 4)!;
 	      c = log(abs(func(b)/func(a)))/log(abs(b/a));
@@ -4109,7 +4110,7 @@ procedure tryDetectPoweringArgRed(func, dom, target) {
 
 	         */
 
-		 if (func(a) * a < 0) then sign = -1 else sign = 1;
+		 if ((~func(a)) * a < 0) then sign = -1 else sign = 1;
 	         testfunc = simplifysafe((sign * x^c)/func - 1);
 	         y = evaluate(testfunc, mid(dom));
 	         if (y in [-target, target]) then {

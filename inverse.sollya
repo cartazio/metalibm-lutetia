@@ -1,0 +1,133 @@
+/*
+ * Copyright 2011 by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
+ * Sollya metalibm procedures for constructing the inverse of
+ * a given function.
+ *
+ * Contributor: Christoph Quirin Lauter (UPMC LIP6 PEQUAN)
+ *              christoph.lauter@lip6.fr
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+procedure invertFunction(func, dom) {
+	  var funcPrime;
+	  var imageFuncPrime;
+	  var inverseFunc;
+	  var inverterProc;
+
+	  /* Start by checking if func is monotone
+	     on the given domain 
+	  */
+	  funcPrime = diff(func);
+	  
+	  imageFuncPrime = dirtyEvaluateImage(funcPrime, dom);
+	  
+	  if (inf(imageFuncPrime) * sup(imageFuncPrime) > 0) then {
+	    /* The function seems to be inversible.
+	       We define a procedure that can invert functions 
+	       on domains and define a procedure-base function with
+	       it after parametrizating it.
+	    */
+	  
+	    procedure inverterProc(X, n, p, func, dom) {
+	    	      var oldPrec, oldPoints;
+		      var Y, T;
+		      var fPrime, fSecond;
+		      var inverterProcInner;
+
+		      procedure inverterProcInner(X, func, dom) {
+		      		var g, zeros;
+				var y, iX, sX, Y;
+				var oldPrec;
+				var iY, sY;
+
+				iX = inf(X);
+				sX = sup(X);
+
+				if (iX == sX) then {
+				    g = func - iX;
+				    oldPrec = prec;
+				    prec = prec + 10!;
+				    zeros = mydirtyfindzeros(g, dom);
+				    prec = oldPrec!;
+
+				    if (zeros == [||]) then {
+				       y = NaN;
+				    } else {
+				       y = zeros[0];			
+				    };
+				    Y = [round(y,prec,RD);round(y,prec,RU)];
+				} else {
+				    iY = inverterProcInner([iX], func, dom);
+				    sY = inverterProcInner([sX], func, dom);
+				    Y = [ min(inf(iY),inf(sY)); max(sup(iY),sup(sY)) ];
+				};
+
+				return Y;
+		      };
+
+		      oldPrec = prec;
+		      prec = p + 100!;
+		      oldPoints = points;
+		      points = 3!;
+
+		      match n with 
+		      	    0       : {
+					 Y = inverterProcInner(X, func, dom);
+			    	      }
+			    1       : {
+			                 T = inverterProcInner(X, func, dom);
+			                 fPrime = diff(func);
+					 Y = 1/(fPrime(T));
+			    	      }
+			    2       : {
+			                 T = inverterProcInner(X, func, dom);
+					 fPrime = diff(func);
+					 fSecond = diff(fPrime);
+					 Y = -((fSecond(T))/((fPrime(T))^3));
+				      }
+			    default : {
+			                 /* We could solve this case by calling ourselves...
+
+                                            (f^-1)^(n)(x) = (x -> 1/f'(f^-1(x)))^(n-1)(x)
+
+                                         */
+					 write("Help: need to compute a ",n,"th derivative of an inverse function\n");
+					 Y = [-infty;infty];
+			    	      };
+
+		      prec = oldPrec!;
+		      points = oldPoints!;
+		      
+		      return Y;
+	    };
+
+	    inverseFunc = function(bind(bind(inverterProc, dom, dom), func, func));
+	  } else {
+	    write("Function ", func, " does not seem to be inversible on domain ", dom, "\n");
+	    inverseFunc = error;
+	  };
+
+	  return inverseFunc;
+};
+

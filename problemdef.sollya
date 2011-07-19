@@ -1,7 +1,7 @@
-f = x^17.5 + sqrt(x);
-dom = [4; 1024];
+f = invertFunction(sin(x), [-0.3; 0.3]);
+dom = [-0.25; 0.25];
 target = 1b-40;
-maxDegree = 12;
+maxDegree = 5;
 minWidth = (sup(dom) - inf(dom)) * 1/32;
 tableIndexWidth = 9;
 minimalReductionRatio = 1000;
