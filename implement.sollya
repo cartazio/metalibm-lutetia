@@ -166,7 +166,7 @@ procedure dirtycheckinfnorm(func,dom,target) {
 	  };
 	  prec = oldprec!;
 
-	  if (maxy > target) then
+	  if ((maxy == maxy) && (maxy > target)) then
 	      res = false
 	  else {
 	       infn = mydirtyinfnorm(func,dom);
@@ -457,6 +457,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 				      dci = dcii;
 				   };
 				};
+
 		      	       	if (dci != false) then {
 		      	       	      looparound = true;
 				      targeterrimpl = targeterr;
@@ -1420,14 +1421,15 @@ procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
 };
 
 procedure tryDetectSymmetry(func, dom, target) {
-	  var res, testfunc, zerosUpper, zerosLower, myDom, y;
+	  var res, testfunc, zerosUpper, zerosLower, myDom, yA, yB;
 
 	  res = { .okay = false };
 
 	  myDom = [0; min(sup(dom), -inf(dom))];
 	  testfunc = simplifysafe((func/(func(-x))) - 1);
-	  y = evaluate(testfunc, min(sup(dom), -inf(dom)) / 2);
-	  if (y in [-target, target]) then {
+	  yA = evaluate(testfunc + target, min(sup(dom), -inf(dom)) / 2);
+	  yB = evaluate(testfunc - target, min(sup(dom), -inf(dom)) / 2);
+	  if ((inf(yA) > 0) && (sup(yB) < 0)) then {
 	  	  zerosUpper = mydirtyfindzeros(testfunc + target, myDom);
 	  	  zerosLower = mydirtyfindzeros(testfunc - target, myDom);
           } else {
@@ -1440,8 +1442,9 @@ procedure tryDetectSymmetry(func, dom, target) {
 	     res.evenSymmetry = true;
 	  } else {
 	     testfunc = simplifysafe((func/(-func(-x))) - 1);
-   	     y = evaluate(testfunc, min(sup(dom), -inf(dom)) / 2);
-	     if (y in [-target, target]) then {
+  	     yA = evaluate(testfunc + target, min(sup(dom), -inf(dom)) / 2);
+	     yB = evaluate(testfunc - target, min(sup(dom), -inf(dom)) / 2);
+	     if ((inf(yA) > 0) && (sup(yB) < 0)) then {
 	  	  zerosUpper = mydirtyfindzeros(testfunc + target, myDom);
 	  	  zerosLower = mydirtyfindzeros(testfunc - target, myDom);
              } else {
@@ -5301,20 +5304,42 @@ procedure tryImplementationThroughMetaSplitting(problemdef, parametrization) {
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay, i;
+	  var needArgumentReduction;
 
 	  result = { .okay = false };
 
 	  write("Trying to implement ", problemdef.func, " on ", problemdef.dom, "\n");
 
-	  tryImplementationChoices = [| tryImplementationConstant,
-	                                tryImplementationThroughArgumentReductionPowering,
-					tryImplementationThroughArgumentReductionLogarithm,
-	                                tryImplementationThroughArgumentReductionExponential,
-                                        tryImplementationThroughArgumentReductionWithParamountBehavior,
-					tryImplementationThroughSquaring,
-                                        tryImplementationThroughSymmetryDetectionAroundZero,
-                                        tryImplementationThroughDomainSplitting,
-					tryImplementationThroughMetaSplitting |];
+	  needArgumentReduction = true;
+	  res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	  if (res.okay) then {
+   	      if (res.sufficientDegree) then needArgumentReduction = false;
+	  } else {
+	      needArgumentReduction = false;
+	  };
+
+	  if (needArgumentReduction) then {
+	       tryImplementationChoices = [| tryImplementationConstant,
+	                                     tryImplementationThroughArgumentReductionPowering,
+		     			     tryImplementationThroughArgumentReductionLogarithm,
+	                                     tryImplementationThroughArgumentReductionExponential,
+                                             tryImplementationThroughArgumentReductionWithParamountBehavior,
+					     tryImplementationThroughSquaring,
+                                             tryImplementationThroughSymmetryDetectionAroundZero,
+                                             tryImplementationThroughDomainSplitting,
+					     tryImplementationThroughMetaSplitting |];
+	  } else {
+	       tryImplementationChoices = [| tryImplementationThroughDomainSplitting,
+                                             tryImplementationConstant,
+	                                     tryImplementationThroughArgumentReductionPowering,
+		     			     tryImplementationThroughArgumentReductionLogarithm,
+	                                     tryImplementationThroughArgumentReductionExponential,
+                                             tryImplementationThroughArgumentReductionWithParamountBehavior,
+					     tryImplementationThroughSquaring,
+                                             tryImplementationThroughSymmetryDetectionAroundZero,
+					     tryImplementationThroughMetaSplitting |];
+          };
 
 	  okay = false; i = 0;
 	  while ((!okay) && (tryImplementationChoices != [||])) do {

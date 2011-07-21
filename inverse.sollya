@@ -68,7 +68,7 @@ procedure invertFunction(func, dom) {
 				    g = func - iX;
 				    oldPrec = prec;
 				    prec = prec + 10!;
-				    zeros = mydirtyfindzeros(g, dom);
+				    zeros = dirtyfindzeros(g, dom);
 				    prec = oldPrec!;
 
 				    if (zeros == [||]) then {
