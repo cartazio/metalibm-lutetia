@@ -1,7 +1,7 @@
 f = invertFunction(sin(x), [-0.3; 0.3]);
 //f = asin(x);
 dom = [-0.25; 0.25];
-target = 1b-40;
+target = 1b-60;
 maxDegree = 7;
 minWidth = (sup(dom) - inf(dom)) * 1/64;
 tableIndexWidth = 9;
