@@ -1,8 +1,7 @@
-f = invertFunction(sin(x), [-0.3; 0.3]);
-//f = asin(x);
-dom = [-0.25; 0.25];
-target = 1b-60;
-maxDegree = 7;
+f = cos(x) + 17;
+dom = [-10; 10];
+target = 1b-40;
+maxDegree = 14;
 minWidth = (sup(dom) - inf(dom)) * 1/64;
 tableIndexWidth = 9;
 minimalReductionRatio = 1000;

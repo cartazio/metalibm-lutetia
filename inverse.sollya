@@ -29,6 +29,32 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
+procedure dirtyEvaluateImage(f,dom) {
+	  var fDiff, zeros, z, fmin, fmax, y;
+	  var yInt, res;
+
+	  yInt = evaluate(f,dom);
+
+	  if ((inf(yInt) == inf(yInt)) &&
+	      (sup(yInt) == sup(yInt)) &&
+	      (sup(abs(yInt)) != infty)) then {
+	      fDiff = diff(f);
+	      zeros = (dirtyfindzeros(fDiff,dom)) :. (sup(dom));
+	      fmin = inf(evaluate(f,inf(dom)));
+	      fmax = sup(evaluate(f,inf(dom)));
+	      for z in zeros do {
+	      	  y = evaluate(f,z);
+	      	  if (inf(y) < fmin) then fmin = inf(y);
+	      	  if (sup(y) > fmax) then fmax = sup(y);
+	      };
+	      res = [ fmin; fmax ];
+          } else {
+	      res = yInt;
+	  };
+
+	  return res;
+};
+
 procedure invertFunction(func, dom) {
 	  var funcPrime;
 	  var imageFuncPrime;
@@ -50,7 +76,7 @@ procedure invertFunction(func, dom) {
 	    */
 	  
 	    procedure inverterProc(X, n, p, func, dom) {
-	    	      var oldPrec, oldPoints;
+	    	      var oldPrec, oldPoints, oldVerb;
 		      var Y, T;
 		      var fPrime, fSecond;
 		      var inverterProcInner;
@@ -86,6 +112,8 @@ procedure invertFunction(func, dom) {
 				return Y;
 		      };
 
+		      oldVerb = verbosity;
+		      verbosity = 1!;
 		      oldPrec = prec;
 		      prec = p + 100!;
 		      oldPoints = points;
@@ -118,6 +146,7 @@ procedure invertFunction(func, dom) {
 
 		      prec = oldPrec!;
 		      points = oldPoints!;
+		      verbosity = oldVerb!;
 		      
 		      return Y;
 	    };
