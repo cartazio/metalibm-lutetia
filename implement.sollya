@@ -5327,6 +5327,636 @@ procedure tryImplementationThroughMetaSplitting(problemdef, parametrization) {
 	  return result;
 };
 
+procedure limitListToNElements(l,n) {
+	  var res, i;
+
+	  if (length(l) <= n) then {
+	     res = l;
+	  } else {
+	    res = [||];
+	    for i from 0 to n - 1 do {
+	    	res = res :. (l[i]);
+	    };
+	  };
+
+	  return res;
+};
+
+procedure tryDetectPeriodicArgRed(func, dom, target) {
+	  var result, c, zeros, i, j, len;
+	  var oldPrec;
+	  var possiblePeriods;
+	  var testfunc, y, zerosUpper, zerosLower;
+	  var recDom;
+	  var oldPoints;
+	  var okay, myPeriod;
+
+	  result = { .okay = false };
+
+	  /* We try to find all points where
+	     func admits the same value as in 
+	     a point c. The distances to c
+	     then give an idea of a possible
+	     period.
+	  */
+	  if (0 in dom) then {
+	     c = 0;
+	  } else {
+	     c = (1023 * inf(dom) + sup(dom)) / 1024;
+	  };
+
+	  oldPrec = prec;
+	  oldPoints = points;
+          meanPeriod = 0;
+	  numPeriod = 0;
+	  points = 2001!;
+	  prec = max(500, prec, 4 * ceil(-log2(target)) + 100)!;
+	  zeros = mydirtyfindzeros(func - func(c), dom);
+	  zeros = limitListToNElements(zeros, 25);
+	  points = oldPoints!;
+	  len = length(zeros);
+	  if (len >= 2) then {
+	     possiblePeriods = [||];
+	     for i from 0 to len - 2 do {
+	     	 for j from i + 1 to len - 1 do {
+		     possiblePeriods = (zeros[j] - zeros[i]) .: possiblePeriods;
+		 };
+	     };
+	     possiblePeriods = sort(possiblePeriods);
+          };
+	  prec = oldPrec!;
+
+	  okay = false;
+	  while ((!okay) && (possiblePeriods != [||])) do {
+	  	myPeriod = head(possiblePeriods);
+		possiblePeriods = tail(possiblePeriods);
+
+		recDom = [inf(dom); sup(dom) - myPeriod];
+	        testfunc = simplifysafe(func(x + myPeriod)/func - 1);
+	        y = evaluate(testfunc, mid(recDom));
+	        if (y in [-target, target]) then {
+	  	     zerosUpper = mydirtyfindzeros(testfunc + target, recDom);
+	  	     zerosLower = mydirtyfindzeros(testfunc - target, recDom);
+
+		     if ((zerosUpper == [||]) && (zerosLower == [||])) then {
+		     	okay = true;
+		     };
+		};
+	  };
+
+	  if (okay) then {
+	     result.okay = true;
+	     result.period = myPeriod;
+	  };
+
+	  return result;
+};
+
+procedure checkSterbenzConditionForPeriodicArgRed(dom, c, period) {
+	  var domMinusCOverPeriod;
+	  var kRange, k;
+	  var res;
+	  var alphaRange;
+	  var actualA, actualB, actualDom;
+	  var actualExpoDom, possibleExpoDom;
+
+	  /* Given k = nearestint((x - c)/p), we have to check if 
+
+	     1/2 <= abs(x) / abs(p * k) <= 2
+
+	     or k = 0
+
+	     for all x in dom.
+
+	  */
+
+	  res = false;
+
+	  domMinusCOverPeriod = (dom - c) / period;
+	  kRange = nearestint(domMinusCOverPeriod);
+
+	  if (inf(kRange) == sup(kRange)) then {
+	     k = inf(kRange);
+	     if (k == 0) then {
+	     	res = true;
+	     } else {
+	        alphaRange = abs(dom) / abs(k * period);
+		res = (alphaRange in [1/2;2]);
+	     };
+	  } else {
+	     res = false;
+	     if (!(0 in kRange)) then {
+	        alphaRange = abs(dom) / abs(kRange * period);
+		res = (alphaRange in [1/2;2]);
+	     };
+	     if (!res) then {
+	         if (sup(kRange) - inf(kRange) <= 10) then {
+	           res = true;
+	           for k from inf(kRange) to sup(kRange) do {
+		       if (k != 0) then {
+	       	           if (period >= 0) then {
+		              actualA := period * (k - 1/2) + c;
+		              actualB := period * (k + 1/2) + c;
+		           } else {
+		              actualA := period * (k + 1/2) + c;
+		              actualB := period * (k - 1/2) + c;
+		           };
+		           actualA = max(inf(dom), actualA);
+		           actualB = min(sup(dom), actualB);
+		           if (actualA <= actualB) then {
+		       	      actualDom = [actualA; actualB];
+			      currRes = (inf(abs(actualDom)) >= 1/2 * abs(k * period)) && 
+                                        (sup(abs(actualDom)) <= 2 * abs(k * period));
+		              if ((!currRes) && (!(0 in actualDom))) then {
+			          actualExpoDom = floor(log2(abs(actualDom)));
+				  possibleExpoDom = [floor(log2(abs(k * period))) - 1, floor(log2(abs(k * period))) + 1];
+				  currRes = actualExpoDom in possibleExpoDom;
+			      };
+			      res = res && currRes;  
+		           };
+                       };
+	           };
+	         } else {
+	            res = (checkSterbenzConditionForPeriodicArgRed([inf(dom); mid(dom)], c, period)
+		           && checkSterbenzConditionForPeriodicArgRed([mid(dom); sup(dom)], c, period));
+	         };
+	      };
+	  };
+	  
+	  return res;
+};
+
+procedure computePeriodicArgumentReductionErrorAmplification(dom, c, period, xFormat) {
+   var alpha;
+   var kRange;
+   var k;
+   var pK, pKRounded, delta, currAlpha;
+   var hardK;
+
+   kRange = nearestint((dom - c)/period);
+   alpha = 0;	
+   hardK = inf(kRange);
+   for k from inf(kRange) to sup(kRange) do {
+       if (k != 0) then {
+       	  pK = period * k;
+	  pKRounded = round(~pK,xFormat,RN);
+	  delta = pKRounded - pK;
+	  currAlpha := abs((-pK)/delta);
+	  if (currAlpha > alpha) then {
+	     alpha = currAlpha;
+	     hardK = k;
+	  };
+       };
+   };
+
+   if (!(alpha == alpha)) then {
+      alpha = infty;
+   };
+
+   return { .alpha = alpha, .hardK = k };
+};
+
+procedure constantIsRepresentableOnDoubleExpansion(c) {
+	  var res;
+
+	  res = { .representable = false };
+
+	  if (D(c) - c == 0) then {
+	     res = { .representable = true, .format = D };
+	  } else {
+	     if (DD(c) - c == 0) then {
+	     	res = { .representable = true, .format = DD };
+	     } else {
+	        if (TD(c) - c == 0) then {
+	     	   res = { .representable = true, .format = TD };
+	     	};
+	     };
+	  };
+
+	  return res;
+};
+
+procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat, argRedConstantFormat, reducedArgFormat, outputFormat, haveSterbenzOnArgRed, 
+	  		                            reducedFunctionName, implementationFile, functionName) {
+    var res;
+    var roundedPeriod;
+    var epsSubstr;
+    var variableDecls, codeDecls, poundDefineDecls;
+    var okay;
+    var oldDisplay;
+
+    res = { .okay = false };
+    okay = true;    
+    roundedPeriod = round(~period, argRedConstantFormat, RN);
+    res.epsConst = abs(roundedPeriod/period - 1);
+    if (haveSterbenzOnArgRed) then {
+       epsSubstr = 0;
+    } else {
+       epsSubstr = infty;
+    };
+    poundDefineDecls = "";
+    variableDecls = "";
+    codeDecls = "";
+
+    /* Generate the variable declarations and the code for the argument reduction */
+    oldDisplay = display;
+    display = decimal!;
+    poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_shifter 6755399441055744.0\n"; 
+    if (D(c) != 0) then poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_center " @  D(c) @ "\n"; 
+    poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_recpr " @  D(1/period) @ "\n"; 
+    match (argRedConstantFormat) with
+          D  : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(roundedPeriod) @ "\n"; }
+	  DD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(roundedPeriod) @ "\n"; 
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(roundedPeriod - D(roundedPeriod)) @ "\n"; 
+	       }
+          TD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(roundedPeriod) @ "\n"; 
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(roundedPeriod - D(roundedPeriod)) @ "\n"; 
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_lo " @  D(roundedPeriod - (D(roundedPeriod) + D(roundedPeriod - D(roundedPeriod)))) @ "\n"; 
+               };
+    display = oldDisplay!;
+
+    variableDecls = variableDecls @ "double t, s, k;\n";
+    if (D(c) != 0) then {
+       codeDecls = codeDecls @ "t = " @ functionName @ "_period_recpr * (xh - " @ functionName @ "_center);\n";
+    } else {
+       codeDecls = codeDecls @ "t = " @ functionName @ "_period_recpr * xh;\n";
+    };
+    codeDecls = codeDecls @ "s = " @ functionName @ "_shifter + t;\n";
+    codeDecls = codeDecls @ "k = s - " @ functionName @ "_shifter;\n";
+    
+
+    okay = false;
+
+
+
+
+    /* Write the pound-defines, the function header and the code to the file */
+    write("\n\n",poundDefineDecls,"\n\n") >> implementationFile;
+    write("void ", functionName, "(") >> implementationFile;
+    match (outputFormat) with 
+    	  D  : {
+	          write("double *res_resh, ") >> implementationFile;
+	       } 
+    	  DD : {
+	          write("double *res_resh, double *res_resm, ") >> implementationFile;
+	       } 
+    	  TD : {
+	          write("double *res_resh, double *res_resm, double *res_resl, ") >> implementationFile;
+	       };
+    match (inputFormat) with 
+          D  : {
+                  write("double xh") >> implementationFile;
+	       }
+          DD : {
+                  write("double xh, double xm") >> implementationFile;
+	       }
+          TD : {
+                  write("double xh, double xm, double xl") >> implementationFile;
+	       };
+    write(") {\n") >> implementationFile;
+    match (reducedArgFormat) with 
+          D  : {
+                  write("double rh;\n") >> implementationFile;
+	       }
+          DD : {
+                  write("double rh, rm;\n") >> implementationFile;
+	       }
+          TD : {
+                  write("double rh, rm, rl;\n") >> implementationFile;
+	       };
+    write(variableDecls,"\n\n",codeDecls,"\n") >> implementationFile;
+    write(reducedFunctionName,"(") >> implementationFile;
+    match (outputFormat) with 
+    	  D  : {
+	          write("res_resh, ") >> implementationFile;
+	       } 
+    	  DD : {
+	          write("res_resh, res_resm, ") >> implementationFile;
+	       } 
+    	  TD : {
+	          write("res_resh, res_resm, res_resl, ") >> implementationFile;
+	       };
+    match (reducedArgFormat) with 
+          D  : {
+                  write("rh") >> implementationFile;
+	       }
+          DD : {
+                  write("rh, rm") >> implementationFile;
+	       }
+          TD : {
+                  write("rh, rm, rl") >> implementationFile;
+	       };
+    write(");\n}\n\n") >> implementationFile;	 
+    
+    /* Return the status */
+    res.epsSubstr = epsSubstr;
+    if (okay) then {
+       res.okay = true;
+    };
+
+    return res;					    
+};
+
+
+
+procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization) {
+	  var result, res;
+	  var func, dom, target, period;
+	  var c, reducedDom;
+	  var haveSterbenzOnArgRed, pKStaysSmall;
+	  var alphaPeriodConstant, alphaPeriodConstantTemp;
+	  var variableFormat;
+	  var alpha;
+	  var argRedTarget, reducedTarget;
+	  var isRepresentablePeriod;
+	  var argRedConstantTarget, argRedSubtractionTarget;
+	  var argRedConstantFormat;
+	  var argRedRepresentationTarget; 
+	  var reducedArgFormat;
+	  var myProblemdef, origDefDom, suffix;
+	  var resArgRed;
+
+	  result = { .okay = false };
+
+          res = tryDetectPeriodicArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8);
+
+	  if (res.okay) then {
+	     /* Here we know that func is periodic with period period */
+	     func = problemdef.func;
+	     dom = problemdef.dom;
+	     target = problemdef.target * 1/8;
+	     period = res.period;
+	     variableFormat = problemdef.variableFormat;
+
+	     /* Now compute a value c and a resulting 
+	        reduced domain:
+
+		r = x - p * nearestint((x - c) / p)
+
+		where p is the period
+
+		The reduced domain is
+
+		reducedDom = [ c - p/2 ; c + p/2 ]
+
+		As we want to stay in the same definition 
+		domain of the function, we must choose c in
+		such a way that reducedDom is included in dom.
+              */
+	      if (sup(dom) - inf(dom) > period) then {
+	      	 if (0 in [inf(dom) + period/2; sup(dom) - period/2]) then {
+		    c = 0;
+		 } else {
+		    if (0 in [inf(dom); inf(dom) + period/2]) then {
+		       c = D(inf(dom) + period/2);
+		    } else {
+		      if (0 in [sup(dom) - period/2; sup(dom)]) then {
+		      	 c = D(sup(dom) - period/2);
+		      } else {
+		      	 c = D(mid(dom));
+		      };
+		    };
+		 };
+		 reducedDom = [ c - period/2; c + period/2 ];
+	
+		 /* Just to be sure, we check that the reduced domain 
+		    is contained in the original domain. Otherwise, we simply fail.
+
+		    We also check if the integer nearestint((x-c)/p)) we need for
+                    argument reduction does not grow too large.
+
+		 */
+		 if ((reducedDom in dom) && (sup(abs((dom - c)/period)) <= 1b13)) then {
+		    /* Now we check if we have either the Sterbenz condition 
+                       for the subtraction 
+
+                          x minus p * nearestint((x - c)/p) 
+
+                       or the certainty that 
+        
+                          abs(p * nearestint((x - c)/p)) <= 1/2 * abs(x)
+                    */
+		    haveSterbenzOnArgRed = checkSterbenzConditionForPeriodicArgRed(dom, c, period);
+
+		    pKStaysSmall = false;
+		    if (!haveSterbenzOnArgRed) then {
+		       pKStaysSmall = (sup(abs(period * nearestint((dom - c)/period))) <= inf(abs(1/2 * dom)));
+		    };
+
+		    if (haveSterbenzOnArgRed || pKStaysSmall) then {
+		       /* Compute the factor alpha by which the function amplifies the 
+		          relative error of the reduced argument into the final error due
+			  to argument reduction.
+		       */   		       
+		       alpha = computeAmplification(func,reducedDom,1b-53);
+		       write("The amplification factor of the periodic function is approximately ", round(alpha,12,RN), " = 2^(", round(log2(alpha),12,RN),")\n");
+
+		       /* Compute the target errors */
+		       reducedTarget = 1/8 * target;
+		       argRedTarget = 1/8 * target * 1/alpha;
+		       if (haveSterbenzOnArgRed) then {
+		       	  argRedConstantTarget = 1/4 * argRedTarget; 
+			  argRedSubtractionTarget = 0;
+			  argRedRepresentationTarget = 1/8 * argRedTarget;
+		       } else {
+		       	  argRedConstantTarget = 1/8 * argRedTarget; 
+			  argRedSubtractionTarget = 1/8 * argRedTarget;
+			  argRedRepresentationTarget = 1/8 * argRedTarget;
+		       };
+
+		       /* Check if the period is representable on a double expansion.
+		         
+			  If yes, we perhaps don't need to compute the amplification factor of the 
+			  error in the constant.
+		       */
+		       isRepresentablePeriod = constantIsRepresentableOnDoubleExpansion(period);
+
+		       /* Preset the format for the argument reduction constant (the period) */
+		       argRedConstantFormat = { .determined = false };
+
+		       /* Depending on whether the period is representable on a double expansion, 
+		          compute the amplification factor that determines how much the error in the
+			  stored constant is amplified.
+		       */
+		       if (isRepresentablePeriod.representable) then {
+		       	  if (isRepresentablePeriod.format == D) then {
+			     argRedConstantFormat = { .determined = true, .format = D };
+			  } else {
+			     /* Now, we compute the amplification factor alphaPeriodConstant
+		                that amplifies the relative error in the stored constant for the period
+                                with respect to the relative error of the reduced argument that gets
+                                computed out of the approximate constant.
+		             */
+		             alphaPeriodConstantTemp = computePeriodicArgumentReductionErrorAmplification(dom, c, period, variableFormat);
+		             alphaPeriodConstant = alphaPeriodConstantTemp.alpha;
+
+		             if (1b-53 * alphaPeriodConstant <= argRedConstantTarget) then {
+			     	argRedConstantFormat = { .determined = true, .format = D };
+			     } else {
+			        if (1b-107 * alphaPeriodConstant <= argRedConstantTarget) then {
+			           argRedConstantFormat = { .determined = true, .format = DD };
+			        } else {
+			           if (1b-161 * alphaPeriodConstant <= argRedConstantTarget) then {
+				      if (isRepresentablePeriod.format == DD) then {
+                                         argRedConstantFormat = { .determined = true, .format = DD };
+				      } else {
+			                 argRedConstantFormat = { .determined = true, .format = TD };
+			              };
+			           } else {
+				      argRedConstantFormat = { .determined = true, .format = isRepresentablePeriod.format };
+				   };
+			        };
+			     };
+			  };
+		       } else {
+			  /* Now, we compute the amplification factor alphaPeriodConstant
+		             that amplifies the relative error in the stored constant for the period
+                             with respect to the relative error of the reduced argument that gets
+                             computed out of the approximate constant.
+		          */
+		          alphaPeriodConstantTemp = computePeriodicArgumentReductionErrorAmplification(dom, c, period, variableFormat);
+		          alphaPeriodConstant = alphaPeriodConstantTemp.alpha;
+			  
+			  if (1b-53 * alphaPeriodConstant <= argRedConstantTarget) then {
+			     argRedConstantFormat = { .determined = true, .format = D };
+			  } else {
+			     if (1b-107 * alphaPeriodConstant <= argRedConstantTarget) then {
+			        argRedConstantFormat = { .determined = true, .format = DD };
+			     } else {
+			        if (1b-161 * alphaPeriodConstant <= argRedConstantTarget) then {
+			           argRedConstantFormat = { .determined = true, .format = TD };
+			        };
+			     };
+			  };
+		       };
+
+		       if (argRedConstantFormat.determined) then {
+		       	  argRedConstantFormat = argRedConstantFormat.format;
+			  write("Periodic argument reduction will store the periodic constant as a ", argRedConstantFormat, "\n");
+
+			  /* Now determine the format the reduced
+                             argument has to be in. This format
+                             usually is smaller than the format used for the periodic constant and it might 
+                             actually be smaller than the entering variable format. 
+			 */
+		         reducedArgFormat = { .determined = false };
+			 
+			 if (1b-53 <= argRedRepresentationTarget) then {
+			    reducedArgFormat = { .determined = true, .format = D };
+			 } else {
+			    if (1b-107 <= argRedRepresentationTarget) then {
+			       reducedArgFormat = { .determined = true, .format = DD };
+			    } else {
+			       if (1b-161 <= argRedRepresentationTarget) then {
+			          reducedArgFormat = { .determined = true, .format = TD };
+			       }; 
+                            };
+			 };
+
+			 if (reducedArgFormat.determined) then {
+			    reducedArgFormat = reducedArgFormat.format;
+			    write("The reduced argument after periodic argument reduction will be represented on a ", reducedArgFormat, "\n");
+
+			    /* Now try to implement the reduced function */
+			    suffix = "_periodic";
+                            myProblemdef.func = problemdef.func;
+		            myProblemdef.dom = reducedDom;
+		            myProblemdef.target = reducedTarget;
+		            myProblemdef.variableFormat = reducedArgFormat;
+		            origDefDom = problemdef.dom;
+		            match (problemdef) with { .definitionDomain = default } : {
+		                                      if (origDefDom in problemdef.definitionDomain) then {
+                                                          origDefDom = problemdef.definitionDomain;
+                                                      }; }
+                                                    default : {};
+		            myProblemdef.definitionDomain = origDefDom;
+		            myParametrization = parametrization;
+		            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+		            myParametrization.doNotPerformPeriodicArgRed = true;
+
+		            write("Trying to implement the function on the reduced argument domain ", reducedDom, "\n");
+		            res = tryImplementation(myProblemdef, myParametrization);
+
+ 		            if (res.okay) then {
+			       write("Implementation of the function on the reduced domain was successful. Trying to implement the argument reduction.\n");
+			       resArgRed = tryImplementArgumentReductionCodePeriodic(dom, period, c, variableFormat, argRedConstantFormat, reducedArgFormat, res.outputformat, haveSterbenzOnArgRed, 
+			                                                             res.functionname, parametrization.implementationFile, parametrization.functionBasename);
+			    
+			       if (resArgRed.okay) then {
+	                          result.okay = true;
+	                          result.approxerr = res.approxerr;
+	                          result.implErr = (1 + problemdef.target * 1/8) * (1 + alpha * alphaPeriodConstant * resArgRed.epsConst + 
+                                                                                        alpha * resArgRed.epsSubstr + 
+                                                                                        alpha * alphaPeriodConstant * resArgRed.epsConst * resArgRed.epsSubstr) - 1;
+	                          result.outputformat = res.outputformat;
+	                          result.functionname = parametrization.functionBasename;
+	                       };
+			    };
+			 };
+		       };
+		    };
+		 };
+	      };
+	  };
+
+	  return result;
+};
+
+procedure tryImplementationThroughArgumentReductionPeriodic(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, doNotPerformPeriodicArgRed;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default,
+				       .tableIndexWidth = default,
+				       .metaSplitMinWidth = default } } : {
+
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       doNotPerformPeriodicArgRed = false;
+				       match (parametrization) with
+				             { .doNotPerformPeriodicArgRed = true } : { doNotPerformPeriodicArgRed = true; }
+					     default : { };
+
+				       if (!doNotPerformPeriodicArgRed) then {
+				           /* Start with a test if the domain actually needs
+                                              argument reduction in order to stay below the maximum
+					      polynomial degree
+				           */
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+					      result = doWorkForTryImplementationThroughPeriodic(problemdef, parametrization);
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
+
+
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay, i;
@@ -5342,7 +5972,7 @@ procedure tryImplementation(problemdef, parametrization) {
       	  if (res.okay) then {
    	      if (res.sufficientDegree) then needArgumentReduction = false;
 	  } else {
-	      needArgumentReduction = false;
+	      needArgumentReduction = true;
 	  };
 
 	  if (needArgumentReduction) then {
@@ -5350,6 +5980,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	                                     tryImplementationThroughArgumentReductionPowering,
 		     			     tryImplementationThroughArgumentReductionLogarithm,
 	                                     tryImplementationThroughArgumentReductionExponential,
+					     tryImplementationThroughArgumentReductionPeriodic,
                                              tryImplementationThroughArgumentReductionWithParamountBehavior,
 					     tryImplementationThroughSquaring,
                                              tryImplementationThroughSymmetryDetectionAroundZero,
@@ -5361,6 +5992,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	                                     tryImplementationThroughArgumentReductionPowering,
 		     			     tryImplementationThroughArgumentReductionLogarithm,
 	                                     tryImplementationThroughArgumentReductionExponential,
+					     tryImplementationThroughArgumentReductionPeriodic,
                                              tryImplementationThroughArgumentReductionWithParamountBehavior,
 					     tryImplementationThroughSquaring,
                                              tryImplementationThroughSymmetryDetectionAroundZero,

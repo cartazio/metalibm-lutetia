@@ -1,9 +1,9 @@
-f = cos(x) + 17;
-dom = [-10; 10];
-target = 1b-40;
-maxDegree = 14;
-minWidth = (sup(dom) - inf(dom)) * 1/64;
-tableIndexWidth = 9;
+f = exp(x);
+dom = [-1b-5; 1b-5];
+target = 1b-20; 
+maxDegree = 16;
+minWidth = (sup(dom) - inf(dom)) * 1/256;
+tableIndexWidth = 8;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/64;
 
