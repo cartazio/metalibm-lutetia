@@ -1,6 +1,6 @@
-f = exp(x);
-dom = [-1b-5; 1b-5];
-target = 1b-20; 
+f = 17 * exp(x^2);
+dom = [-1b5; 1b5];
+target = 1b-64; 
 maxDegree = 16;
 minWidth = (sup(dom) - inf(dom)) * 1/256;
 tableIndexWidth = 8;
