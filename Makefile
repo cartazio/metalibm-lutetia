@@ -42,8 +42,8 @@ DATE=`date +%Y-%m-%d`
 
 CXX       = g++
 CC        = gcc
-CFLAGS    = -fPIC -Wall -g -DNDEBUG 
-CXXFLAGS  = -fPIC -Wall 
+CFLAGS    = -fPIC -Wall -g -DNDEBUG -I.
+CXXFLAGS  = -fPIC -Wall -I.
 LDLIBS    = -lmpfr -lgmp -lm -lstdc++ 
 
 INCS      = utils.h \

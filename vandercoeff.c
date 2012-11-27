@@ -48,6 +48,13 @@
 
 */
 
+typedef struct chainStruct chain;
+
+struct chainStruct
+{
+  void *value;
+  chain *next;
+};
 
 extern mp_prec_t tools_precision;
 
@@ -112,7 +119,7 @@ int myvandercoeff(chain **results, int absRel, chain *monomials, chain* points, 
   evalsCount = lengthChain(evals);
   
   if (pointsCount != evalsCount) {
-     printf("Error in external procedure vandercoeff: the number of points does not correspond.\n"); 
+     sollya_lib_printf("Error in external procedure vandercoeff: the number of points does not correspond.\n"); 
      return 0; 
   }
 
@@ -149,7 +156,7 @@ int myvandercoeff(chain **results, int absRel, chain *monomials, chain* points, 
 
   if (!noDuplicate(monomialsCount,monomialsArray)) {
 
-    printf("Error in external procedure vandercoeff: duplicate monomial degrees in the list.\n"); 
+    sollya_lib_printf("Error in external procedure vandercoeff: duplicate monomial degrees in the list.\n"); 
 
     free(monomialsArray);
 
@@ -182,7 +189,7 @@ int myvandercoeff(chain **results, int absRel, chain *monomials, chain* points, 
 
     for (i=0;i<monomialsCount;i++) {
       if (mpfr_cmp(lowerBounds[i], upperBounds[i]) > 0) {
-	printf("Warning: some bounds determined by vanderCoeffsSparse are returned inversed.\n");
+	sollya_lib_printf("Warning: some bounds determined by vanderCoeffsSparse are returned inversed.\n");
 	okay = 0;
       }
     }
@@ -210,7 +217,7 @@ int myvandercoeff(chain **results, int absRel, chain *monomials, chain* points, 
 
   } else {
 
-    printf("Warning: some error (%d) occured in vanderCoeffsSparse.\n",res);
+    sollya_lib_printf("Warning: some error (%d) occured in vanderCoeffsSparse.\n",res);
     
   }
 

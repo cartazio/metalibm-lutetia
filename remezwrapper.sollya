@@ -242,11 +242,11 @@ procedure remezbugreport(f,m,d,w,eps) {
 
 	  oldDisplay = display;
 	  display = dyadic!;
-	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,",",[abs(targetErr)/4;abs(targetErr)],");", " targetErr = ", eps,";"; 
+	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,",",[abs(eps)/4;abs(eps)],");", " targetErr = ", eps,";"; 
 	  display = oldDisplay!;
 
 	  remezTime = time({
-                         	  res = remez(f,m,myDom,w,qual,[abs(targetErr)/4;abs(targetErr)]);
+                         	  res = remez(f,m,myDom,w,qual,[abs(eps)/4;abs(eps)]);
 	                          if (!(res == res)) then res = false;
 		           });
 	  "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";

@@ -235,7 +235,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 		if (res) then {
 		   	write("boundsList = [|") > gappaOutputFile;
 			gappaTime = time({
-			                    bashexecute(gappaExecutable@" < "@gappaFile@" 2>&1 | grep 'epsilon in' | sed -n 's/\\({[^}]*}\\)//g;p' | sed -n 's/epsilon in \\[//;p' | sed -n 's/\\]/,/;p' | sed -n 's/, /,\\n/;p' >> "@gappaOutputFile);
+			                    bashexecute(gappaExecutable@" -Munconstrained < "@gappaFile@" 2>&1 | grep 'epsilon in' | sed -n 's/\\({[^}]*}\\)//g;p' | sed -n 's/epsilon in \\[//;p' | sed -n 's/\\]/,/;p' | sed -n 's/, /,\\n/;p' >> "@gappaOutputFile);
 					 });
 			wholeGappaTime := wholeGappaTime + gappaTime;
 			print("0|];") >> gappaOutputFile;
@@ -244,6 +244,9 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
 			if (evalerr == 0) then evalerr := 1/0;
 			write("\tGappa determined evaluation error = 2^(",round(log2(evalerr),12,RU),")\n");
+			if (abs(evalerr) > 1) then {
+			   write("\tGappa file: ", gappaFile, "\n");
+			};
 
 			res = ((implapproxerr + evalerr + implapproxerr * evalerr) <= (targeterr * beta));
 		};
@@ -2038,7 +2041,7 @@ procedure tryGenerateExponentialArgumentReduction(base, dom, functionName, polyn
 	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
 							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,xl);\n";
 							reductionCode = reductionCode @ "Renormalize3(&tempArgRed3_hi,&tempArgRed3_mi,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
-							tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;
+							reductionCode = reductionCode @ "tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;\n";
 							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed3_hi,tempArgRed3_mi,tempArgRed4);\n";
 					       	    };
 				     };
@@ -2080,7 +2083,7 @@ procedure tryGenerateExponentialArgumentReduction(base, dom, functionName, polyn
 	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
 							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,rescaled_m_lo);\n";
 							reductionCode = reductionCode @ "Renormalize3(&tempArgRed3_hi,&tempArgRed3_mi,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
-							tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;
+							reductionCode = reductionCode @ "tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;\n";
 							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&tempArgRed5,tempArgRed3_hi,tempArgRed3_mi,tempArgRed4);\n";
 					       	    }
 					       TD : {
@@ -2095,7 +2098,7 @@ procedure tryGenerateExponentialArgumentReduction(base, dom, functionName, polyn
 	                                                reductionCode = reductionCode @ "tempArgRed = xh + rescaled_m_hi;\n";
 							reductionCode = reductionCode @ "Renormalize3(&tempArgRed2_hi,&tempArgRed2_mi,&tempArgRed2_lo,xm,rescaled_m_mi,rescaled_m_lo);\n";
 							reductionCode = reductionCode @ "Renormalize3(&tempArgRed3_hi,&tempArgRed3_mi,&tempArgRed3_lo,tempArgRed,tempArgRed2_hi,tempArgRed2_mi);\n";
-							tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;
+							reductionCode = reductionCode @ "tempArgRed4 = tempArgRed3_lo + tempArgRed2_lo;\n";
 							reductionCode = reductionCode @ "Renormalize3(&zh,&zm,&zl,tempArgRed3_hi,tempArgRed3_mi,tempArgRed4);\n";
 					       	    };
 				     }
@@ -5565,13 +5568,13 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     if (D(c) != 0) then poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_center " @  D(c) @ "\n"; 
     poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_recpr " @  D(1/period) @ "\n"; 
     match (argRedConstantFormat) with
-          D  : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(roundedPeriod) @ "\n"; }
-	  DD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(roundedPeriod) @ "\n"; 
-                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(roundedPeriod - D(roundedPeriod)) @ "\n"; 
+          D  : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n"; }
+	  DD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n"; 
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(-roundedPeriod - D(-roundedPeriod)) @ "\n"; 
 	       }
-          TD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(roundedPeriod) @ "\n"; 
-                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(roundedPeriod - D(roundedPeriod)) @ "\n"; 
-                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_lo " @  D(roundedPeriod - (D(roundedPeriod) + D(roundedPeriod - D(roundedPeriod)))) @ "\n"; 
+          TD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n"; 
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(-roundedPeriod - D(-roundedPeriod)) @ "\n"; 
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_lo " @  D(-roundedPeriod - (D(-roundedPeriod) + D(-roundedPeriod - D(-roundedPeriod)))) @ "\n"; 
                };
     display = oldDisplay!;
 
@@ -5584,11 +5587,151 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     codeDecls = codeDecls @ "s = " @ functionName @ "_shifter + t;\n";
     codeDecls = codeDecls @ "k = s - " @ functionName @ "_shifter;\n";
     
-
-    okay = false;
-
-
-
+    match (inputFormat) with 
+          D  : {
+			match (argRedConstantFormat) with 
+			      D  : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd1111(&rh, xh, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd1112(&rh, &rm, xh, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd1113(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   }
+			      DD : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd1121(&rh, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd1122(&rh, &rm, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd1123(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   }
+			      TD : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd1131(&rh, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd1132(&rh, &rm, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd1133(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   };
+	       }
+          DD : {
+			match (argRedConstantFormat) with 
+			      D  : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd2111(&rh, xh, xm, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd2112(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd2113(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   }
+			      DD : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd2121(&rh, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd2122(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd2123(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   }
+			      TD : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd2131(&rh, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd2132(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd2133(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   };
+	       }
+          TD : {
+			match (argRedConstantFormat) with 
+			      D  : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd3111(&rh, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd3112(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd3113(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   }
+			      DD : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd3121(&rh, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd3122(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd3123(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   }
+			      TD : {
+					match (reducedArgFormat) with 
+					      D  : {
+							codeDecls = codeDecls @ "MulAdd3131(&rh, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
+					      	   }
+					      DD : {
+							codeDecls = codeDecls @ "MulAdd3132(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   }
+					      TD : {
+							codeDecls = codeDecls @ "MulAdd3133(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
+							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+					      	   };
+			      	   };
+	       };
 
     /* Write the pound-defines, the function header and the code to the file */
     write("\n\n",poundDefineDecls,"\n\n") >> implementationFile;
