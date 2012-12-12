@@ -1,9 +1,9 @@
-f = sin(x) + 15;
-dom = [-15; 15];
-target = 1b-24; 
-maxDegree = 16;
+f = log2(x);
+dom = [1b-1075; 100];
+target = 2^(-24); 
+maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/256;
-tableIndexWidth = 8;
+tableIndexWidth = 3;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/64;
 

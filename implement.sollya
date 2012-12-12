@@ -2553,32 +2553,6 @@ procedure dirtyEvaluateImage(f,dom) {
 	  return res;
 };
 
-procedure dirtyEvaluateImage(f,dom) {
-	  var fDiff, zeros, z, fmin, fmax, y;
-	  var yInt, res;
-
-	  yInt = evaluate(f,dom);
-
-	  if ((inf(yInt) == inf(yInt)) &&
-	      (sup(yInt) == sup(yInt)) &&
-	      (sup(abs(yInt)) != infty)) then {
-	      fDiff = diff(f);
-	      zeros = (mydirtyfindzeros(fDiff,dom)) :. (sup(dom));
-	      fmin = inf(evaluate(f,inf(dom)));
-	      fmax = sup(evaluate(f,inf(dom)));
-	      for z in zeros do {
-	      	  y = evaluate(f,z);
-	      	  if (inf(y) < fmin) then fmin = inf(y);
-	      	  if (sup(y) > fmax) then fmax = sup(y);
-	      };
-	      res = [ fmin; fmax ];
-          } else {
-	      res = yInt;
-	  };
-
-	  return res;
-};
-
 procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
 	  var result, base, a, b, c, d, ratio, oldPrec, testfunc;
 	  var yOrig, yReduc, widthOrig, withReduc, reducRatio;
@@ -2746,6 +2720,7 @@ procedure tryDetectPoweringBehaviorArgRed(func, dom, maxReducRatio) {
 	  var result, a, b, c, sign, testfunc;
 	  var yOrig, yReduc, widthOrig, withReduc, reducRatio;
 	  var testfuncjustone;
+	  var yReducA, yReducB;
 
 	  result = { .okay = false };
 
@@ -2808,8 +2783,24 @@ procedure tryDetectPoweringBehaviorArgRed(func, dom, maxReducRatio) {
 
 		 if ((~func(a)) * a < 0) then sign = -1 else sign = 1;
 	         testfunc = simplifysafe(func/(sign * x^c));
-	         yOrig = dirtyEvaluateImage(func,dom);
-	         yReduc = dirtyEvaluateImage(testfunc,dom);
+
+		 yOrig = dirtyEvaluateImage(func,dom);
+		 if ((0 in dom) && (func(0) == 0)) then {
+		      if (inf(dom) == 0) then {
+		      	 yReduc = dirtyEvaluateImage(testfunc,[1b-1075; sup(dom)]);
+		      } else {
+		      	if (sup(dom) == 0) then {
+		      	   yReduc = dirtyEvaluateImage(testfunc,[inf(dom); -1b-1075]);
+			} else {
+		             yReducA = dirtyEvaluateImage(testfunc,[inf(dom);-1b-1075]);
+		      	     yReducB = dirtyEvaluateImage(testfunc,[1b-1075;sup(dom)]);
+		      	     yReduc = [ min(inf(yReducA), inf(yReducB)) ; max(sup(yReducA), sup(yReducB)) ];
+			};
+		      };
+		 } else {
+	              yReduc = dirtyEvaluateImage(testfunc,dom);
+		 };
+
 	         widthOrig = sup(yOrig) - inf(yOrig);
 	         widthReduc = sup(yReduc) - inf(yReduc);
 	         reducRatio = widthReduc / widthOrig;
@@ -4144,10 +4135,27 @@ procedure tryDetectPoweringArgRed(func, dom, target) {
 
 		 if ((~func(a)) * a < 0) then sign = -1 else sign = 1;
 	         testfunc = simplifysafe((sign * x^c)/func - 1);
+
 	         y = evaluate(testfunc, mid(dom));
 	         if (y in [-target, target]) then {
-	  	    zerosUpper = mydirtyfindzeros(testfunc + target, dom);
-	  	    zerosLower = mydirtyfindzeros(testfunc - target, dom);
+
+		    if ((0 in dom) && (func(0) == 0)) then {
+		       if (inf(dom) == 0) then {
+	  	           zerosUpper = mydirtyfindzeros(testfunc + target, [1b-1075; sup(dom)]);
+	  	           zerosLower = mydirtyfindzeros(testfunc - target, [1b-1075; sup(dom)]);
+		       } else {
+		       	 if (sup(dom) == 0) then {
+	  	             zerosUpper = mydirtyfindzeros(testfunc + target, [inf(dom); -1b-1075]);
+	  	             zerosLower = mydirtyfindzeros(testfunc - target, [inf(dom); -1b-1075]);
+			 } else {
+	  	             zerosUpper = mydirtyfindzeros(testfunc + target, [inf(dom); -1b-1075]) @ mydirtyfindzeros(testfunc + target, [1b-1075; sup(dom)]);
+	  	             zerosLower = mydirtyfindzeros(testfunc - target, [inf(dom); -1b-1075]) @ mydirtyfindzeros(testfunc - target, [1b-1075; sup(dom)]);
+			 };
+		       };
+		    } else {
+	  	        zerosUpper = mydirtyfindzeros(testfunc + target, dom);
+	  	        zerosLower = mydirtyfindzeros(testfunc - target, dom);
+		    };
 
 		    if ((zerosUpper == [||]) && (zerosLower == [||])) then {
 		      	              result.okay = true;
@@ -5374,12 +5382,16 @@ procedure tryDetectPeriodicArgRed(func, dom, target) {
 	  numPeriod = 0;
 	  points = 2001!;
 	  prec = max(500, prec, 4 * ceil(-log2(target)) + 100)!;
-	  zeros = mydirtyfindzeros(func - func(c), dom);
+	  if (abs(func(c)) <= 1b1024) then {
+	     zeros = mydirtyfindzeros(func - func(c), dom);
+	  } else {
+	     zeros = [||];
+	  };
 	  zeros = limitListToNElements(zeros, 25);
 	  points = oldPoints!;
 	  len = length(zeros);
+          possiblePeriods = [||];
 	  if (len >= 2) then {
-	     possiblePeriods = [||];
 	     for i from 0 to len - 2 do {
 	     	 for j from i + 1 to len - 1 do {
 		     possiblePeriods = (zeros[j] - zeros[i]) .: possiblePeriods;
@@ -6147,7 +6159,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	          tryImplementationInstance = head(tryImplementationChoices);
 		  tryImplementationChoices = tail(tryImplementationChoices);
 
-		  /* "i = ", i; i := i + 1; */
+		  // "i = ", i; i := i + 1; 
 	          res = tryImplementationInstance(problemdef, parametrization);
 
 		  if (res.okay) then {
