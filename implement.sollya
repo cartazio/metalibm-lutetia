@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 by
+ * Copyright 2008-2013 by
  *
  * Laboratoire de l'Informatique du Parallélisme,
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
@@ -658,9 +658,11 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 		      write("Even symmetry dectected\n");
 		      midpoint := D(symetrypoint);
 		   } else {
+                     if (abs(func(inf(dom))) < 1b-20) then midpoint := D(inf(dom)) else {
+		     if (abs(func(sup(dom))) < 1b-20) then midpoint := D(sup(dom)) else {
 		     if (target < 1b-50) then {
 		      PstarOrig = remezwrapper(func(x + D(mid(dom))), [inf(dom) - D(mid(dom));sup(dom) - D(mid(dom))], target, 3);
-	              if (PstarOrig != false) then {
+	              if (!(PstarOrig == false)) then {
 	                 Pstar = simplifysafe(horner(simplifysafe(substitute(PstarOrig,(x - D(mid(dom)))))));
 	                 startmidpoint := D(mid(dom));
 			 galoptim = galoptimisation(Pstar,func,dom,target,startmidpoint);
@@ -672,6 +674,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 		      } else {
 		      	 midpoint := D(mid(dom));
 		      };
+		      }; };
 		   };
 	       };
 
@@ -1466,7 +1469,7 @@ procedure tryDetectSymmetry(func, dom, target) {
 
 procedure tryImplementationThroughSymmetryDetectionAroundZero(problemdef, parametrization) {
 	  var result, splitPoints, needToDetectSymmetry, res, evenSymmetry, myDom, oppositeOnNegative;
-	  var suffix, myProblemdef, myParametrization, origDefDom, symmetryCode;
+	  var suffix, myProblemdef, myParametrization, origDefDom, symmetryCode, dom;
 
 	  result = { .okay = false };
 
@@ -1484,6 +1487,8 @@ procedure tryImplementationThroughSymmetryDetectionAroundZero(problemdef, parame
                                        .gappaOutputFile = default,
                                        .gappaExecutable = default,
 				       .functionBasename = default } } : {
+
+				       dom = problemdef.dom;
 
 				       /* Start with a test if zero is actually inside the domain */
 				       if (sup(problemdef.dom) * inf(problemdef.dom) < 0) then {
@@ -1543,6 +1548,7 @@ procedure tryImplementationThroughSymmetryDetectionAroundZero(problemdef, parame
 					       myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 					       myParametrization.functionBasename = parametrization.functionBasename @ suffix;
 					       myParametrization.minWidth = (sup(myDom) - inf(myDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
+					       myParametrization.argumentReduced = true;
 
 					       res = tryImplementation(myProblemdef, myParametrization);
 
@@ -2496,6 +2502,7 @@ procedure tryImplementationThroughArgumentReductionExponential(problemdef, param
 					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
 						    myParametrization.doNotPerformExponentialArgRed = true;
 						    myParametrization.minWidth = (sup(myDom) - inf(myDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
+					            myParametrization.argumentReduced = true;
 
 					            res = tryImplementation(myProblemdef, myParametrization);
 
@@ -3251,6 +3258,77 @@ procedure computeAmplification(func,dom,maxeps) {
 	  return sup(abs(res));
 };
 
+/* Computes the maximum error res in the argument X = x * (1 + res) of func
+   such that func(X) = func(x) * (1 + eps) with abs(eps) <= maxeps.
+*/
+procedure computeNeededAccuracyOfArgument(func, dom, maxeps) {
+	  var res, okay, alpha, newres;
+
+	  res = 1b-1;
+	  okay = false;
+
+	  while (!okay) do {
+	  	alpha = abs(computeAmplification(func, dom, res));
+		newres = abs(maxeps) * 1/alpha;
+		if (newres > 1b-1) then newres = 1b-1;
+		if ((newres >= 1/2 * res) || (newres == 0)) then {
+		  if (newres == 0) then res = 1b-165;
+		  okay = true;
+		} else {
+		  res = newres;
+		};
+	  };
+
+	  if (res > 0) then {
+	  	  okay = false;
+	  	  while (!okay) do {
+	  	  	alpha = abs(computeAmplification(func, dom, res));
+			if (alpha * res > abs(maxeps)) then {
+		   	   okay = true;
+			} else {
+		   	   res = 2 * res;
+		   	   if (res > 1) then okay = true;
+			};
+	  	  };
+	  	  res = 1/2 * res;
+          };
+
+	  alpha = abs(computeAmplification(func, dom, res));
+	  if (alpha * res > abs(maxeps)) then {
+	     res = 0;
+	  };
+
+	  return res;
+};
+
+procedure computeNeededAccuracyOfArgumentTrisect(func, dom, maxeps, minWidth) {
+	  var res, w, a, b;
+
+	  res = computeNeededAccuracyOfArgument(func, dom, maxeps);
+	   
+	  a = inf(dom);
+	  b = sup(dom);
+	  w = b - a;	  
+
+	  if ((res == 0) && (w > minWidth)) then {
+	      
+	      res = min( computeNeededAccuracyOfArgumentTrisect(func, [a; a + 1/3 * w], maxeps, minWidth),
+	                 computeNeededAccuracyOfArgumentTrisect(func, [a + 1/3 * w; a + 2/3 * w], maxeps, minWidth),
+			 computeNeededAccuracyOfArgumentTrisect(func, [a + 2/3 * w; b], maxeps, minWidth));
+
+	  }; 
+
+	  return res;
+};
+
+procedure computeNeededAccuracyOfArgumentWorkHard(func, dom, maxeps) {
+	  var res;
+
+	  res = computeNeededAccuracyOfArgumentTrisect(func, dom, maxeps, (sup(dom) - inf(dom)) / 2187);
+	  
+	  return res;
+};
+
 procedure tryImplementationThroughSquaring(problemdef, parametrization) {
 	  var result, splitPoints, needToDetectSymmetry, res;
 	  var g, func, myDom, epsRed, redArgFormat, myProblemdef, myParametrization;
@@ -3944,6 +4022,7 @@ procedure tryImplementationThroughArgumentReductionLogarithm(problemdef, paramet
 					            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
 						    myParametrization.doNotPerformLogarithmArgRed = true;
 						    myParametrization.minWidth = (sup(reducedDom) - inf(reducedDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
+					            myParametrization.argumentReduced = true;
 
 					            res = tryImplementation(myProblemdef, myParametrization);
 
@@ -4464,6 +4543,7 @@ procedure tryImplementationThroughArgumentReductionPowering(problemdef, parametr
 					       	       logParametrization.functionBasename = parametrization.functionBasename @ logSuffix;
 					       	       logParametrization.minWidth = (sup([1;2]) - inf([1;2])) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
 						       logParametrization.doNotPerformPoweringArgRed = true;
+					               logParametrization.argumentReduced = true;
 
 						       resLog = tryImplementation(logProblemdef, logParametrization);
 
@@ -4534,6 +4614,7 @@ procedure tryImplementationThroughArgumentReductionPowering(problemdef, parametr
 					       	       	 expParametrization.functionBasename = parametrization.functionBasename @ expSuffix;
 					       	       	 expParametrization.minWidth = (sup(expDomain) - inf(expDomain)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
 						       	 expParametrization.doNotPerformPoweringArgRed = true;
+				                         expParametrization.argumentReduced = true;
 
 							 resExp = tryImplementation(expProblemdef, expParametrization);
 
@@ -5207,6 +5288,7 @@ procedure doWorkForTryImplementationThroughMetaSplitting(problemdef, parametriza
 		    myParametrization.implementationFile = currImplementationFile;
 		    myParametrization.doNotPerformMetaSplitArgRed = true;
 		    myParametrization.minWidth = (sup(currDom) - inf(currDom)) * (parametrization.minWidth / (sup(dom) - inf(dom)));
+		    myParametrization.argumentReduced = true;
 
 		    write("Trying to implement the given function on ", currDom, "\n");
 		    res = tryImplementation(myProblemdef, myParametrization);
@@ -5353,7 +5435,31 @@ procedure limitListToNElements(l,n) {
 	  return res;
 };
 
-procedure tryDetectPeriodicArgRed(func, dom, target) {
+procedure removeDoubleEntriesInSortedList(l) {
+	  var ll, p, e, lll;
+
+	  if (l == [||]) then {
+	     ll = [||];
+	  } else {
+	     lll = l;
+	     p = head(lll);
+	     lll = tail(lll);
+	     ll = [| p |];
+	     while (lll != [||]) do {
+	     	   e = head(lll);
+		   lll = tail(lll);
+		   if (e != p) then {
+		      ll = e .: ll;
+		      p = e;
+		   };
+	     };
+
+	  };
+
+	  return revert(ll);
+};
+
+procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	  var result, c, zeros, i, j, len;
 	  var oldPrec;
 	  var possiblePeriods;
@@ -5361,6 +5467,8 @@ procedure tryDetectPeriodicArgRed(func, dom, target) {
 	  var recDom;
 	  var oldPoints;
 	  var okay, myPeriod;
+	  var t;
+	  var zerosUpperRaw, zerosLowerRaw, z;
 
 	  result = { .okay = false };
 
@@ -5398,6 +5506,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target) {
 		 };
 	     };
 	     possiblePeriods = sort(possiblePeriods);
+	     possiblePeriods = removeDoubleEntriesInSortedList(possiblePeriods);
           };
 	  prec = oldPrec!;
 
@@ -5405,13 +5514,35 @@ procedure tryDetectPeriodicArgRed(func, dom, target) {
 	  while ((!okay) && (possiblePeriods != [||])) do {
 	  	myPeriod = head(possiblePeriods);
 		possiblePeriods = tail(possiblePeriods);
-
 		recDom = [inf(dom); sup(dom) - myPeriod];
 	        testfunc = simplifysafe(func(x + myPeriod)/func - 1);
-	        y = evaluate(testfunc, mid(recDom));
+		if (0 in recDom) then t = 0 else t = ~((2 * inf(recDom) + sup(recDom)) / 3);
+	        y = evaluate(testfunc, t);
+
+		if (!(y in [-target, target])) then {
+		   if (func(t) == 0) then {
+		      t = ~(inf(recDom) + myPeriod / 3);
+		      y = evaluate(testfunc, t);
+		   };
+		};
+
 	        if (y in [-target, target]) then {
-	  	     zerosUpper = mydirtyfindzeros(testfunc + target, recDom);
-	  	     zerosLower = mydirtyfindzeros(testfunc - target, recDom);
+	  	     zerosUpperRaw = mydirtyfindzeros(testfunc + target, recDom);
+	  	     zerosLowerRaw = mydirtyfindzeros(testfunc - target, recDom);
+
+		     zerosUpper = [||];
+		     for z in zerosUpperRaw do {
+		     	 if (!(func(z + myPeriod) == func(z))) then {
+			    zerosUpper = z .: zerosUpper;
+			 };
+		     };
+
+		     zerosLower = [||];
+		     for z in zerosLowerRaw do {
+		     	 if (!(func(z + myPeriod) == func(z))) then {
+			    zerosLower = z .: zerosLower;
+			 };
+		     };
 
 		     if ((zerosUpper == [||]) && (zerosLower == [||])) then {
 		     	okay = true;
@@ -5610,11 +5741,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd1112(&rh, &rm, xh, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd1113(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   }
 			      DD : {
@@ -5625,11 +5756,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd1122(&rh, &rm, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd1123(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   }
 			      TD : {
@@ -5640,11 +5771,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd1132(&rh, &rm, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd1133(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   };
 	       }
@@ -5658,11 +5789,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd2112(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd2113(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   }
 			      DD : {
@@ -5673,11 +5804,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd2122(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd2123(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   }
 			      TD : {
@@ -5688,11 +5819,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd2132(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd2133(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   };
 	       }
@@ -5706,11 +5837,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd3112(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd3113(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   }
 			      DD : {
@@ -5721,11 +5852,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd3122(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd3123(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   }
 			      TD : {
@@ -5736,11 +5867,11 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd3132(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd3133(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = infty; // TODO
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
 					      	   };
 			      	   };
 	       };
@@ -5812,7 +5943,85 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     return res;					    
 };
 
+procedure computeReducedDomainAndMidpointCasesPeriodic(func, dom, c, p, xFormat) {
+	  var midpointCases;
+	  var a, b, r, t, s, k, i, ia, ib, td, xt, tpl, xtp;
 
+	  /* We have to compute the image domain of the 
+	     argument reduction 
+
+	      r = x - p * nearestint((x - c) / p)
+
+	     for x in dom a floating-point value of format xFormat.
+
+	     For that image domain, we must not account for midpoint 
+	     cases but put them in an extra list.
+
+	     We start by analyzing at the bounds of the original 
+	     domain.
+	     
+	  */
+	  midpointCases = [||];
+
+	  s = round(inf(dom),xFormat,RU);
+	  t = (s - c) / p;
+	  k = nearestint(t);
+	  if (abs(k - t) == 1/2) then {
+	     midpointCases = s .: midpointCases;
+	     s = round(inf(dom) + 1b-2000,xFormat,RU);
+	     t = (s - c) / p;
+	     k = nearestint(t);
+	  };
+	  r = s - p * k;
+	  a = r;
+	  b = r;
+
+	  s = round(sup(dom),xFormat,RD);
+	  t = (s - c) / p;
+	  k = nearestint(t);
+	  if (abs(k - t) == 1/2) then {
+	     midpointCases = s .: midpointCases;
+	     s = round(sup(dom) - 1b-2000,xFormat,RD);
+	     t = (s - c) / p;
+	     k = nearestint(t);
+	  };
+	  r = s - p * k;
+
+	  a = min(a, r);
+	  b = max(b, r);
+
+	  /* Now go over all rounding boundaries of nearestint
+	     that are possible in the domain for (x - c)/p
+	  */
+	  td = (dom - c) / p;
+	  ia = floor(inf(td)) + 1/2;
+	  while (ia < inf(td)) do ia = ia + 1;
+	  ib = ceil(sup(td)) - 1/2;
+	  while (ib > sup(td)) do ib = ib - 1;
+	  
+	  for i from ia to ib by 1 do {
+	      xt = i * p + c;
+	      if (xt == round(xt,xFormat,RN)) then {
+	      	 midpointCases = xt .: midpointCases;
+		 tpl = [| round(xt - 1b-2000, xFormat, RD), round(xt + 1b-2000, xFormat, RU) |];
+	      } else {
+	      	 tpl = [| round(xt, xFormat, RD), round(xt, xFormat, RU) |];
+	      };
+
+	      for xtp in tpl do {
+	      	  if (xtp in dom) then {
+	             t = (xtp - c) / p;
+	             k = nearestint(t);
+	             r = xtp - p * k;
+
+	             a = min(a, r);
+	             b = max(b, r);
+		  };
+	      };
+	  };
+
+	  return { .reducedDom = [a, b], .midpointCases = midpointCases };
+};
 
 procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization) {
 	  var result, res;
@@ -5830,10 +6039,15 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 	  var reducedArgFormat;
 	  var myProblemdef, origDefDom, suffix;
 	  var resArgRed;
+	  var midpointCases;
+	  var redDomMidpointCases;
+	  var neededAccuracyOfArg;
 
 	  result = { .okay = false };
 
-          res = tryDetectPeriodicArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8);
+          res = tryDetectPeriodicArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8, problemdef.variableFormat);
+
+	  "res = ", res;
 
 	  if (res.okay) then {
 	     /* Here we know that func is periodic with period period */
@@ -5873,6 +6087,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		    };
 		 };
 		 reducedDom = [ c - period/2; c + period/2 ];
+		 midpointCases = [||];
 	
 		 /* Just to be sure, we check that the reduced domain 
 		    is contained in the original domain. Otherwise, we simply fail.
@@ -5882,6 +6097,23 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 
 		 */
 		 if ((reducedDom in dom) && (sup(abs((dom - c)/period)) <= 1b13)) then {
+		    /* Now check if the function has a zero in the reduced domain.
+		       If yes, recompute the reduced domain to contain only
+		       non-midpoint cases of argument reduction, along with a
+		       list of midpoint cases.
+		    */
+
+		    if (mydirtyfindzeros(func, reducedDom) != [||]) then {
+		       redDomMidpointCases = computeReducedDomainAndMidpointCasesPeriodic(func, dom, c, period, variableFormat);
+		       reducedDom = redDomMidpointCases.reducedDom;
+		       midpointCases = redDomMidpointCases.midpointCases;
+		    };
+
+		    display = dyadic!;
+		    "reducedDom = ", reducedDom;
+		    "midpointCases = ", midpointCases;
+		    display = default!;
+
 		    /* Now we check if we have either the Sterbenz condition 
                        for the subtraction 
 
@@ -5903,7 +6135,12 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		          relative error of the reduced argument into the final error due
 			  to argument reduction.
 		       */   		       
-		       alpha = computeAmplification(func,reducedDom,1b-53);
+
+		       neededAccuracyOfArg = computeNeededAccuracyOfArgumentWorkHard(func, reducedDom, target);
+
+		       "neededAccuracyOfArg = ", neededAccuracyOfArg;
+		       
+		       alpha = abs(abs(target) / abs(neededAccuracyOfArg));
 		       write("The amplification factor of the periodic function is approximately ", round(alpha,12,RN), " = 2^(", round(log2(alpha),12,RN),")\n");
 
 		       /* Compute the target errors */
@@ -6028,6 +6265,8 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		            myParametrization = parametrization;
 		            myParametrization.functionBasename = parametrization.functionBasename @ suffix;
 		            myParametrization.doNotPerformPeriodicArgRed = true;
+			    myParametrization.minWidth = (sup(reducedDom) - inf(reducedDom)) * (parametrization.minWidth / (sup(problemdef.dom) - inf(problemdef.dom)));
+                            myParametrization.argumentReduced = true;
 
 		            write("Trying to implement the function on the reduced argument domain ", reducedDom, "\n");
 		            res = tryImplementation(myProblemdef, myParametrization);
@@ -6111,11 +6350,234 @@ procedure tryImplementationThroughArgumentReductionPeriodic(problemdef, parametr
 	  return result;
 };
 
+procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g, h, problemdef, parametrization) {
+	  var result;
+
+	  result = { .okay = false };
+
+	  return result;
+};
+
+procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication(f, g, h, problemdef, parametrization) {
+	  var result;
+
+	  result = { .okay = false };
+
+	  return result;
+};
+
+procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f, g, h, problemdef, parametrization) {
+	  var result;
+	  var domG, domH;
+	  var maxepsG, maxepsH, maxeps;
+	  var myProblemdef, suffix, origDefDom, myParametrization, res, res2;
+
+	  result = { .okay = false };
+
+	  /* Get the target error bound, get the domain for h */
+	  maxeps = abs(problemdef.target);
+	  domH = problemdef.dom;
+
+	  /* Compute the domain for g */
+	  domG = dirtyEvaluateImage(h,domH);
+
+	  /* Compute the accuracy needed for h in order to stay within the target error bound 
+	     after the amplification of the error by g 
+	  */
+	  maxepsH = abs(computeNeededAccuracyOfArgument(g,domG,3/8 * maxeps));
+	  maxepsG = 3/8 * maxeps;
+
+	  /* Check if we can theoretically do both error bounds */
+	  if ((maxepsH > 1b-157) && (maxepsG > 1b-157)) then {
+	     write("Expression decomposition detected that the function can be split into f = g(h(x)) with\n");
+	     write("    g(x) = ", g, " on domain ", domG, " and\n");
+	     write("    h(x) = ", h, " on domain ", domH, "\n");
+
+	     write("Trying to implement h\n");
+	     myProblemdef.func = h;
+	     myProblemdef.dom = domH;
+	     myProblemdef.target = maxepsH;
+	     myProblemdef.variableFormat = problemdef.variableFormat;
+	     suffix = "_expr_decomp_h";
+	     origDefDom = problemdef.dom;
+	     match (problemdef) with { .definitionDomain = default } : {
+	                                  if (origDefDom in problemdef.definitionDomain) then {
+                                             origDefDom = problemdef.definitionDomain;
+                                          }; }
+                                     default : {};
+	     myProblemdef.definitionDomain = origDefDom;
+	     myParametrization = parametrization;
+	     myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+	     myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+	     myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+
+	     res = tryImplementation(myProblemdef, myParametrization);
+
+	     if (res.okay) then {
+	     	write("Implementation of subfunction h successful, now trying to implement g\n");
+					    
+	        myProblemdef.func = g;
+	     	myProblemdef.dom = domG;
+	     	myProblemdef.target = maxepsG;
+	     	myProblemdef.variableFormat = res.outputformat;
+	     	suffix = "_expr_decomp_g";
+	     	myProblemdef.definitionDomain = domG;
+	     	myParametrization = parametrization;
+	     	myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+	     	myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+	     	myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+             	myParametrization.implementationFile = parametrization.implementationFile @ "_expr_decomp_subfunction_g"; 
+
+	     	res2 = tryImplementation(myProblemdef, myParametrization);
+
+		if (res2.okay) then {
+		   write("Implementation of subfunction g successful\n");
+		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g >> " @ parametrization.implementationFile);		   
+		   write("Generating composition code\n");
+
+		   implementationcode = "\n";
+		   implementationcode = implementationcode @ "void " @ parametrization.functionBasename @ "(";
+		   implementationcode = implementationcode @ (match res2.outputformat with
+		   			    		       	 	D  : ( "double *res_resh, " )
+		   							DD : ( "double *res_resh, double *res_resm, " )
+		   							TD : ( "double *res_resh, double *res_resm, double *res_resl, " ));
+		   implementationcode = implementationcode @ (match problemdef.variableFormat with
+		   			    		       	 	D  : ( "double xh" )
+		   							DD : ( "double xh, double xm" )
+		   							TD : ( "double xh, double xm, double xl"));
+		   implementationcode = implementationcode @ ") {\n";
+		   implementationcode = implementationcode @ (match res.outputformat with
+		   			    		       	 	D  : ( "double res_h_resh;\n" )
+		   							DD : ( "double res_h_resh, res_h_resm;\n" )
+		   							TD : ( "double res_h_resh, res_h_resm, res_h_resl;\n" ));
+		   implementationcode = implementationcode @ "\n";
+		   
+		   implementationcode = implementationcode @ res.functionname @ "(";
+		   implementationcode = implementationcode @ (match res.outputformat with
+		   			    		       	 	D  : ( "&res_h_resh, " )
+		   							DD : ( "&res_h_resh, &res_h_resm, " )
+		   							TD : ( "&res_h_resh, &res_h_resm, &res_h_resl, " ));							
+		   implementationcode = implementationcode @ (match problemdef.variableFormat with
+		   			    		       	 	D  : ( "xh" )
+		   							DD : ( "xh, xm" )
+		   							TD : ( "xh, xm, xl"));
+		   implementationcode = implementationcode @ ");\n";
+
+		   implementationcode = implementationcode @ res2.functionname @ "(";
+		   implementationcode = implementationcode @ (match res2.outputformat with
+		   			    		       	 	D  : ( "res_resh, " )
+		   							DD : ( "res_resh, res_resm, " )
+		   							TD : ( "res_resh, res_resm, res_resl, " ));
+		   implementationcode = implementationcode @ (match res.outputformat with
+		   			    		       	 	D  : ( "res_h_resh" )
+		   							DD : ( "res_h_resh, res_h_resm" )
+		   							TD : ( "res_h_resh, res_h_resm, res_h_resl" ));							
+		   implementationcode = implementationcode @ ");\n";									
+
+		   implementationcode = implementationcode @ "}\n\n";
+
+		   write(implementationcode) >> parametrization.implementationFile;		   		   
+                   result.okay = true;
+		   result.outputformat = res2.outputformat;
+		   result.functionname = parametrization.functionBasename;
+		   // TODO: add error bounds
+		};
+	     };
+	  };
+
+	  return result;
+};
+
+procedure doWorkForTryImplementationThroughExpressionDecomposition(problemdef, parametrization) {
+	  var result, func;
+
+	  result = { .okay = false };
+
+	  func = problemdef.func;
+
+	  match (func) with 
+	  	g + h  : {
+				/* Make sure that neither g nor h is a stupid constant */
+				if ((degree(g) != 0) && (degree(h) != 0)) then {
+				   result = doWorkForTryImplementationThroughExpressionDecompositionAddition(func, g, h, problemdef, parametrization);
+				};
+		         }
+                g * h  : {
+				/* Make sure that neither g nor h is a stupid constant */
+				if ((degree(g) != 0) && (degree(h) != 0)) then {
+				   result = doWorkForTryImplementationThroughExpressionDecompositionMultiplication(func, g, h, problemdef, parametrization);
+				};
+		      	 } 
+                g(h)   : {
+				/* Make sure that h is neither a constant nor just x */
+				if (!(degree(h) in [0;1])) then {
+				   result = doWorkForTryImplementationThroughExpressionDecompositionComposition(func, g, h, problemdef, parametrization);
+				};
+		      	 }
+                default: {
+			 };
+
+	  return result;
+};
+
+procedure tryImplementationThroughExpressionDecomposition(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, doNotPerformExpressionDecomposition;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default,
+				       .tableIndexWidth = default,
+				       .metaSplitMinWidth = default } } : {
+
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       doNotPerformExpressionDecomposition = true;
+				       match (parametrization) with
+				             { .performExpressionDecomposition = true } : { doNotPerformExpressionDecomposition = false; }
+					     default : { };
+
+				       if (!doNotPerformExpressionDecomposition) then {
+				           /* Start with a test if the domain actually needs
+                                              decomposition or argument reduction in order to stay below the maximum
+					      polynomial degree
+				           */
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+					      result = doWorkForTryImplementationThroughExpressionDecomposition(problemdef, parametrization);
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
 
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay, i;
-	  var needArgumentReduction;
+	  var needArgumentReduction, argumentAlreadyReduced;
 
 	  result = { .okay = false };
 
@@ -6130,19 +6592,40 @@ procedure tryImplementation(problemdef, parametrization) {
 	      needArgumentReduction = true;
 	  };
 
+	  argumentAlreadyReduced = false;
+	  match (parametrization) with 
+	  	{ .argumentReduced = true } : { argumentAlreadyReduced = true; }
+                default : { };
+
 	  if (needArgumentReduction) then {
-	       tryImplementationChoices = [| tryImplementationConstant,
-	                                     tryImplementationThroughArgumentReductionPowering,
-		     			     tryImplementationThroughArgumentReductionLogarithm,
-	                                     tryImplementationThroughArgumentReductionExponential,
-					     tryImplementationThroughArgumentReductionPeriodic,
-                                             tryImplementationThroughArgumentReductionWithParamountBehavior,
-					     tryImplementationThroughSquaring,
-                                             tryImplementationThroughSymmetryDetectionAroundZero,
-                                             tryImplementationThroughDomainSplitting,
-					     tryImplementationThroughMetaSplitting |];
+	       if (argumentAlreadyReduced) then {
+	           tryImplementationChoices = [| tryImplementationThroughExpressionDecomposition,
+                                                 tryImplementationConstant,
+	                                         tryImplementationThroughArgumentReductionPowering,
+		     	    		         tryImplementationThroughArgumentReductionLogarithm,
+	                                         tryImplementationThroughArgumentReductionExponential,
+					         tryImplementationThroughArgumentReductionPeriodic,
+                                                 tryImplementationThroughArgumentReductionWithParamountBehavior,
+					         tryImplementationThroughSquaring,
+                                                 tryImplementationThroughDomainSplitting,
+                                                 tryImplementationThroughSymmetryDetectionAroundZero,
+					         tryImplementationThroughMetaSplitting |];
+	       } else {
+	           tryImplementationChoices = [| tryImplementationThroughExpressionDecomposition,
+                                                 tryImplementationConstant,
+	                                         tryImplementationThroughArgumentReductionPowering,
+		     	    		         tryImplementationThroughArgumentReductionLogarithm,
+	                                         tryImplementationThroughArgumentReductionExponential,
+					         tryImplementationThroughArgumentReductionPeriodic,
+                                                 tryImplementationThroughArgumentReductionWithParamountBehavior,
+					         tryImplementationThroughSquaring,
+                                                 tryImplementationThroughSymmetryDetectionAroundZero,
+                                                 tryImplementationThroughDomainSplitting,
+					         tryImplementationThroughMetaSplitting |];
+               };
 	  } else {
 	       tryImplementationChoices = [| tryImplementationThroughDomainSplitting,
+                                             tryImplementationThroughExpressionDecomposition,
                                              tryImplementationConstant,
 	                                     tryImplementationThroughArgumentReductionPowering,
 		     			     tryImplementationThroughArgumentReductionLogarithm,
@@ -6159,7 +6642,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	          tryImplementationInstance = head(tryImplementationChoices);
 		  tryImplementationChoices = tail(tryImplementationChoices);
 
-		  // "i = ", i; i := i + 1; 
+		  "i = ", i, ", func = ", problemdef.func, ", dom = ", problemdef.dom; i := i + 1; 
 	          res = tryImplementationInstance(problemdef, parametrization);
 
 		  if (res.okay) then {

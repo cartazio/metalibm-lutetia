@@ -37,6 +37,13 @@
 roundingwarnings=off!;
 prec = 350!;
 verbosity = 1!;
+showmessagenumbers=on!;
+
+/* -------------------------------------------------------- 
+   Suppress some unneeded (noisy) messages
+----------------------------------------------------------- */ 
+
+suppressmessage(372, 162, 175, 231, 346, 228, 247);
 
 /* -------------------------------------------------------- 
    Initialize performance counters
@@ -115,6 +122,7 @@ parametrization.gappaOutputFile = gappaOutputTmpFile;
 parametrization.gappaExecutable = gappaExecutable;
 parametrization.functionBasename = polynomialName;
 parametrization.minimalReductionRatio = minimalReductionRatio;
+parametrization.performExpressionDecomposition = performExpressionDecomposition;
 
 implementationTime = time({
 		   resultat = tryImplementation(problemdef, parametrization);

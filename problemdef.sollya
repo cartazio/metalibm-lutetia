@@ -1,9 +1,11 @@
-f = log2(x);
-dom = [1b-1075; 100];
-target = 2^(-24); 
-maxDegree = 12;
-minWidth = (sup(dom) - inf(dom)) * 1/256;
-tableIndexWidth = 3;
+f = exp(sin(2 * pi * x/17));
+dom = [-70; 70];
+target = 2^(-20); 
+maxDegree = 8;
+minWidth = (sup(dom) - inf(dom)) * 1/512;
+tableIndexWidth = 8;
 minimalReductionRatio = 1000;
-metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/64;
+metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
+performExpressionDecomposition = true;
+
 

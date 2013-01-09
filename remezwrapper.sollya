@@ -37,12 +37,26 @@
 /* A timing wrapper around dirtyinfnorm */
 procedure mydirtyinfnorm(func, dom) {
 	  var res, dirtyinfnormtime;
+	  var oldpoints;
 
-	  dirtyinfnormtime = time({ 
+	  dirtyinfnormtime = 0;
+	  
+	  oldpoints = points;
+	  points = 5!;
+	  dirtyinfnormtime = dirtyinfnormtime +
+                             time({ 
 	                             res = dirtyinfnorm(func, dom);
 				  });
-	  wholeDirtyinfnormTime := wholeDirtyinfnormTime + dirtyinfnormtime;
+	  points = oldpoints!;	  
 
+	  if (res != 0) then {
+	      dirtyinfnormtime = dirtyinfnormtime +
+                                 time({ 
+	                                 res = dirtyinfnorm(func, dom);
+		   		      });
+	  };
+	  wholeDirtyinfnormTime := wholeDirtyinfnormTime + dirtyinfnormtime;
+	  
 	  return res;
 };
 
