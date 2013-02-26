@@ -3835,6 +3835,9 @@ procedure tryImplementationThroughArgumentReductionLogarithm(problemdef, paramet
 						    variableDeclarations = variableDeclarations @ "int E;\n";
 						    variableDeclarations = variableDeclarations @ "int index;\n";
 						    reductionCode = reductionCode @ "argRedCaster.d = xh;\n";
+
+						    // TODO: care about subnormal inputs.
+
 						    reductionCode = reductionCode @ "E = (int) ((argRedCaster.l >> 52) - 1023ll);\n";
 						    if (problemdef.variableFormat != D) then {
 						       variableDeclarations = variableDeclarations @ "db_number scaleCaster;\n";
@@ -6642,7 +6645,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	          tryImplementationInstance = head(tryImplementationChoices);
 		  tryImplementationChoices = tail(tryImplementationChoices);
 
-		  "i = ", i, ", func = ", problemdef.func, ", dom = ", problemdef.dom; i := i + 1; 
+		  // "i = ", i, ", func = ", problemdef.func, ", dom = ", problemdef.dom; i := i + 1; 
 	          res = tryImplementationInstance(problemdef, parametrization);
 
 		  if (res.okay) then {

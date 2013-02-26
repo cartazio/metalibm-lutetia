@@ -1,5 +1,5 @@
-f = exp(sin(2 * pi * x/17));
-dom = [-70; 70];
+f = exp(x);
+dom = [-10; 10];
 target = 2^(-20); 
 maxDegree = 8;
 minWidth = (sup(dom) - inf(dom)) * 1/512;
