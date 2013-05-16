@@ -1,9 +1,9 @@
-f = exp(x);
-dom = [-10; 10];
-target = 2^(-20); 
-maxDegree = 8;
+f = exp(x) * log(x);
+dom = [1b-10; 50];
+target = 1b-24; 
+maxDegree = 10;
 minWidth = (sup(dom) - inf(dom)) * 1/512;
-tableIndexWidth = 8;
+tableIndexWidth = 9;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = true;

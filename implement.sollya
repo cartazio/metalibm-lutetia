@@ -6050,8 +6050,6 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 
           res = tryDetectPeriodicArgRed(problemdef.func, problemdef.dom, problemdef.target * 1/8, problemdef.variableFormat);
 
-	  "res = ", res;
-
 	  if (res.okay) then {
 	     /* Here we know that func is periodic with period period */
 	     func = problemdef.func;
@@ -6361,10 +6359,197 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g,
 	  return result;
 };
 
+procedure formatToExpansionLength(format) {
+	  return match (format) with
+                  D       : (1)
+		  DD      : (2)
+                  TD      : (3)
+                  default : (error);
+};
+
+procedure expansionLengthToFormat(expans) {
+	  return [| D, DD, TD |][expans - 1];
+};
+
 procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication(f, g, h, problemdef, parametrization) {
 	  var result;
+	  var maxeps, dom, maxepsG, maxepsH, maxepsMul;
+	  var myProblemdef, suffix, origDefDom, myParametrization, res, res2;
+	  var finalOutputFormat;
+	  var implementationcode;
 
 	  result = { .okay = false };
+
+	  /* Get the target error bound and the domain for g and h */
+	  maxeps = abs(problemdef.target);
+	  dom = problemdef.dom;
+
+	  /* Cut the target error into pieces */
+	  maxepsG = 1/4 * maxeps;
+	  maxepsH = 1/4 * maxeps;
+	  maxepsMul = 1/4 * maxeps;
+
+	  /* Say that we are going to decompose f into g and h */
+	  write("Expression decomposition detected that the function can be split into f = g(x) * h(x) with\n");
+	  write("    g(x) = ", g, " on domain ", dom, " and\n");
+	  write("    h(x) = ", h, " on domain ", dom, "\n");
+	  
+	  /* Try to implement g */
+	  myProblemdef.func = g;
+	  myProblemdef.dom = dom;
+	  myProblemdef.target = maxepsG;
+	  myProblemdef.variableFormat = problemdef.variableFormat;
+	  suffix = "_expr_decomp_prod_g";
+	  origDefDom = problemdef.dom;
+	  match (problemdef) with { .definitionDomain = default } : {
+	                               if (origDefDom in problemdef.definitionDomain) then {
+                                          origDefDom = problemdef.definitionDomain;
+                                       }; }
+                                  default : {};
+	  myProblemdef.definitionDomain = origDefDom;
+	  myParametrization = parametrization;
+	  myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+	  myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+	  myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+
+	  res = tryImplementation(myProblemdef, myParametrization);
+
+	  if (res.okay) then {
+	  	write("Implementation of subfunction g successful, now trying to implement h\n");
+
+	        myProblemdef.func = h;
+	     	myProblemdef.dom = dom;
+	     	myProblemdef.target = maxepsH;
+	     	myProblemdef.variableFormat = problemdef.variableFormat;
+	     	suffix = "_expr_decomp_prod_h";
+	     	myProblemdef.definitionDomain = origDefDom;
+	     	myParametrization = parametrization;
+	     	myParametrization.gappaFile = parametrization.gappaFile @ suffix;
+	     	myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+	     	myParametrization.functionBasename = parametrization.functionBasename @ suffix;
+             	myParametrization.implementationFile = parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g"; 
+
+	     	res2 = tryImplementation(myProblemdef, myParametrization);
+
+		if (res2.okay) then {
+		   write("Implementation of subfunction h successful\n");
+		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g >> " @ parametrization.implementationFile);		   
+		   write("Generating multiplication code\n");
+
+		   if (maxepsMul < 1b-102) then finalOutputFormat = TD else
+		    if (maxepsMul < 1b-53) then finalOutputFormat = DD else
+		     finalOutputFormat = D;
+		   
+		   finalOutputFormat = expansionLengthToFormat(max(formatToExpansionLength(finalOutputFormat),
+							           formatToExpansionLength(res.outputformat),
+							           formatToExpansionLength(res2.outputformat)));
+		   		    
+		   implementationcode = "\n";
+		   implementationcode = implementationcode @ "void " @ parametrization.functionBasename @ "(";
+		   implementationcode = implementationcode @ (match finalOutputFormat with
+		   			    		       	 	D  : ( "double *res_resh, " )
+		   							DD : ( "double *res_resh, double *res_resm, " )
+		   							TD : ( "double *res_resh, double *res_resm, double *res_resl, " ));
+		   implementationcode = implementationcode @ (match problemdef.variableFormat with
+		   			    		       	 	D  : ( "double xh" )
+		   							DD : ( "double xh, double xm" )
+		   							TD : ( "double xh, double xm, double xl"));
+		   implementationcode = implementationcode @ ") {\n";
+		   match (res.outputformat) with
+		   	     D  : {
+		   			implementationcode = implementationcode @ "double res_g_resh;\n";
+		   	     	  }
+		   	     DD : {
+		   			implementationcode = implementationcode @ "double res_g_resh;\n";
+		   			implementationcode = implementationcode @ "double res_g_resm;\n";
+		   	     	  }
+		   	     TD : {
+		   			implementationcode = implementationcode @ "double res_g_resh;\n";
+		   			implementationcode = implementationcode @ "double res_g_resm;\n";
+		   			implementationcode = implementationcode @ "double res_g_resl;\n";
+		   	     	  };
+		   match (res2.outputformat) with
+		   	     D  : {
+		   			implementationcode = implementationcode @ "double res_h_resh;\n";
+		   	     	  }
+		   	     DD : {
+		   			implementationcode = implementationcode @ "double res_h_resh;\n";
+		   			implementationcode = implementationcode @ "double res_h_resm;\n";
+		   	     	  }
+		   	     TD : {
+		   			implementationcode = implementationcode @ "double res_h_resh;\n";
+		   			implementationcode = implementationcode @ "double res_h_resm;\n";
+		   			implementationcode = implementationcode @ "double res_h_resl;\n";
+		   	     	  };
+		   implementationcode = implementationcode @ "\n";
+		   implementationcode = implementationcode @ res.functionname @ "(";
+		   implementationcode = implementationcode @ (match (res.outputformat) with
+		   			    		       	 	D  : ( "&res_g_resh, " )
+		   							DD : ( "&res_g_resh, &res_g_resm, " )
+		   							TD : ( "&res_g_resh, &res_g_resm, &res_g_resl, "));
+		   implementationcode = implementationcode @ (match (problemdef.variableFormat) with
+		   			    		       	 	D  : ( "xh" )
+		   							DD : ( "xh, xm" )
+		   							TD : ( "xh, xm, xl" ));
+		   implementationcode = implementationcode @ ");\n";
+                   implementationcode = implementationcode @ res2.functionname @ "(";
+		   implementationcode = implementationcode @ (match (res2.outputformat) with
+		   			    		       	 	D  : ( "&res_h_resh, " )
+		   							DD : ( "&res_h_resh, &res_h_resm, " )
+		   							TD : ( "&res_h_resh, &res_h_resm, &res_h_resl, "));
+		   implementationcode = implementationcode @ (match (problemdef.variableFormat) with
+		   			    		       	 	D  : ( "xh" )
+		   							DD : ( "xh, xm" )
+		   							TD : ( "xh, xm, xl" ));
+		   implementationcode = implementationcode @ ");\n";
+		   match (finalOutputFormat) with
+		   	     D  : {
+		   			implementationcode = implementationcode @ "*res_resh = res_g_resh * res_h_resh;\n";
+                              }
+		         DD : {
+		   			match (res.outputformat) with
+		   			      D  : {
+		   					implementationcode = implementationcode @ "Mul122(res_resh,res_resm,res_g_resh,res_h_resh,res_h_resm);\n";
+		   			      	   }
+		   		              DD : {
+		   					match (res2.outputformat) with
+		   					      D  : {
+		   					      	        implementationcode = implementationcode @ "Mul122(res_resh,res_resm,res_h_resh,res_g_resh,res_g_resm);\n";
+		   						   }
+		   				              DD : {
+		   					                implementationcode = implementationcode @ "Mul22(res_resh,res_resm,res_g_resh,res_g_resm,res_h_resh,res_h_resm);\n";
+		   						   };
+		   			      	   };
+		   	          }
+		   	     TD : {
+		   			match (res.outputformat) with
+		   			      D  : {
+		   			      		implementationcode = implementationcode @ "Mul133(res_resh,res_resm,res_resl,res_g_resh,res_h_resh,res_h_resm,res_h_resl);\n";
+		   			      	   }
+		   			      DD : {
+		   			      		implementationcode = implementationcode @ "Mul233(res_resh,res_resm,res_resl,res_g_resh,res_g_resm,res_h_resh,res_h_resm,res_h_resl);\n";
+		   			      	   }
+		   			      TD : {
+		   					match (res2.outputformat) with
+		   					      D  : {
+		   					      	        implementationcode = implementationcode @ "Mul133(res_resh,res_resm,res_resl,res_h_resh,res_g_resh,res_g_resm,res_g_resl);\n";
+		   					      	   }
+		   					      DD : {
+		   					      	        implementationcode = implementationcode @ "Mul233(res_resh,res_resm,res_resl,res_h_resh,res_h_resm,res_g_resh,res_g_resm,res_g_resl);\n";
+		   					      	   }
+		   					      TD : {
+		   					      	        implementationcode = implementationcode @ "Mul33(res_resh,res_resm,res_resl,res_h_resh,res_h_resm,res_h_resl,res_g_resh,res_g_resm,res_g_resl);\n";
+		   					      	   };
+		   			      	   };
+		   	     	  };
+		   implementationcode = implementationcode @ "}\n";
+		   write(implementationcode) >> parametrization.implementationFile;
+		   result.okay = true;
+		   result.outputformat = finalOutputFormat;
+		   result.functionname = parametrization.functionBasename;
+		   // TODO Add error bounds
+		};	  
+	  };
 
 	  return result;
 };
