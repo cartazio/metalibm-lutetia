@@ -1,6 +1,6 @@
-f = exp(x) * log(x);
-dom = [1b-10; 50];
-target = 1b-24; 
+f = exp(x);
+dom = [-500; 500];
+target = 1b-64; 
 maxDegree = 10;
 minWidth = (sup(dom) - inf(dom)) * 1/512;
 tableIndexWidth = 9;

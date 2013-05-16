@@ -3835,14 +3835,24 @@ procedure tryImplementationThroughArgumentReductionLogarithm(problemdef, paramet
 						    variableDeclarations = variableDeclarations @ "int E;\n";
 						    variableDeclarations = variableDeclarations @ "int index;\n";
 						    reductionCode = reductionCode @ "argRedCaster.d = xh;\n";
-
-						    // TODO: care about subnormal inputs.
-
-						    reductionCode = reductionCode @ "E = (int) ((argRedCaster.l >> 52) - 1023ll);\n";
+						    if (inf(abs(problemdef.dom)) < 0x0010000000000000) then {
+						      reductionCode = reductionCode @ "E = 0;\n";
+						      reductionCode = reductionCode @ "if (argRedCaster.l < 0x0010000000000000) {\n";
+						      reductionCode = reductionCode @ "argRedCaster.d *= 9007199254740992.0;\n";						     
+						      reductionCode = reductionCode @ "E -= 53;\n";
+						      reductionCode = reductionCode @ "}\n";
+						      reductionCode = reductionCode @ "E += (int) ((argRedCaster.l >> 52) - 1023ll);\n";
+						    } else {
+						      reductionCode = reductionCode @ "E = (int) ((argRedCaster.l >> 52) - 1023ll);\n";
+						    };
 						    if (problemdef.variableFormat != D) then {
 						       variableDeclarations = variableDeclarations @ "db_number scaleCaster;\n";
 						       variableDeclarations = variableDeclarations @ "double scale;\n";
-						       reductionCode = reductionCode @ "scaleCaster.l = 1023 - E;\n";
+						       if (inf(abs(problemdef.dom)) < 0x0010000000000000) then {
+						           reductionCode = reductionCode @ "scaleCaster.l = 1023 - (E >= -1023 ? E : -1023);\n";
+						       } else {
+						           reductionCode = reductionCode @ "scaleCaster.l = 1023 - E;\n";
+                                                       };
 						       reductionCode = reductionCode @ "scaleCaster.l <<= 52;\n";
 						       reductionCode = reductionCode @ "scale = scaleCaster.d;\n";
 						    };
@@ -4663,6 +4673,9 @@ procedure tryImplementationThroughArgumentReductionPowering(problemdef, parametr
 							    } else {
 							       reductionCode = reductionCode @ "argRedCaster.d = xh;\n";
 							    };
+
+							    // TODO: Care about subnormal inputs
+
 							    reductionCode = reductionCode @ "E = (int) ((argRedCaster.l >> 52) - 1023ll);\n";
 							    reductionCode = reductionCode @ "ed = (double) E;\n";
 						            reductionCode = reductionCode @ "argRedCaster.l = (argRedCaster.l & 0x800fffffffffffffull) | 0x3ff0000000000000ull;\n";

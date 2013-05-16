@@ -206,7 +206,9 @@ if (resultat.okay) then {
                                              if (0 in dom) then externalplotPrecision = 14;
                                              match (resultat) with 
                                                    { .poly = default } : {
-                                                                             externalplot(sollyapath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision);
+								             oldPrec = prec; prec = 165!;
+                                                                             externalplot(sollyapath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision,perturb);
+                                                                             prec = oldPrec!;
                                                                          }
                                                    default :             {
                                                                              write("Argument reduction code implies use of more than one polynomial\n");
@@ -217,7 +219,9 @@ if (resultat.okay) then {
                                          };
        
        if (0 in dom) then externalplotPrecision = 14;
-       externalplot(sollyapath@compiledCode,relative,f,dom,externalplotPrecision); 
+       oldPrec = prec; prec = 165!;
+       externalplot(sollyapath@compiledCode,relative,f,dom,externalplotPrecision,perturb); 
+       prec = oldPrec!;
    };
 
    resultfile = resumedImplementationFile;
