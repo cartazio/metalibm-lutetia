@@ -79,8 +79,10 @@ execute("problemdef.sollya");
 
 variableFormat = D;
 
-doplots = true;
+doplots = false;
 dotiming = true;
+savetiming = true;
+timingsavefile = "timing.sollya";
 
 iterations = 1b11;	
 
@@ -89,6 +91,7 @@ trim = 1/2;
 polynomialName = "f_approx";
 gappaOutputTmpFile = "gappaOutput.sollya";
 compiledCode = "implementation.so";
+compileFlags = "-DASSEMBLY_TIMING=1";
 
 
 /* -------------------------------------------------------- 
@@ -172,7 +175,7 @@ if (resultat.okay) then {
                                   TD      : ("TD")
                                   default : ("")); 
 
-   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@" "@resultat.functionname@" "@compiledCode);
+   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@" "@resultat.functionname@" "@compiledCode@" "@compileFlags);
 
 
    if (doplots) then {
@@ -233,6 +236,8 @@ if (resultat.okay) then {
 	evaltime = round(timefunc(inf(dom), sup(dom), 2000, iterations) / iterations, 12, RN);
 
 	print("Time needed for evaluating the polynomial implemented:", evaltime,"time units");
+
+	if (savetiming) then write(evaltime) > timingsavefile;
 
    };
 

@@ -1,13 +1,18 @@
 /*
- * Copyright 2008 by 
- * 
- * Laboratoire de l'Informatique du Parallélisme, 
+ * Copyright 2008-2013 by
+ *
+ * Laboratoire de l'Informatique du Parallélisme,
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
  *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ * 
  * Sollya script for running the metalibm implementer script on 
  * a list of examples
  *
- * Contributor: Christoph Quirin Lauter (ENS Lyon) -- christoph.lauter@ens-lyon.fr
+ * Contributor: Christoph Quirin Lauter (UPMC) -- christoph.lauter@lip6.fr
  *
  * This file is part of the metalibm library developed by the Arenaire
  * project at Ecole Normale Superieure de Lyon
@@ -29,43 +34,57 @@
 
 execute("config.sollya");
 
-write("fpminimaxinstances = [|") > "fpminimaxwrapper.log";
+problemdefFile = "problemdef.sollya";
+
+timingsavefile = "timing.sollya";
+timingOutputFile = "overalltimings.sollya";
+
+
 
 f = exp(x);
 
-minTarget = 1b-60;
-maxTarget = 1b-100;
+minMaxDegree = 3;
+maxMaxDegree = 15;
 
-minWidth = 1b-17;
-maxWidth = 1b-9;
-
-write("data = [|\n") > "results.res";
-display = dyadic!;
+minTableIndexWidth = 3;
+maxTableIndexWidth = 12;
 
 
-width = maxWidth;
-while (width >= minWidth) do {
 
-      dom = [-width; width];
+write("\n") > timingOutputFile;
 
-      target = minTarget;
-      while (target >= maxTarget) do {
+for tableIndexWidth from minTableIndexWidth to maxTableIndexWidth do {
 
-      	    bashexecute("rm implementation.c implementation.gappa");
+    for maxDegree from minMaxDegree to maxMaxDegree do {
 
-      	    write("f = ", f, ";\n") > "problemdef.sollya";
-      	    write("dom = ", dom, ";\n") >> "problemdef.sollya";
-      	    write("target = ", target, ";\n") >> "problemdef.sollya";
+    	write("\n\n\n");
+	for i from 1 to 80 do write("-");
+    	write("\n");
 
-      	    bashexecute("cat implementer.sollya | "@sollyaPath@"sollya");
+    	bashexecute("rm -f implementation.c implementer.output "@timingsavefile@" "@sollyaPath@"/implementation.so");
+	write("") > timingsavefile;
 
-      	    target := target / 2;
+    	write("\n") > problemdefFile;
+    	write("f = ", f, ";\n") >> problemdefFile;
+    	write("dom = [-75; 75];\n") >> problemdefFile;
+    	write("target = 1b-60;\n") >> problemdefFile;
+    	write("maxDegree = ", maxDegree, ";\n") >> problemdefFile;
+    	write("minWidth = (sup(dom) - inf(dom)) * 1/512;\n") >> problemdefFile;
+    	write("tableIndexWidth = ", tableIndexWidth, ";\n") >> problemdefFile;
+    	write("minimalReductionRatio = 1000;\n") >> problemdefFile;
+    	write("metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;\n") >> problemdefFile;
+    	write("performExpressionDecomposition = false;\n") >> problemdefFile;
 
-      };
+    	bashexecute(sollyaPath@"sollya implementer.sollya");
 
-      width := width * 0.5;
+	temp = readfile(timingsavefile);
+    	if (temp != "") then {
+	   evaltime = parse(temp); 
 
+    	   write(tableIndexWidth, ", ", maxDegree, ", ", evaltime,"\n") >> timingOutputFile;
+	};
+
+    };
 };
 
-write("|];") > "fpminimaxwrapper.log";
 

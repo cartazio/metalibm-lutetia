@@ -6123,11 +6123,6 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		       midpointCases = redDomMidpointCases.midpointCases;
 		    };
 
-		    display = dyadic!;
-		    "reducedDom = ", reducedDom;
-		    "midpointCases = ", midpointCases;
-		    display = default!;
-
 		    /* Now we check if we have either the Sterbenz condition 
                        for the subtraction 
 
@@ -6364,13 +6359,6 @@ procedure tryImplementationThroughArgumentReductionPeriodic(problemdef, parametr
 	  return result;
 };
 
-procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g, h, problemdef, parametrization) {
-	  var result;
-
-	  result = { .okay = false };
-
-	  return result;
-};
 
 procedure formatToExpansionLength(format) {
 	  return match (format) with
@@ -6383,6 +6371,34 @@ procedure formatToExpansionLength(format) {
 procedure expansionLengthToFormat(expans) {
 	  return [| D, DD, TD |][expans - 1];
 };
+
+procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g, h, problemdef, parametrization) {
+	  var result;
+	  var maxeps, dom;
+	  var maxepsAdd, maxepsG, maxepsH, alphaG, alphaH;
+
+	  result = { .okay = false };
+
+	  /* Get the target error bound and the domain for g and h */
+	  maxeps = abs(problemdef.target);
+	  dom = problemdef.dom;
+
+	  /* Cut the target error into pieces */
+	  maxepsAdd = 1/3 * maxeps;
+	  
+	  alphaG = mydirtyinfnorm(g / (g + h),dom);
+	  alphaH = mydirtyinfnorm(h / (g + h),dom);	  
+	  
+	  "alphaG = ", alphaG;
+	  "alphaH = ", alphaH;
+
+
+
+
+	  return result;
+};
+
+
 
 procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication(f, g, h, problemdef, parametrization) {
 	  var result;
