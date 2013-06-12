@@ -84,7 +84,7 @@ dotiming = true;
 savetiming = true;
 timingsavefile = "timing.sollya";
 
-iterations = 1b11;	
+iterations = 1b12;	
 
 trim = 1/2;
 
@@ -233,7 +233,7 @@ if (resultat.okay) then {
 
         externalproc(timefunc, sollyapath@compiledCode, (constant, constant, integer, integer) -> integer);
 
-	evaltime = round(timefunc(inf(dom), sup(dom), 2000, iterations) / iterations, 12, RN);
+	evaltime = round(timefunc(inf(dom), sup(dom), 4000, iterations) / iterations, 12, RN);
 
 	print("Time needed for evaluating the polynomial implemented:", evaltime,"time units");
 

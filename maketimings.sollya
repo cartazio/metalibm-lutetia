@@ -49,42 +49,55 @@ maxMaxDegree = 15;
 minTableIndexWidth = 3;
 maxTableIndexWidth = 12;
 
+minPrecBits = 40;
+maxPrecBits = 60;
 
 
-write("\n") > timingOutputFile;
+overallImplementations = (maxMaxDegree - minMaxDegree + 1) * (maxTableIndexWidth - minTableIndexWidth + 1) * (maxPrecBits - minPrecBits + 1);
 
-for tableIndexWidth from minTableIndexWidth to maxTableIndexWidth do {
+write("") > timingOutputFile;
 
-    for maxDegree from minMaxDegree to maxMaxDegree do {
+nbImplementation = 1;
+for precBits from minPrecBits to maxPrecBits do {
 
-    	write("\n\n\n");
-	for i from 1 to 80 do write("-");
-    	write("\n");
+    for tableIndexWidth from minTableIndexWidth to maxTableIndexWidth do {
 
-    	bashexecute("rm -f implementation.c implementer.output "@timingsavefile@" "@sollyaPath@"/implementation.so");
-	write("") > timingsavefile;
+    	for maxDegree from minMaxDegree to maxMaxDegree do {
 
-    	write("\n") > problemdefFile;
-    	write("f = ", f, ";\n") >> problemdefFile;
-    	write("dom = [-75; 75];\n") >> problemdefFile;
-    	write("target = 1b-60;\n") >> problemdefFile;
-    	write("maxDegree = ", maxDegree, ";\n") >> problemdefFile;
-    	write("minWidth = (sup(dom) - inf(dom)) * 1/512;\n") >> problemdefFile;
-    	write("tableIndexWidth = ", tableIndexWidth, ";\n") >> problemdefFile;
-    	write("minimalReductionRatio = 1000;\n") >> problemdefFile;
-    	write("metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;\n") >> problemdefFile;
-    	write("performExpressionDecomposition = false;\n") >> problemdefFile;
+	    write("Starting implementation #", nbImplementation, "/", overallImplementations, " for precBits = ", 
+	          precBits, ", tableIndexWidth = ", tableIndexWidth, ", maxDegree = ", maxDegree, "\n\n");
+            nbImplementation := nbImplementation + 1;
 
-    	bashexecute(sollyaPath@"sollya implementer.sollya");
+    	    bashexecute("rm -f implementation.c implementer.output "@timingsavefile@" "@sollyaPath@"/implementation.so");
+	    write("") > timingsavefile;
 
-	temp = readfile(timingsavefile);
-    	if (temp != "") then {
-	   evaltime = parse(temp); 
+    	    write("\n") > problemdefFile;
+    	    write("f = ", f, ";\n") >> problemdefFile;
+    	    write("dom = [-75; 75];\n") >> problemdefFile;
+    	    write("target = ", 2^(-precBits),";\n") >> problemdefFile;
+    	    write("maxDegree = ", maxDegree, ";\n") >> problemdefFile;
+    	    write("minWidth = (sup(dom) - inf(dom)) * 1/512;\n") >> problemdefFile;
+    	    write("tableIndexWidth = ", tableIndexWidth, ";\n") >> problemdefFile;
+    	    write("minimalReductionRatio = 1000;\n") >> problemdefFile;
+    	    write("metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;\n") >> problemdefFile;
+    	    write("performExpressionDecomposition = false;\n") >> problemdefFile;
 
-    	   write(tableIndexWidth, ", ", maxDegree, ", ", evaltime,"\n") >> timingOutputFile;
-	};
+    	    bashexecute(sollyaPath@"sollya implementer.sollya");
 
+	    temp = readfile(timingsavefile);
+    	    if (temp != "") then {
+	       evaltime = parse(temp); 
+
+    	       write(precBits, ", ", tableIndexWidth, ", ", maxDegree, ", ", evaltime,"\n") >> timingOutputFile;
+	    };
+
+            write("\n\n");
+            for i from 1 to 120 do write("-");
+            write("\n\n");
+
+        };
     };
+
 };
 
 

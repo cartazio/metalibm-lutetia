@@ -1,10 +1,10 @@
 
 f = exp(x);
 dom = [-75; 75];
-target = 1b-60;
-maxDegree = 15;
+target = 9.094947017729282379150390625e-13;
+maxDegree = 3;
 minWidth = (sup(dom) - inf(dom)) * 1/512;
-tableIndexWidth = 12;
+tableIndexWidth = 5;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = false;
