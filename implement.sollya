@@ -621,6 +621,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  var galoptim;
 	  var galoptimizedMonomials;
 	  var PstarOrig;
+	  var nrm;
 
 	  /* write("implementsmall(",func,",", dom,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialName,")\n"); */
 
@@ -658,8 +659,9 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 		      write("Even symmetry dectected\n");
 		      midpoint := D(symetrypoint);
 		   } else {
-                     if (abs(func(inf(dom))) < 1b-20) then midpoint := D(inf(dom)) else {
-		     if (abs(func(sup(dom))) < 1b-20) then midpoint := D(sup(dom)) else {
+		     nrm = mydirtyinfnorm(func, dom);
+                     if (abs(func(inf(dom))) < 1b-12 * nrm) then midpoint := D(inf(dom)) else {
+		     if (abs(func(sup(dom))) < 1b-12 * nrm) then midpoint := D(sup(dom)) else {
 		     if (target < 1b-50) then {
 		      PstarOrig = remezwrapper(func(x + D(mid(dom))), [inf(dom) - D(mid(dom));sup(dom) - D(mid(dom))], target, 3);
 	              if (!(PstarOrig == false)) then {
@@ -1154,6 +1156,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	  var midpoint;
 	  var remezFunc, remezDom;
 	  var zeros, t, z;
+	  var oldDisplay;
 
 	  resultat = { .okay = false };
 	  deg = -1;
@@ -1200,8 +1203,25 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
 	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),x/remezFunc,maxDegree+2); };
 	     guess = guess + 1;
+
+	  /*   
+	  oldDisplay = display;
+	  display = dyadic!;
+	  "guessdegreewrapperwithbound(",1,",",remezDom,",",abs(target),",",x/remezFunc,",",maxDegree+2,") = ", guess;
+	  display = oldDisplay!;
+	  */
+	     
 	  } else {
 	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),1/remezFunc,maxDegree+2); };
+
+	  /*
+	  oldDisplay = display;
+	  display = dyadic!;
+	  "guessdegreewrapperwithbound(",1,",",remezDom,",",abs(target),",",1/remezFunc,",",maxDegree+2,") = ", guess;
+	  display = oldDisplay!;
+	  */
+
+
 	  };
 
 	  if ((guess == guess) && (guess != false)) then {
@@ -1215,6 +1235,8 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
           };
 
 	  };
+
+	  // "computeDomainSplitting: dom = ", dom, ", needed degree = ", deg;
 
 	     if (deg >= 0) then {
 	     	if (deg <= maxDegree) then {
@@ -3249,13 +3271,133 @@ procedure computeAmplification(func,dom,maxeps) {
 
 	  fp = diff(func);
 	  fs = diff(fp);
-	  cond = simplifysafe((x * fp)/func);
+	  cond = simplifysafe(x * (fp/func));
 	  theta = simplifysafe((x^2)/func);
 
 	  res = dirtyEvaluateImage(cond,dom) +
 	        [-abs(maxeps);abs(maxeps)] * dirtyEvaluateImage(theta,dom) * dirtyEvaluateImage(fs,[inf(dom) * (1 - abs(maxeps));sup(dom) * (1 + abs(maxeps))]);
 
+          // "func = ", func, ", dom = ", dom, ", maxeps = ", maxeps, ", alpha = ", sup(abs(res));
+
 	  return sup(abs(res));
+};
+
+/* Computes the maximum error res in the argument X = x * (1 + res) of func
+   such that func(X) = func(x) * (1 + eps) with abs(eps) <= maxeps.
+
+   This function works only if func(x) = exp(x).
+
+*/
+procedure computeNeededAccuracyOfArgumentSpecialCaseExponential(func, dom, maxeps) {
+	  var res, subdoms, d, domcut, subdomsPrime, reseps, teps;
+
+	  res = { .okay = false };
+
+	  if (func == exp(x)) then {
+	     subdoms = [| dom |];
+	     domcut = true;
+	     while (domcut) do {
+	     	   domcut = false;
+		   subdomsPrime = [||];
+		   for d in subdoms do {
+		       if (0 in d) then {
+		       	  subdomsPrime = [inf(d); 0] .: [0; sup(d)] .: subdomsPrime;
+			  domcut = true;
+		       } else {
+		       	  if (sup(d) > 1) then {
+			     if (inf(d) > 1) then {
+			     	subdomsPrime = d .: subdomsPrime;
+			     } else {
+			        subdomsPrime = [inf(d); 1] .: [1; sup(d)] .: subdomsPrime;
+			     };
+			  } else {
+                             if (inf(d) < -1) then {
+			       if (sup(d) < -1) then {
+                                 subdomsPrime = d .: subdomsPrime;
+			       } else {
+                                 subdomsPrime = [inf(d); -1] .: [-1; sup(d)] .: subdomsPrime;
+			       };
+			     } else {
+			       subdomsPrime = d .: subdomsPrime;
+			     };
+			  };
+		       };
+		   };
+		   subdoms = subdomsPrime;
+	     };
+	     
+
+	     reseps = 1;
+	     for d in subdoms do {
+	     	 if (mid(d) > 0) then {
+		    if (sup(d) > 0) then {
+		      teps = min(abs(log1p(-maxeps)/sup(d)), abs(log1p(maxeps)/sup(d)));
+		    } else {
+		      teps = 1;
+		    };
+		 } else {
+		    if (inf(d) < 0) then {
+		      teps = min(abs(log1p(-maxeps)/inf(d)), abs(log1p(maxeps)/inf(d)));
+		    } else {
+		      teps = 1;
+		    };
+		 };
+		 if (abs(teps) > 1) then teps = 1;
+		 reseps = min(reseps, abs(teps));
+	     };
+	  
+	     res = { .okay = true, .res = reseps };
+	  };
+
+	  return res;
+};
+
+/* Computes the maximum error res in the argument X = x * (1 + res) of func
+   such that func(X) = func(x) * (1 + eps) with abs(eps) <= maxeps.
+
+   This function works only if func(x) = a^x, with a a positive real.
+
+*/
+procedure computeNeededAccuracyOfArgumentSpecialCaseGeneralExponential(func, dom, maxeps) {
+	  var res;
+
+	  res = { .okay = false };
+
+	  match (func) with 
+	       a^x     : { 
+                             if (a > 0) then {
+	                        res = computeNeededAccuracyOfArgumentSpecialCaseExponential(exp(x), dom * log(a), maxeps);
+                             };
+	                 }
+               default : {
+	                 };
+	  
+	  return res;
+};
+
+/* Computes the maximum error res in the argument X = x * (1 + res) of func
+   such that func(X) = func(x) * (1 + eps) with abs(eps) <= maxeps.
+
+   This function works on special cases only.
+*/
+procedure computeNeededAccuracyOfArgumentSpecialCases(func, dom, maxeps) {
+	  var res, r, found, cNAOASC;
+	  var computeNeededAccuracyOfArgumentSpecialCasesList;
+
+	  computeNeededAccuracyOfArgumentSpecialCasesList = [|
+                computeNeededAccuracyOfArgumentSpecialCaseExponential,
+                computeNeededAccuracyOfArgumentSpecialCaseGeneralExponential
+	  |];
+
+	  res = { .okay = false };
+
+	  while ((!res.okay) && (computeNeededAccuracyOfArgumentSpecialCasesList != [||])) do {
+	  	cNAOASC = head(computeNeededAccuracyOfArgumentSpecialCasesList);
+		res = cNAOASC(func, dom, maxeps);
+	  	computeNeededAccuracyOfArgumentSpecialCasesList = tail(computeNeededAccuracyOfArgumentSpecialCasesList);
+	  };
+
+	  return res;
 };
 
 /* Computes the maximum error res in the argument X = x * (1 + res) of func
@@ -3263,39 +3405,48 @@ procedure computeAmplification(func,dom,maxeps) {
 */
 procedure computeNeededAccuracyOfArgument(func, dom, maxeps) {
 	  var res, okay, alpha, newres;
+	  var specialRes;
 
-	  res = 1b-1;
-	  okay = false;
+	  specialRes = computeNeededAccuracyOfArgumentSpecialCases(func, dom, maxeps);
 
-	  while (!okay) do {
-	  	alpha = abs(computeAmplification(func, dom, res));
-		newres = abs(maxeps) * 1/alpha;
-		if (newres > 1b-1) then newres = 1b-1;
-		if ((newres >= 1/2 * res) || (newres == 0)) then {
-		  if (newres == 0) then res = 1b-165;
-		  okay = true;
-		} else {
-		  res = newres;
-		};
-	  };
+	  if (specialRes.okay) then {
+	     res = specialRes.res;
+	  } else {
+	  
+	      res = 1b-1;
+	      okay = false;
 
-	  if (res > 0) then {
-	  	  okay = false;
-	  	  while (!okay) do {
-	  	  	alpha = abs(computeAmplification(func, dom, res));
-			if (alpha * res > abs(maxeps)) then {
-		   	   okay = true;
-			} else {
-		   	   res = 2 * res;
-		   	   if (res > 1) then okay = true;
-			};
-	  	  };
-	  	  res = 1/2 * res;
-          };
+	      while (!okay) do {
+	  	    alpha = abs(computeAmplification(func, dom, res));
+		    newres = abs(maxeps) * 1/alpha;
+		    if (newres > 1b-1) then newres = 1b-1;
+		    if ((newres >= 1/2 * res) || (newres == 0)) then {
+		      if (newres == 0) then res = 1b-165;
+		      okay = true;
+		    } else {
+		      res = newres;
+		    };
+	      };
 
-	  alpha = abs(computeAmplification(func, dom, res));
-	  if (alpha * res > abs(maxeps)) then {
-	     res = 0;
+	      if (res > 0) then {
+	  	      okay = false;
+	  	      while (!okay) do {
+	  	  	    alpha = abs(computeAmplification(func, dom, res));
+			    if (alpha * res > abs(maxeps)) then {
+		   	       okay = true;
+			    } else {
+		   	       res = 2 * res;
+		   	       if (res > 1) then okay = true;
+			    };
+	  	      };
+	  	      res = 1/2 * res;
+              };
+
+	      alpha = abs(computeAmplification(func, dom, res));
+	      if (alpha * res > abs(maxeps)) then {
+	         res = 0;
+	      };
+
 	  };
 
 	  return res;
@@ -6392,7 +6543,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g,
 	  "alphaG = ", alphaG;
 	  "alphaH = ", alphaH;
 
-
+	  /* TODO */
 
 
 	  return result;
@@ -6437,6 +6588,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication
                                   default : {};
 	  myProblemdef.definitionDomain = origDefDom;
 	  myParametrization = parametrization;
+	  myParametrization.performExpressionDecomposition = max(parametrization.performExpressionDecomposition - 1, 0);
 	  myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 	  myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 	  myParametrization.functionBasename = parametrization.functionBasename @ suffix;
@@ -6453,6 +6605,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication
 	     	suffix = "_expr_decomp_prod_h";
 	     	myProblemdef.definitionDomain = origDefDom;
 	     	myParametrization = parametrization;
+	        myParametrization.performExpressionDecomposition = max(parametrization.performExpressionDecomposition - 1, 0);
 	     	myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 	     	myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 	     	myParametrization.functionBasename = parametrization.functionBasename @ suffix;
@@ -6601,14 +6754,14 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 	  /* Compute the accuracy needed for h in order to stay within the target error bound 
 	     after the amplification of the error by g 
 	  */
-	  maxepsH = abs(computeNeededAccuracyOfArgument(g,domG,3/8 * maxeps));
+	  maxepsH = abs(computeNeededAccuracyOfArgumentWorkHard(g,domG,3/8 * maxeps));
 	  maxepsG = 3/8 * maxeps;
 
 	  /* Check if we can theoretically do both error bounds */
 	  if ((maxepsH > 1b-157) && (maxepsG > 1b-157)) then {
 	     write("Expression decomposition detected that the function can be split into f = g(h(x)) with\n");
-	     write("    g(x) = ", g, " on domain ", domG, " and\n");
-	     write("    h(x) = ", h, " on domain ", domH, "\n");
+	     write("    g(x) = ", g, " on domain ", domG, " with rel. err. bounded by 2^(",~log2(maxepsG),") and\n");
+	     write("    h(x) = ", h, " on domain ", domH, " with rel. err. bounded by 2^(",~log2(maxepsH),")\n");
 
 	     write("Trying to implement h\n");
 	     myProblemdef.func = h;
@@ -6624,6 +6777,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
                                      default : {};
 	     myProblemdef.definitionDomain = origDefDom;
 	     myParametrization = parametrization;
+	     myParametrization.performExpressionDecomposition = max(parametrization.performExpressionDecomposition - 1, 0);
 	     myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 	     myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 	     myParametrization.functionBasename = parametrization.functionBasename @ suffix;
@@ -6640,6 +6794,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 	     	suffix = "_expr_decomp_g";
 	     	myProblemdef.definitionDomain = domG;
 	     	myParametrization = parametrization;
+	        myParametrization.performExpressionDecomposition = max(parametrization.performExpressionDecomposition - 1, 0);
 	     	myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 	     	myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 	     	myParametrization.functionBasename = parametrization.functionBasename @ suffix;
@@ -6720,11 +6875,14 @@ procedure doWorkForTryImplementationThroughExpressionDecomposition(problemdef, p
 				};
 		         }
                 g * h  : {
-				/* Make sure that neither g nor h is a stupid constant */
-				if ((degree(g) != 0) && (degree(h) != 0)) then {
-				   result = doWorkForTryImplementationThroughExpressionDecompositionMultiplication(func, g, h, problemdef, parametrization);
-				};
+				result = doWorkForTryImplementationThroughExpressionDecompositionMultiplication(func, g, h, problemdef, parametrization);
 		      	 } 
+                g ^ h  : {
+                                /* Make sure that g is just a constant and h is neither a constant nor just x */
+				if ((degree(g) == 0) && (!(degree(h) in [0;1]))) then {
+				   result = doWorkForTryImplementationThroughExpressionDecompositionComposition(func, g^x, h, problemdef, parametrization);
+				};
+                         }
                 g(h)   : {
 				/* Make sure that h is neither a constant nor just x */
 				if (!(degree(h) in [0;1])) then {
@@ -6738,7 +6896,7 @@ procedure doWorkForTryImplementationThroughExpressionDecomposition(problemdef, p
 };
 
 procedure tryImplementationThroughExpressionDecomposition(problemdef, parametrization) {
-	  var result, needArgumentReduction, res, doNotPerformExpressionDecomposition;
+	  var result, needArgumentReduction, res, performExpressionDecompositionLevel;
 
 	  result = { .okay = false };
 
@@ -6762,12 +6920,12 @@ procedure tryImplementationThroughExpressionDecomposition(problemdef, parametriz
 				       /* Test if we may perform this type of argument
 				          reduction
 				       */
-				       doNotPerformExpressionDecomposition = true;
+				       performExpressionDecompositionLevel = 0;
 				       match (parametrization) with
-				             { .performExpressionDecomposition = true } : { doNotPerformExpressionDecomposition = false; }
+				             { .performExpressionDecomposition = a } : { performExpressionDecompositionLevel = a; }
 					     default : { };
 
-				       if (!doNotPerformExpressionDecomposition) then {
+				       if (performExpressionDecompositionLevel > 0) then {
 				           /* Start with a test if the domain actually needs
                                               decomposition or argument reduction in order to stay below the maximum
 					      polynomial degree

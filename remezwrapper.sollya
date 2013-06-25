@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2011 by 
+ * Copyright 2008-2013 by 
  * 
  * Laboratoire de l'Informatique du Parallélisme, 
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
@@ -33,6 +33,11 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
+
+/* A global variable for the remez cache */
+
+remezCache = [||];
+
 
 /* A timing wrapper around dirtyinfnorm */
 procedure mydirtyinfnorm(func, dom) {
@@ -159,7 +164,7 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  points = oldPoints!;
 
 	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
-	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
+	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "\n");
 	     res = sup(guess);
 	     poly = remezbugreport(f,res,d,w,eps);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
@@ -188,11 +193,14 @@ procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
 	                                guess = [1,1];
 	                             };
                                  });
+
+          // "guessdegree(",f,",",d,",",eps,",",w,",",b,") = ", guess;
+
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
 
 	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
-	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, "\n");
+	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "\n");
 	     res = sup(guess);
 	     poly = remezbugreport(f,res,d,w,eps);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
@@ -203,12 +211,59 @@ procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
 	  } else {
 	    if (sup(guess) == infty) then {
                 res = b + 1;
+		if ((res - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	             write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "\n");	
+	             res = b + 1;
+	             poly = remezbugreport(f,res,d,w,eps);
+	             while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
+	     	        res := res - 1;
+	     	        poly = remezbugreport(f,res,d,w,eps);		   
+	             };
+	             if (poly == false) then res = inf(guess);
+		};
             } else {
     	        res = inf(guess);
             };
 	  };
 
 	  return res;
+};
+
+/* Get a remez computation out of the remez cache */
+procedure getRemezCache(f,m,dom,w,qual,bounds) {
+	  var key;
+	  var res;
+	  var cacheList, hd;
+	  var found;
+
+	  res = { .okay = false };
+
+	  key = { .f = f, .m = m, .dom = dom, .w = w, .qual = qual, .bounds = bounds };
+
+	  cacheList = remezCache;
+	  found = false;
+	  while ((cacheList != [||]) && (!found)) do {
+	  	hd = head(cacheList);
+		cacheList = tail(cacheList);
+		
+		if (hd.key == key) then {
+		   res.okay = true;
+		   res.res = hd.res;
+		   found = true;
+		};
+	  };
+
+	  return res;
+};
+
+procedure insertRemezCache(res,f,m,dom,w,qual,bounds) {
+	  var key;
+	  var entry;
+
+	  key = { .f = f, .m = m, .dom = dom, .w = w, .qual = qual, .bounds = bounds };
+	  entry = { .res = res, .key = key };
+
+	  remezCache = entry .: remezCache;
 };
 
 /* remezbugreport */
@@ -222,6 +277,8 @@ procedure remezbugreport(f,m,d,w,eps) {
 	  var func, isAList, y;
 	  var oldDisplay;
 	  var remezTime;
+	  var myM;
+	  var cacheRes, bound;
 
 	  myDom = d;
 	  if ((inf(d) == 0) || (sup(d) == 0)) then {
@@ -244,31 +301,46 @@ procedure remezbugreport(f,m,d,w,eps) {
              };
 	  };
 
-	  oldpoints = points = ?;
-	  points = 65!;
-	  oldprec = prec = ?;
-	  prec = 300!;
-	  oldverb = verbosity = ?;
-	  verbosity = 1!;
+	  myM = m;
+	  match (m) with a @ [||] : { }
+          	         default  : { myM = [| 0, ..., m |]; };
+	  
 
+	  bound = [abs(eps)/4;abs(eps)];
 	  qual = 2621b-19;
-	  res = false;
 
-	  oldDisplay = display;
-	  display = dyadic!;
-	  "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",m,",",myDom,",",w,",",qual,",",[abs(eps)/4;abs(eps)],");", " targetErr = ", eps,";"; 
-	  display = oldDisplay!;
+	  cacheRes = getRemezCache(f,myM,myDom,w,qual,bound);
+	  if (cacheRes.okay) then {
+	     "Using a cached remez approximation polynomial";
+	     res = cacheRes.res;
+          } else { 
+	     oldpoints = points = ?;
+	     points = max(65, 4 * max(myM))!;
+	     oldprec = prec = ?;
+	     prec = 300!;
+	     oldverb = verbosity = ?;
+	     verbosity = 1!;
 
-	  remezTime = time({
-                         	  res = remez(f,m,myDom,w,qual,[abs(eps)/4;abs(eps)]);
+	     res = false;
+
+	     oldDisplay = display;
+	     display = dyadic!;
+	     "Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",myM,",",myDom,",",w,",",qual,",",bound,");", " targetErr = ", eps,";"; 
+	     display = oldDisplay!;
+
+	     remezTime = time({
+                         	  res = remez(f,myM,myDom,w,qual,bound);
 	                          if (!(res == res)) then res = false;
-		           });
-	  "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";
-	  wholeRemezTime := wholeRemezTime + remezTime;
+		              });
+	     "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";
+	     wholeRemezTime := wholeRemezTime + remezTime;
 
-	  verbosity = oldverb!;
-	  points = oldpoints!;
-	  prec = oldprec!;
+	     verbosity = oldverb!;
+	     points = oldpoints!;
+	     prec = oldprec!;
+
+	     insertRemezCache(res,f,myM,myDom,w,qual,bound);
+          };
 
 	  return res;
 };
@@ -398,6 +470,10 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 	  var special, nocancel;
 	  var temp;
 	  var lastcoeff;
+	  var r, q, nrm, gamma, targetDelta, nrmQ, nrmP;
+	  var firstremezpoly, firstremezpolyerr, firstremezpolyfound;
+
+	  firstremezpolyfound = false;
 
 	  y = evaluate(func, 0);
 	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
@@ -428,6 +504,9 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 
 	  if (abs(err) <= abs(targetErr)) then {
 		  write("\t\tcurrent remez polynomial error: 2^(",round(log2(abs(err)),12,RN),")\n");
+		  firstremezpoly = poly;
+		  firstremezpolyerr = err;
+		  firstremezpolyfound = true;
 	  	  k = 0;
 		  uncorrecterr = err;
 		  err = 1b1000;
@@ -438,12 +517,17 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 			correctMonomials = [|head(revMonomials)|];
 			revMonomials = tail(revMonomials);
 			infnormPoly = mydirtyinfnorm(poly,dom);			
+			if ((mydirtyfindzeros(poly,dom) == [||]) && (degree(poly) > 0)) then {
+			  gamma = 1/(degree(poly) * 2 * mydirtyinfnorm(1/poly, dom));
+			} else {
+			  gamma = 0;
+			};
 			while (revMonomials != [||]) do {
 			      i = head(revMonomials);
 			      g = (x * subPolyDone) / coeff(poly,i);
 			      alpha = mydirtyinfnorm(g,dom);
 			      
-		              samesign = false; nocancel = false;
+		              samesign = false; nocancel = false; absoluteAuthorized = false;
 			      if (alpha > 0.5) then {
 				minmax = minimaMaxima(x * subPolyDone,dom);	
 				samesign = ((inf(minmax) * sup(minmax) > 0) && (inf(minmax) * coeff(poly,i) > 0));
@@ -451,6 +535,32 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 				nocancel = (inf(temp) > -0.5);
 				if (nocancel) then {
 				   write("\t\tCase of impossible cancellation by asymmetric subpolynomial addition detected on coefficient ", i, "\n");
+				};
+
+				if (!nocancel) then {
+				   if (i > 0) then {
+				        q = subpoly(poly, [| i ... |]);
+				        nrm = mydirtyinfnorm(q/poly, dom);
+				        if (nrm > 0) then {
+					   if (abs(targetErr)/nrm > 1b-52) then {
+					       if (i == degree(poly) - 1) then {
+					           absoluteAuthorized = true;
+                                                   write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, " and an absolute error bound suffices\n");                   
+					       } else {
+					           targetDelta = abs(targetErr) * gamma;
+					           r = subpoly(poly, [| (i + 1) ... |]);
+					           nrmP = mydirtyinfnorm(r, dom);
+					           nrmQ = mydirtyinfnorm(r * x, dom);
+					           if (nrmP > 0) then {
+					               if (abs(nrmQ * abs(targetErr)/nrmP) < abs(targetDelta)) then {
+					       	          absoluteAuthorized = true;
+                                                          write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, " and an absolute error bound suffices\n");
+					               };
+					           };
+                                               };
+					   };
+				        };
+				   };
 				};
 
 			      };	
@@ -463,7 +573,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 
 			      if (special) then write("\t\tCase of possible cancellation authorized because in double precision range on coefficient ", i, "\n");
 
-			      if ((samesign) || ((alpha <= 0.5) || special) || nocancel || lastcoeff) then {
+			      if ((samesign) || ((alpha <= 0.5) || special) || nocancel || lastcoeff || absoluteAuthorized) then {
 				 correctMonomials = i.:correctMonomials;
 				 subPolyDone = coeff(poly,i) + x * subPolyDone;
 			      	 subPolyDeg = i.:subPolyDeg;
@@ -517,10 +627,16 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 	  	  };
           };
 	  
-	  if (abs(err) <= abs(targetErr)) then 
-	     res = poly
-	  else 
-	     res = false;
+	  if (abs(err) <= abs(targetErr)) then {
+	     res = poly;
+	  } else {
+	     if ((abs(targetErr) > 1b-51) && firstremezpolyfound) then {
+               write("Warning: using a polynomial that might be pretty hard to implement.\n");	
+	       res = firstremezpoly;
+	     } else {
+	       res = false;
+             };
+	  };
 
 	  return res;	  
 };
