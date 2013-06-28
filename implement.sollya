@@ -243,6 +243,21 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			evalerr = 0;
 			for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
 			if (evalerr == 0) then evalerr := 1/0;
+
+			if (abs(evalerr) > 1) then {
+			     write("\tRe-running Gappa\n");
+		   	     write("boundsList = [|") > gappaOutputFile;
+			     gappaTime = time({
+			                         bashexecute("cat "@gappaFile@" | sed -r 's/epsilon in /epsilon in ? #/g;' | "@gappaExecutable@" -Munconstrained 2>&1 | grep 'epsilon in' | sed -n 's/\\({[^}]*}\\)//g;p' | sed -n 's/epsilon in \\[//;p' | sed -n 's/\\]/,/;p' | sed -n 's/, /,\\n/;p' >> "@gappaOutputFile);
+					      });
+			     wholeGappaTime := wholeGappaTime + gappaTime;
+			     print("0|];") >> gappaOutputFile;
+			     execute(gappaOutputFile);
+			     evalerr = 0;
+			     for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
+			         if (evalerr == 0) then evalerr := 1/0;
+                        };
+
 			write("\tGappa determined evaluation error = 2^(",round(log2(evalerr),12,RU),")\n");
 			if (abs(evalerr) > 1) then {
 			   write("\tGappa file: ", gappaFile, "\n");
