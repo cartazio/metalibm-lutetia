@@ -61,6 +61,7 @@ procedure targetErrorToImplementpolyType(err) {
 procedure myimplementpoly(l = ...) {
 	  var res;
 	  var myTarget, myVarFormat, myResFormat;
+	  var oldDisplay;
 
 	  myTarget = l[2];
 	  myVarFormat = l[3];	  
@@ -82,6 +83,14 @@ procedure myimplementpoly(l = ...) {
 			};
 		     }
 	        TD : { };		      
+
+          oldDisplay = display;
+	  display = dyadic!;
+          match(length(l)) with 
+	  	6 : { write("Calling implementpoly(",l[0],",",l[1],",",myTarget,",",myVarFormat,",",l[4],",",l[5],")\n"); }
+		8 : { write("Calling implementpoly(",l[0],",",l[1],",",myTarget,",",myVarFormat,",",l[4],",",l[5],",",l[6],",",l[7],")\n"); }
+		default : { };
+          display = oldDisplay!;
 
 	  res = match (length(l)) with
 	  	6 : (implementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5]))
@@ -1162,7 +1171,62 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  return resultat;
 };
 
-procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
+
+/* Compute an ordered list of points x_i in the given domain dom, such that 
+   on all subdomains S_i created by these splitpoints func can be approximated
+   with a relative error no greater than target with polynomials of degree no 
+   greater than maxDegree. All subdomains S_i are larger in width than minWidth.
+
+   In case of failure (no such splitting exists), return a structure containing 
+   an element .okay that is equal to false.
+
+   In case of success (a splitting has been found), return a structure containing
+   an element .okay that is equal to false and an element .splitPoints that is 
+   a list of the points x_i described above.
+
+   Attention:
+
+   - the list of points x_i must be ordered by increasing values
+   - the points in the list must be unique (there is no i != j, such that x_i = x_j)
+   - the points must be in the interior of the given domain
+
+   The list of split points that is returned may be empty iff the given function func
+   can be approximated with a target error target using a polynomial of degree no greater
+   that maxDegree on the whole domain dom.
+
+   This special purpose procedure is called only on domains dom where 0 is not in their
+   interior. The procedure does not have to care about the Sterbenz condition to 
+   be fullfilled for the substraction to be performed on each subdomain S_i for range 
+   reduction.
+
+   The purpose and particularity of this special procedure is to split the domain
+   in such a way that the degree of the polynomials used on each subdomain is 
+   maximal, i.e. that the subdomains are of maximum width. 
+
+   The splitting to be returned is supposed to be optimized for that specificity.
+
+   However, the procedure is not supposed to find an optimal splitting. This means
+   greedy algorithms and heuristics are allowed if they are well explained.
+
+   As the procedure will be called on almost every instance of a metalibm run,
+   it should be pretty fast, even if this means that some opportunities for 
+   optimizing the split points are left aside.
+
+*/
+procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth) {
+	  var res;
+
+	  "computeDomainSplittingOptimized(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
+
+	  res = { .okay = false };
+
+	  
+
+	  return res;
+};
+
+
+procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterbenzNeeded) {
 	  var resultat;
 	  var poly;
 	  var deg;
@@ -1172,14 +1236,19 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	  var remezFunc, remezDom;
 	  var zeros, t, z;
 	  var oldDisplay;
+	  var resOpt;
+
+	  // "computeDomainSplitting(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", sterbenzNeeded, ")";
 
 	  resultat = { .okay = false };
 	  deg = -1;
 
+	  resOpt = { .okay = false };
+
 	  if (abs(sup(dom) - inf(dom)) - minWidth >= 0) then {
 
-	  if ((!(0 in dom)) &&
-	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) then {
+	  if (((!(0 in dom)) &&
+	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) && sterbenzNeeded) then {
 	      /* We have to split because the Sterbenz condition will
 	         not be fulfilled for center points on this subdomain
 
@@ -1188,6 +1257,12 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 	       deg = maxDegree * 2;
 
 	  } else {
+
+	  if (!(inf(dom) * sup(dom) < 0)) then {
+	      resOpt = computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth);
+	  };
+
+	  if (!resOpt.okay) then {
 
 	  remezFunc = func;
 	  remezDom = dom;
@@ -1251,6 +1326,12 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 
 	  };
 
+	  };
+
+	  if (resOpt.okay) then {
+	     resultat = resOpt;
+	  } else {
+
 	  // "computeDomainSplitting: dom = ", dom, ", needed degree = ", deg;
 
 	     if (deg >= 0) then {
@@ -1273,7 +1354,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 		   while ((okay) && (subdomains != [||])) do {
 		   	 sd = head(subdomains);
 			 subdomains = tail(subdomains);
-			 res = computeDomainSplitting(func, sd, maxDegree, target, minWidth);
+			 res = computeDomainSplitting(func, sd, maxDegree, target, minWidth, sterbenzNeeded);
 			 if (res.okay) then {
 			    recursiveSplitPoints = recursiveSplitPoints @ (res.splitPoints);
 			 } else {
@@ -1286,6 +1367,8 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 		   };
 	     	};
 	     };
+
+	  };
 
 	  };
 
@@ -1313,20 +1396,44 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth) {
 
 */
 procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
-	  var resultat, res, splitPoints;
+	  var resultat, res, splitPoints, myTarget, sterbenzNeeded, shiftEps;
 
 	  /* write("implementwithdomainsplitting(",func,",", dom,",", maxDegree,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); */
 
+	  sterbenzNeeded = true;
+	  myTarget = target;
+
+	  /* Check if we actually need to enforce Sterbenz condition 
+	     on the sub-domain midpoints.
+	  */
+
+	  if ((variableFormat == D) &&
+	      (abs(target) > 1b-50)) then {
+	      /* Bound the amount of final error added when adding one double precision 
+                 rounding-error upon shifting 
+	      */
+	      shiftEps = abs(1b-53 * computeAmplification(func,dom,1b-53));
+
+	      /* If that shifting error and a quarter of the target
+	         error combined are less than the target error, do no longer 
+		 try to get Sterbenz condition fullfilled.
+              */
+	      if (shiftEps + 1/4 * abs(target) + shiftEps * 1/4 * abs(target) <= abs(target)) then {
+	      	 sterbenzNeeded = false;
+		 myTarget = 1/4 * abs(target);
+	      };
+          };
+
 	  resultat = { .okay = false };
 
-	  res = computeDomainSplitting(func, dom, maxDegree, target, minWidth);
+	  res = computeDomainSplitting(func, dom, maxDegree, myTarget, minWidth, sterbenzNeeded);
 
 	  if (res.okay) then {
 	     splitPoints = sort(res.splitPoints);
 
 	     write("The domain will first be split at the following points: ", splitPoints, "\n");
 
-	     res = implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+	     res = implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, myTarget, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
 
 	     if (res.okay) then {
 	     	resultat = res;
@@ -2571,7 +2678,7 @@ procedure tryImplementationThroughArgumentReductionExponential(problemdef, param
 	  return result;
 };
 
-procedure dirtyEvaluateImage(f,dom) {
+procedure dirtyEvaluateImageInner(f,dom) {
 	  var fDiff, zeros, z, fmin, fmax, y;
 	  var yInt, res;
 
@@ -2596,6 +2703,27 @@ procedure dirtyEvaluateImage(f,dom) {
 
 	  return res;
 };
+
+procedure intervalHull(I,J) {
+	  return [ min(inf(I), inf(J)); max(sup(I), sup(J)) ];
+};
+
+procedure dirtyEvaluateImage(f,dom) {
+	  var res;
+
+	  if ((0 in dom) && (dom != [0])) then {
+	    res = intervalHull(intervalHull(
+                    dirtyEvaluateImageInner(f,[inf(dom);-1b-1074]),
+		    dirtyEvaluateImageInner(f,[0])),
+		    dirtyEvaluateImageInner(f,[1b-1074;sup(dom)]));
+	  } else {
+	    res = dirtyEvaluateImageInner(f,dom);
+	  };
+
+	  return res;
+};
+
+
 
 procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
 	  var result, base, a, b, c, d, ratio, oldPrec, testfunc;

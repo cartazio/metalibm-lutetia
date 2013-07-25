@@ -1,12 +1,12 @@
 
-rho = library("/home/lauter/sollya/dickman.so");
+// rho = library("/home/lauter/sollya/dickman.so");
 
-f = (4)^(log(rho(x))/log(4));
-dom = [1 + 1b-20;20];
-target = 10^(-6);
-maxDegree = 20;
+f = erf(x);
+dom = [-16;16];
+target = 1b-24;
+maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
-tableIndexWidth = 4;
+tableIndexWidth = 8;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = 1;

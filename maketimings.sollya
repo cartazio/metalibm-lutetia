@@ -80,7 +80,7 @@ for precBits from minPrecBits to maxPrecBits do {
     	    write("tableIndexWidth = ", tableIndexWidth, ";\n") >> problemdefFile;
     	    write("minimalReductionRatio = 1000;\n") >> problemdefFile;
     	    write("metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;\n") >> problemdefFile;
-    	    write("performExpressionDecomposition = false;\n") >> problemdefFile;
+    	    write("performExpressionDecomposition = 0;\n") >> problemdefFile;
 
     	    bashexecute(sollyaPath@"sollya implementer.sollya");
 
