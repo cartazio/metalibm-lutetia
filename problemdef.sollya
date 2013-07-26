@@ -1,8 +1,5 @@
-
-// rho = library("/home/lauter/sollya/dickman.so");
-
 f = erf(x);
-dom = [-16;16];
+dom = [-32;32];
 target = 1b-24;
 maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;

@@ -1220,7 +1220,23 @@ procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth
 
 	  res = { .okay = false };
 
-	  
+	  /* The procedure checkIfSufficientDegreeOptimized(func, dom, maxDegree, target) is your friend 
+
+	     It checks if func can be approximated over dom with a degree no greater than
+	     maxDegree and a target error target.
+
+	     The procedure returns a structure containing the following fields:
+
+	     - .okay that indicates if the check was successful or if the procedure failed (which might sometimes happen)
+
+	     - if .okay is equal to true, the structure contains a field .sufficientDegree that is either false or true
+	       The field indicates whether or not approximation of func over dom with a degree no greater maxDegree 
+	       is possible for a target error target.
+
+	     - if .okay is true and .sufficientDegree is true, the structure contains a field .deg indicating (a good
+               guess of) the degree that is needed to approximate func over dom with target error target.
+
+	  */
 
 	  return res;
 };
@@ -1489,7 +1505,7 @@ procedure tryImplementationThroughDomainSplitting(problemdef, parametrization) {
 	  return result;
 };
 
-procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
+procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNeeded) {
 	  var resultat;
 	  var poly;
 	  var deg;
@@ -1500,8 +1516,9 @@ procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
 	  resultat = { .okay = false };
 	  deg = -1;
 
-	  if ((!(0 in dom)) &&
-	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) then {
+	  if (((!(0 in dom)) &&
+	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) && 
+	      sterbenzNeeded) then {
 	      /* We have to split because the Sterbenz condition will
 	         not be fulfilled for center points on this subdomain
 
@@ -1560,6 +1577,7 @@ procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
 	     	if (deg <= maxDegree) then {
 		   resultat.okay = true;
 		   resultat.sufficientDegree = true;
+		   resultat.deg = deg;
 		} else {
 		   resultat.okay = true;
 		   resultat.sufficientDegree = false;
@@ -1568,6 +1586,14 @@ procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
 
 
 	  return resultat;
+};
+
+procedure checkIfSufficientDegree(func, dom, maxDegree, target) {
+	  return checkIfSufficientDegreeInner(func, dom, maxDegree, target, true);
+};
+
+procedure checkIfSufficientDegreeOptimized(func, dom, maxDegree, target) {
+	  return checkIfSufficientDegreeInner(func, dom, maxDegree, target, false);
 };
 
 procedure tryDetectSymmetry(func, dom, target) {

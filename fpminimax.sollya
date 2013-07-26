@@ -112,21 +112,25 @@ procedure fpminimaxwrapper(func,dom,monomials,pstar,pointlist,formatlist) {
 	    mypointlist = pointlist;
 	  };
 
-	  if (length(mypointlist) < length(mymonomials)) then {
-	     write("Warning: not enough points for fpminimax - delegating the issue\n");
-	     if (fpminimaxdebug) then {
-	     	olddisplay2 = display; display = dyadic!; 
-	     	write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",d,",",default,",",default,",",default,",",pstar,");\n");
-	     	display = olddisplay2!;
-             };
-	     P0 = fpminimax(func,mymonomials,formatlist,d,default,default,default,pstar);
-	  } else {
-	     if (fpminimaxdebug) then {
-	     	olddisplay2 = display; display = dyadic!; 
-	     	write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",mypointlist,",",default,",",default,",",default,",",pstar,");\n");
-	     	display = olddisplay2!;
-             };
-	     P0 = fpminimax(func,mymonomials,formatlist,mypointlist,default,default,default,pstar);
+	  if (degree(pstar) >= 1) then {
+	      if (length(mypointlist) < length(mymonomials)) then {
+	         write("Warning: not enough points for fpminimax - delegating the issue\n");
+	         if (fpminimaxdebug) then {
+	     	    olddisplay2 = display; display = dyadic!; 
+	     	    write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",d,",",default,",",default,",",default,",",pstar,");\n");
+	     	    display = olddisplay2!;
+                 };
+	         P0 = fpminimax(func,mymonomials,formatlist,d,default,default,default,pstar);
+	      } else {
+	         if (fpminimaxdebug) then {
+	     	    olddisplay2 = display; display = dyadic!; 
+	     	    write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",mypointlist,",",default,",",default,",",default,",",pstar,");\n");
+	     	    display = olddisplay2!;
+                 };
+	         P0 = fpminimax(func,mymonomials,formatlist,mypointlist,default,default,default,pstar);
+	      };
+          } else {
+	         P0 = pstar;
 	  };
 
 	  fullformatlist = [||];
