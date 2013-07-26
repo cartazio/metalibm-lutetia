@@ -1391,6 +1391,34 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 	  return resultat;
 };
 
+procedure checkIfPropagatedErrorLessThan(func, dom, argEps, maxEps) {
+	  var a, b, sa, sb, st, subdom;
+	  var im, eps;
+	  var fp;
+	  var okay;
+
+	  fp = diff(func);
+
+	  a = inf(dom);
+	  b = sup(dom);
+	  st = (b-a)/100;
+
+	  sa = a;
+	  sb = sa + st;
+	  okay = true;
+	  while (okay && (sb <= b)) do {
+	      subdom = [sa; sb];
+	      im = subdom * argEps * evaluate(fp, subdom) / evaluate(func, subdom);
+	      eps = sup(abs(im));
+	      if (eps > abs(maxEps)) then {
+	      	 okay = false;
+	      };
+	      sa = sb;
+	      sb = sb + st;
+	  };
+
+	  return okay;
+};
 
 /* implements a function by polynomial approximation in small intervals
    that are automatically computed using a maximum polynomial degree
@@ -1424,20 +1452,30 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
 	  */
 
 	  if ((variableFormat == D) &&
-	      (abs(target) > 1b-50)) then {
-	      /* Bound the amount of final error added when adding one double precision 
-                 rounding-error upon shifting 
-	      */
-	      shiftEps = abs(1b-53 * computeAmplification(func,dom,1b-53));
-
-	      /* If that shifting error and a quarter of the target
-	         error combined are less than the target error, do no longer 
-		 try to get Sterbenz condition fullfilled.
+	      (abs(target) > 1b-50) && 
+	      ((!(0 in dom)) &&
+	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100])))) then {
+	      /* First do a quick check if the perturbation affects the error by no more than a
+	         quarter of the target error 
               */
-	      if (shiftEps + 1/4 * abs(target) + shiftEps * 1/4 * abs(target) <= abs(target)) then {
-	      	 sterbenzNeeded = false;
-		 myTarget = 1/4 * abs(target);
-	      };
+	      if (checkIfPropagatedErrorLessThan(func, dom, 1b-53, 1/4 * abs(target))) then {
+	      	     sterbenzNeeded = false;
+		     myTarget = 1/4 * abs(target);
+	      } else {
+	          /* Bound the amount of final error added when adding one double precision 
+                     rounding-error upon shifting 
+	          */
+	          shiftEps = abs(1b-53 * computeAmplification(func,dom,1b-53));
+
+	          /* If that shifting error and a quarter of the target
+	             error combined are less than the target error, do no longer 
+		     try to get Sterbenz condition fullfilled.
+                  */
+	          if (shiftEps + 1/4 * abs(target) + shiftEps * 1/4 * abs(target) <= abs(target)) then {
+	      	     sterbenzNeeded = false;
+		     myTarget = 1/4 * abs(target);
+	          };
+              };
           };
 
 	  resultat = { .okay = false };
@@ -2707,6 +2745,9 @@ procedure tryImplementationThroughArgumentReductionExponential(problemdef, param
 procedure dirtyEvaluateImageInner(f,dom) {
 	  var fDiff, zeros, z, fmin, fmax, y;
 	  var yInt, res;
+	  var oldPoints, oldPrec;
+
+	  // "dirtyEvaluateImageInner(", f, ", ", dom, ")";
 
 	  yInt = evaluate(f,dom);
 
@@ -2714,7 +2755,11 @@ procedure dirtyEvaluateImageInner(f,dom) {
 	      (sup(yInt) == sup(yInt)) &&
 	      (sup(abs(yInt)) != infty)) then {
 	      fDiff = diff(f);
-	      zeros = (dirtyfindzeros(fDiff,dom)) :. (sup(dom));
+	      oldPoints = points;
+	      oldPrec = prec;
+	      zeros = (mydirtyfindzeros(fDiff,dom)) :. (sup(dom));
+	      points = oldPoints!;
+	      prec = oldPrec!;
 	      fmin = inf(evaluate(f,inf(dom)));
 	      fmax = sup(evaluate(f,inf(dom)));
 	      for z in zeros do {
@@ -7122,6 +7167,9 @@ procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay, i;
 	  var needArgumentReduction, argumentAlreadyReduced;
+	  var showMethodName;
+
+	  showMethodName = false;
 
 	  result = { .okay = false };
 
@@ -7143,42 +7191,42 @@ procedure tryImplementation(problemdef, parametrization) {
 
 	  if (needArgumentReduction) then {
 	       if (argumentAlreadyReduced) then {
-	           tryImplementationChoices = [| tryImplementationThroughExpressionDecomposition,
-                                                 tryImplementationConstant,
-	                                         tryImplementationThroughArgumentReductionPowering,
-		     	    		         tryImplementationThroughArgumentReductionLogarithm,
-	                                         tryImplementationThroughArgumentReductionExponential,
-					         tryImplementationThroughArgumentReductionPeriodic,
-                                                 tryImplementationThroughArgumentReductionWithParamountBehavior,
-					         tryImplementationThroughSquaring,
-                                                 tryImplementationThroughDomainSplitting,
-                                                 tryImplementationThroughSymmetryDetectionAroundZero,
-					         tryImplementationThroughMetaSplitting |];
+	           tryImplementationChoices = [| { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
+                                                 { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
+	                                         { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
+		     	    		         { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
+	                                         { .method = tryImplementationThroughArgumentReductionExponential, .name = "tryImplementationThroughArgumentReductionExponential" },
+					         { .method = tryImplementationThroughArgumentReductionPeriodic, .name = "tryImplementationThroughArgumentReductionPeriodic" },
+                                                 { .method = tryImplementationThroughArgumentReductionWithParamountBehavior, .name = "tryImplementationThroughArgumentReductionWithParamountBehavior" },
+					         { .method = tryImplementationThroughSquaring, .name = "tryImplementationThroughSquaring" },
+                                                 { .method = tryImplementationThroughDomainSplitting, .name = "tryImplementationThroughDomainSplitting" },
+                                                 { .method = tryImplementationThroughSymmetryDetectionAroundZero, .name = "tryImplementationThroughSymmetryDetectionAroundZero" },
+					         { .method = tryImplementationThroughMetaSplitting, .name = "tryImplementationThroughMetaSplitting" } |];
 	       } else {
-	           tryImplementationChoices = [| tryImplementationThroughExpressionDecomposition,
-                                                 tryImplementationConstant,
-	                                         tryImplementationThroughArgumentReductionPowering,
-		     	    		         tryImplementationThroughArgumentReductionLogarithm,
-	                                         tryImplementationThroughArgumentReductionExponential,
-					         tryImplementationThroughArgumentReductionPeriodic,
-                                                 tryImplementationThroughArgumentReductionWithParamountBehavior,
-					         tryImplementationThroughSquaring,
-                                                 tryImplementationThroughSymmetryDetectionAroundZero,
-                                                 tryImplementationThroughDomainSplitting,
-					         tryImplementationThroughMetaSplitting |];
+	           tryImplementationChoices = [| { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
+                                                 { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
+	                                         { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
+		     	    		         { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
+	                                         { .method = tryImplementationThroughArgumentReductionExponential, .name = "tryImplementationThroughArgumentReductionExponential" },
+					         { .method = tryImplementationThroughArgumentReductionPeriodic, .name = "tryImplementationThroughArgumentReductionPeriodic" },
+                                                 { .method = tryImplementationThroughArgumentReductionWithParamountBehavior, .name = "tryImplementationThroughArgumentReductionWithParamountBehavior" },
+					         { .method = tryImplementationThroughSquaring, .name = "tryImplementationThroughSquaring" },
+                                                 { .method = tryImplementationThroughSymmetryDetectionAroundZero, .name = "tryImplementationThroughSymmetryDetectionAroundZero" },
+                                                 { .method = tryImplementationThroughDomainSplitting, .name = "tryImplementationThroughDomainSplitting" },
+					         { .method = tryImplementationThroughMetaSplitting, .name = "tryImplementationThroughMetaSplitting" } |];
                };
 	  } else {
-	       tryImplementationChoices = [| tryImplementationThroughDomainSplitting,
-                                             tryImplementationThroughExpressionDecomposition,
-                                             tryImplementationConstant,
-	                                     tryImplementationThroughArgumentReductionPowering,
-		     			     tryImplementationThroughArgumentReductionLogarithm,
-	                                     tryImplementationThroughArgumentReductionExponential,
-					     tryImplementationThroughArgumentReductionPeriodic,
-                                             tryImplementationThroughArgumentReductionWithParamountBehavior,
-					     tryImplementationThroughSquaring,
-                                             tryImplementationThroughSymmetryDetectionAroundZero,
-					     tryImplementationThroughMetaSplitting |];
+	       tryImplementationChoices = [| { .method = tryImplementationThroughDomainSplitting, .name = "tryImplementationThroughDomainSplitting" },
+                                             { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
+                                             { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
+	                                     { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
+		     			     { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
+	                                     { .method = tryImplementationThroughArgumentReductionExponential, .name = "tryImplementationThroughArgumentReductionExponential" },
+					     { .method = tryImplementationThroughArgumentReductionPeriodic, .name = "tryImplementationThroughArgumentReductionPeriodic" },
+                                             { .method = tryImplementationThroughArgumentReductionWithParamountBehavior, .name = "tryImplementationThroughArgumentReductionWithParamountBehavior" },
+					     { .method = tryImplementationThroughSquaring, .name = "tryImplementationThroughSquaring" },
+                                             { .method = tryImplementationThroughSymmetryDetectionAroundZero, .name = "tryImplementationThroughSymmetryDetectionAroundZero" },
+					     { .method = tryImplementationThroughMetaSplitting, .name = "tryImplementationThroughMetaSplitting" } |];
           };
 
 	  okay = false; i = 0;
@@ -7186,12 +7234,16 @@ procedure tryImplementation(problemdef, parametrization) {
 	          tryImplementationInstance = head(tryImplementationChoices);
 		  tryImplementationChoices = tail(tryImplementationChoices);
 
-		  // "i = ", i, ", func = ", problemdef.func, ", dom = ", problemdef.dom; i := i + 1; 
-	          res = tryImplementationInstance(problemdef, parametrization);
+
+		  if (showMethodName) then "Starting to try out implementation method ", tryImplementationInstance.name, " on function ", problemdef.func, " and domain ", problemdef.dom;
+	          res = tryImplementationInstance.method(problemdef, parametrization);
 
 		  if (res.okay) then {
+		     if (showMethodName) then "Successfully returning from implementation method ", tryImplementationInstance.name;
 		     result = res;
 		     okay = true;
+		  } else {
+                     if (showMethodName) then "Unsuccessfully returning from implementation method ", tryImplementationInstance.name;
 		  };
 	  };
 
