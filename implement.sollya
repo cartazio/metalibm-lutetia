@@ -61,7 +61,10 @@ procedure targetErrorToImplementpolyType(err) {
 procedure myimplementpoly(l = ...) {
 	  var res;
 	  var myTarget, myVarFormat, myResFormat;
-	  var oldDisplay;
+	  var oldDisplay, oldPrec;
+	  
+	  oldPrec = prec;
+	  prec = 165!;
 
 	  myTarget = l[2];
 	  myVarFormat = l[3];	  
@@ -96,7 +99,9 @@ procedure myimplementpoly(l = ...) {
 	  	6 : (implementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5]))
 		8 : (implementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5],l[6],l[7]))
 		default : (error);
-		    
+
+          prec = oldPrec!;		    
+
 	  return res;
 };
 
@@ -106,7 +111,7 @@ procedure myfindzeros(func,dom) {
 	  var oldPoints, valid, ya, yb;
 
 	  oldPoints = points;
-	  points = 1001!;
+	  points = ((points - 1) * 2 + 1)!;
 
 	  numZeros = mydirtyfindzeros(func,dom);
 	  len = length(numZeros);
@@ -5869,7 +5874,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	  oldPoints = points;
           meanPeriod = 0;
 	  numPeriod = 0;
-	  points = 2001!;
+	  points = ((points - 1) * 4 + 1)!;
 	  prec = max(500, prec, 4 * ceil(-log2(target)) + 100)!;
 	  if (abs(func(c)) <= 1b1024) then {
 	     zeros = mydirtyfindzeros(func - func(c), dom);

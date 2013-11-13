@@ -317,7 +317,7 @@ procedure remezbugreport(f,m,d,w,eps) {
 	     oldpoints = points = ?;
 	     points = max(65, 4 * max(myM))!;
 	     oldprec = prec = ?;
-	     prec = 300!;
+	     prec = min(300, prec)!;
 	     oldverb = verbosity = ?;
 	     verbosity = 1!;
 

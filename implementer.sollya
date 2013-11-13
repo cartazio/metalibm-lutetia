@@ -95,6 +95,15 @@ compileFlags = "-DASSEMBLY_TIMING=1";
 
 
 /* -------------------------------------------------------- 
+   Some adaptions due to the problem definition
+----------------------------------------------------------- */ 
+
+if (adaptWorkingPrecision) then {
+   prec = max(30, min(350, ~(ceil(-log2(abs(target))) * 2 + 5)))!;
+   write("Adapted working precision: prec = ", prec, "\n");
+};
+
+/* -------------------------------------------------------- 
    Print out problem configuration 
 ----------------------------------------------------------- */ 
 
