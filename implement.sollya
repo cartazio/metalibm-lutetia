@@ -7255,3 +7255,100 @@ procedure tryImplementation(problemdef, parametrization) {
 	  return result;
 };
 
+procedure tryImplementationExternal(problemdef, parametrization) {
+	  var res;
+	  var myparam;
+
+	  myparam = parametrization;
+	  myparam.implementationFile = parametrization.implementationFile @ ".tmp.c";
+
+	  res = tryImplementation(problemdef, myparam);
+
+	  write("") > parametrization.implementationFile;
+	  emitCopyrightStatement(parametrization.implementationFile);
+          bashexecute("cat " @ myparam.implementationFile @ " >> " @ parametrization.implementationFile);	  
+	  
+	  return res;
+};
+
+procedure emitCopyrightStatement(outputFile) {
+          write("/* \n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    This code was generated using non-trivial code generation commands\n") >> outputFile;
+          write("    of the Metalibm software program.\n") >> outputFile;
+          write("    \n") >> outputFile;
+          write("    Before using, modifying and/or integrating this code into other\n") >> outputFile;
+          write("    software, review the copyright and license status of this\n") >> outputFile;
+          write("    generated code. In particular, see the exception below.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    This generated program is partly or entirely based on a program\n") >> outputFile;
+          write("    generated using non-trivial code generation commands of the Sollya\n") >> outputFile;
+          write("    software program. See the copyright notice and exception text\n") >> outputFile;
+          write("    referring to that Sollya-generated part of this program generated\n") >> outputFile;
+          write("    with Metalibm below.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    Metalibm is\n") >> outputFile;
+          write(" \n") >> outputFile;
+          write("    Copyright 2008-2013 by \n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    Laboratoire de l'Informatique du Parallélisme, \n") >> outputFile;
+          write("    UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    and by\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    Laboratoire d'Informatique de Paris 6, equipe PEQUAN,\n") >> outputFile;
+          write("    UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    Contributors: Christoph Quirin Lauter \n") >> outputFile;
+          write("                  (UPMC LIP6 PEQUAN formerly LIP/ENS Lyon) \n") >> outputFile;
+          write("                  christoph.lauter@lip6.fr\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("		  and\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("		  Olga Kupriianova \n") >> outputFile;
+          write("		  (UPMC LIP6 PEQUAN)\n") >> outputFile;
+          write("		  olga.kupriianova@lip6.fr\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    Metalibm was formerly developed by the Arenaire project at Ecole\n") >> outputFile;
+          write("    Normale Superieure de Lyon and is now developed by Equipe PEQUAN\n") >> outputFile;
+          write("    at Universite Pierre et Marie Curie Paris 6.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    The Metalibm software program is free software; you can\n") >> outputFile;
+          write("    redistribute it and/or modify it under the terms of the GNU Lesser\n") >> outputFile;
+          write("    General Public License as published by the Free Software\n") >> outputFile;
+          write("    Foundation; either version 2 of the License, or (at your option)\n") >> outputFile;
+          write("    any later version.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    Metalibm is distributed in the hope that it will be useful,\n") >> outputFile;
+          write("    but WITHOUT ANY WARRANTY; without even the implied warranty of\n") >> outputFile;
+          write("    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the\n") >> outputFile;
+          write("    GNU General Public License for more details.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    You should have received a copy of the GNU Lesser General Public\n") >> outputFile;
+          write("    License along with the Metalibm program; if not, write to the Free\n") >> outputFile;
+          write("    Software Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA\n") >> outputFile;
+          write("    02111-1307, USA.\n") >> outputFile;
+          write("\n") >> outputFile;
+          write("    This generated program is distributed WITHOUT ANY WARRANTY; without\n") >> outputFile;
+          write("    even the implied warranty of MERCHANTABILITY or FITNESS FOR A\n") >> outputFile;
+          write("    PARTICULAR PURPOSE.\n") >> outputFile;
+          write("    \n") >> outputFile;
+          write("    As a special exception, you may create a larger work that contains\n") >> outputFile;
+          write("    part or all of this software generated using Metalibm and\n") >> outputFile;
+          write("    distribute that work under terms of your choice, so long as that\n") >> outputFile;
+          write("    work isn't itself a numerical code generator using the skeleton of\n") >> outputFile;
+          write("    this code or a modified version thereof as a code skeleton.\n") >> outputFile;
+          write("    Alternatively, if you modify or redistribute this generated code\n") >> outputFile;
+          write("    itself, or its skeleton, you may (at your option) remove this\n") >> outputFile;
+          write("    special exception, which will cause this generated code and its\n") >> outputFile;
+          write("    skeleton and the resulting Metalibm output files to be licensed\n") >> outputFile;
+          write("    under the General Public licence (version 2) without this special\n") >> outputFile;
+          write("    exception.\n") >> outputFile;
+          write("    \n") >> outputFile;
+          write("    This special exception was added by the Metalibm copyright holders \n") >> outputFile;
+          write("    on November 20th 2013.\n") >> outputFile;
+          write("    \n") >> outputFile;
+          write("*/\n") >> outputFile;
+          write("\n") >> outputFile;
+};
+
