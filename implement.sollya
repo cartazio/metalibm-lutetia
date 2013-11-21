@@ -1600,6 +1600,8 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	     };
 	  };
 
+	  "in checkIfSufficientDegreeInner: now launching the guessdegree";
+
 	  if (0 in remezDom) then { y = evaluate(remezFunc, 0); } else { y = 1; };
 	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
 	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),x/remezFunc,maxDegree+2); };
