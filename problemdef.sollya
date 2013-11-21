@@ -1,7 +1,7 @@
-f = erf(x);
-dom = [0.25;0.5];
-target = 1b-24;
-maxDegree = 8;
+f = exp(x) + cos(x^2);
+dom = [7/4;2];
+target = 1b-60;
+maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;
