@@ -1,7 +1,7 @@
 f = erf(x);
-dom = [-2;2];
+dom = [0.25;0.5];
 target = 1b-24;
-maxDegree = 6;
+maxDegree = 8;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;

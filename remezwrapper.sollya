@@ -195,7 +195,7 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	                             };
                                  });
 
-          // "guessdegree(",f,",",d,",",eps,",",w,",",b,") = ", guess;
+          "guessdegree(",f,",",d,",",eps,",",w,",",b,") = ", guess;
 
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
@@ -272,7 +272,7 @@ procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
 
 	  cacheRes = getGuessdegreeCache(f,d,eps,w,b);
 	  if (cacheRes.okay) then {
-	     "Using a cached guessdegree result";
+	     "Using a cached guessdegree result for guessdegreewrapperwithbound(",f,",", d, ",", eps,",", w, ",", b,")";
 	     res = cacheRes.res;
           } else { 
 	     res = guessdegreewrapperwithboundinner(f,d,eps,w,b);
