@@ -34,9 +34,10 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
-/* A global variable for the remez cache */
+/* Global variables for the remez and guessdegree caches */
 
 remezCache = [||];
+guessdegreeCache = [||];
 
 
 /* A timing wrapper around dirtyinfnorm */
@@ -178,8 +179,8 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  return res;
 };
 
-/* guessdegreewrapperwithbound */
-procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
+/* guessdegreewrapperwithboundinner */
+procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	  var res, guess;
 	  var poly;
 	  var guessdegreeTime;
@@ -224,6 +225,58 @@ procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
             } else {
     	        res = inf(guess);
             };
+	  };
+
+	  return res;
+};
+
+/* Get a guessdegree computation out of the guessdegree cache */
+procedure getGuessdegreeCache(f,dom,eps,w,bounds) {
+	  var key;
+	  var res;
+	  var cacheList, hd;
+	  var found;
+
+	  res = { .okay = false };
+
+	  key = { .f = f, .dom = dom, .eps = eps, .w = w, .bounds = bounds };
+
+	  cacheList = guessdegreeCache;
+	  found = false;
+	  while ((cacheList != [||]) && (!found)) do {
+	  	hd = head(cacheList);
+		cacheList = tail(cacheList);
+		
+		if (hd.key == key) then {
+		   res.okay = true;
+		   res.res = hd.res;
+		   found = true;
+		};
+	  };
+
+	  return res;
+};
+
+procedure insertGuessdegreeCache(res,f,dom,eps,w,bounds) {
+	  var key;
+	  var entry;
+
+	  key = { .f = f, .dom = dom, .eps = eps, .w = w, .bounds = bounds };
+	  entry = { .res = res, .key = key };
+
+	  guessdegreeCache = entry .: guessdegreeCache;
+};
+
+procedure guessdegreewrapperwithbound(f,d,eps,w,b) {
+	  var cacheRes, res;
+
+	  cacheRes = getGuessdegreeCache(f,d,eps,w,b);
+	  if (cacheRes.okay) then {
+	     "Using a cached guessdegree result";
+	     res = cacheRes.res;
+          } else { 
+	     res = guessdegreewrapperwithboundinner(f,d,eps,w,b);
+	     insertGuessdegreeCache(res,f,d,eps,w,b);
 	  };
 
 	  return res;

@@ -43,7 +43,7 @@ showmessagenumbers=on!;
    Suppress some unneeded (noisy) messages
 ----------------------------------------------------------- */ 
 
-suppressmessage(372, 162, 175, 231, 346, 228, 247);
+suppressmessage(372, 162, 175, 231, 346, 228, 247, 404);
 
 /* -------------------------------------------------------- 
    Initialize performance counters

@@ -1259,7 +1259,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 	  var oldDisplay;
 	  var resOpt;
 
-	  // "computeDomainSplitting(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", sterbenzNeeded, ")";
+	  "computeDomainSplitting(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", sterbenzNeeded, ") started";
 
 	  resultat = { .okay = false };
 	  deg = -1;
@@ -1392,6 +1392,8 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 	  };
 
 	  };
+
+	  "computeDomainSplitting(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", sterbenzNeeded, ") finished, returning ", resultat;
 
 	  return resultat;
 };
@@ -1556,6 +1558,8 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	  var remezFunc, remezDom;
 	  var zeros, t, z;
 
+	  "checkIfSufficientDegreeInner(",func,",", dom,",", maxDegree,",", target,",", sterbenzNeeded,") started";
+
 	  resultat = { .okay = false };
 	  deg = -1;
 
@@ -1627,6 +1631,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	     	};
 	     };
 
+	  "checkIfSufficientDegreeInner(",func,",", dom,",", maxDegree,",", target,",", sterbenzNeeded,") finished, returning ", resultat;
 
 	  return resultat;
 };
