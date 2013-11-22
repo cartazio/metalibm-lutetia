@@ -2022,7 +2022,7 @@ procedure tryDetectExponentialArgRed(func, dom, target) {
 	        an accuracy of target
 	     */
 	     testfunc = simplifysafe((base^x)/func - 1);
-	     y = evaluate(testfunc, mid(dom));
+	     y = evaluate(testfunc, [mid(dom)]);
 	     if (y in [-target, target]) then {
 	  	  zerosUpper = mydirtyfindzeros(testfunc + target, dom);
 	  	  zerosLower = mydirtyfindzeros(testfunc - target, dom);
@@ -3390,7 +3390,7 @@ procedure tryImplementationConstant(problemdef, parametrization) {
 				       	   (abs(ya - yc) <= abs(ya * 1/4 * target)) &&
 					   (abs(yb - yc) <= abs(yb * 1/4 * target))) then {
 					  testfunc = simplifysafe((myConst/func) - 1);
-          	                          y = evaluate(testfunc, mid(dom));
+          	                          y = evaluate(testfunc, [mid(dom)]);
 	                                  if (y in [-1/4 * target, 1/4 * target]) then {
 	  	                             zerosUpper = mydirtyfindzeros(testfunc + 1/4 * target, dom);
 	  	                             zerosLower = mydirtyfindzeros(testfunc - 1/4 * target, dom);
