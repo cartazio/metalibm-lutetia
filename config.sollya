@@ -29,7 +29,7 @@
 /* Paths and names of the external executables */
 
 gappaExecutable = "/home/lauter/gappa/src/gappa";
-sollyaPath = "/home/lauter/sollya/";  
+sollyaPath = "/home/lauter/sollyaAllBranches/branches/improvedEvaluate";  
 
 /* Names of the implementation and proof files */
 

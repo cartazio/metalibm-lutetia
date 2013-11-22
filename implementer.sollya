@@ -99,7 +99,7 @@ compileFlags = "-DASSEMBLY_TIMING=1";
 ----------------------------------------------------------- */ 
 
 if (adaptWorkingPrecision) then {
-   prec = max(30, min(350, ~(ceil(-log2(abs(target))) * 2 + 5)))!;
+   prec = max(25, min(350, ~(ceil(-log2(abs(target))) + 10)))!;
    write("Adapted working precision: prec = ", prec, "\n");
 };
 
