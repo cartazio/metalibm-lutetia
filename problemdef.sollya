@@ -1,9 +1,9 @@
-f = erfc(x);
-dom = [-1/8;1/8];
+f = exp(x);
+dom = [-50;50];
 target = 1b-42;
 maxDegree = 6;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
-tableIndexWidth = 8;
+tableIndexWidth = 4;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = 1;
