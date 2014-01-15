@@ -5889,6 +5889,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	     zeros = [||];
 	  };
 	  zeros = limitListToNElements(zeros, 25);
+
 	  points = oldPoints!;
 	  len = length(zeros);
           possiblePeriods = [||];
@@ -5909,6 +5910,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 		possiblePeriods = tail(possiblePeriods);
 		recDom = [inf(dom); sup(dom) - myPeriod];
 	        testfunc = simplifysafe(func(x + myPeriod)/func - 1);
+
 		if (0 in recDom) then t = 0 else t = ~((2 * inf(recDom) + sup(recDom)) / 3);
 	        y = evaluate(testfunc, t);
 
@@ -5920,6 +5922,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 		};
 
 	        if (y in [-target, target]) then {
+
 	  	     zerosUpperRaw = mydirtyfindzeros(testfunc + target, recDom);
 	  	     zerosLowerRaw = mydirtyfindzeros(testfunc - target, recDom);
 
@@ -6420,7 +6423,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 	  var result, res;
 	  var func, dom, target, period;
 	  var c, reducedDom;
-	  var haveSterbenzOnArgRed, pKStaysSmall;
+	  var haveSterbenzOnArgRed, pKStaysSmall, kStaysSmall;
 	  var alphaPeriodConstant, alphaPeriodConstantTemp;
 	  var variableFormat;
 	  var alpha;
@@ -6516,7 +6519,12 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		       pKStaysSmall = (sup(abs(period * nearestint((dom - c)/period))) <= inf(abs(1/2 * dom)));
 		    };
 
-		    if (haveSterbenzOnArgRed || pKStaysSmall) then {
+		    kStaysSmall = false;
+		    if (!pKStaysSmall) then {
+		       kStaysSmall = (sup(abs(nearestint((dom - c)/period))) < 1000);
+		    };
+
+		    if (haveSterbenzOnArgRed || pKStaysSmall || kStaysSmall) then {
 		       /* Compute the factor alpha by which the function amplifies the 
 		          relative error of the reduced argument into the final error due
 			  to argument reduction.
@@ -6524,8 +6532,6 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 
 		       neededAccuracyOfArg = computeNeededAccuracyOfArgumentWorkHard(func, reducedDom, target);
 
-		       "neededAccuracyOfArg = ", neededAccuracyOfArg;
-		       
 		       alpha = abs(abs(target) / abs(neededAccuracyOfArg));
 		       write("The amplification factor of the periodic function is approximately ", round(alpha,12,RN), " = 2^(", round(log2(alpha),12,RN),")\n");
 
@@ -7181,7 +7187,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	  var needArgumentReduction, argumentAlreadyReduced;
 	  var showMethodName;
 
-	  showMethodName = false;
+	  showMethodName = true;
 
 	  result = { .okay = false };
 

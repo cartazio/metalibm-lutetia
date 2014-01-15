@@ -1,11 +1,11 @@
-f = exp(x);
-dom = [-50;50];
-target = 1b-42;
-maxDegree = 6;
+f = sin(x) + 10;
+dom = [1;10];
+target = 1b-24;
+maxDegree = 8;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
-tableIndexWidth = 4;
+tableIndexWidth = 5;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = 1;
-adaptWorkingPrecision = true;
+adaptWorkingPrecision = false;
 
