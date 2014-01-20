@@ -1,4 +1,4 @@
-f = sin(x) + 10;
+f = sin(x) + 11;
 dom = [1;10];
 target = 1b-24;
 maxDegree = 8;
