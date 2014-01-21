@@ -1,7 +1,7 @@
-f = sin(x) + 11;
-dom = [1;10];
+f = erf(x) + 4;
+dom = [-10;10];
 target = 1b-24;
-maxDegree = 8;
+maxDegree = 5;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 5;
 minimalReductionRatio = 1000;

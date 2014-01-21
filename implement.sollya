@@ -1786,7 +1786,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 
 	  };
 
-	     if (deg > 0) then {
+	     if (deg >= 0) then {
 	     	if (deg <= maxDegree) then {
 		   resultat.okay = true;
 		   resultat.sufficientDegree = true;
