@@ -1247,7 +1247,7 @@ procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth
 	  /* I return .deg as a list of degrees for the corresponding subdomains */
 
 	  res = computeDomainSplittingOptimizedInner(func, dom, maxDegree, target, minWidth, [| |], [| |]);
-	  print("----- Optimized split before stub res=", res);
+//	  print("----- Optimized split before stub res=", res);
 //	  res = { .okay = false };	//remove stub when everything is done
 	  return res;
 };
@@ -1272,6 +1272,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 	      	 print("Split is needed, But I can't do it, because the current interval is too small");
 	      	 res =  { .okay = false };
 	      } else {	      	
+	      print("---wanna compute split, I will try to divide current dom by 2 in order to find the largest left acceptable subdomain");
 		m = D(mid(dom));		
 		left = [ inf(dom), m ];
 		right = [ m, sup(dom) ];
@@ -1282,8 +1283,9 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 		   res = leftdeg;
 		} else {
 		  if (leftdeg.sufficientDegree == true) then {	
+		     print("---I've found the longest interval on the left");
 		     currRes = tryToIncreaseSplit(func, left, right, maxDegree, target, minWidth);
-		     print("after moving the right border: ", currRes);
+		     print("---after moving the right border: ", currRes);
 		     currSplitPointsList = currSplitPointsList :. currRes.splitPoint;
 		     currDegreeList = currDegreeList :. currRes.deg;		       		      
 		     res = currRes;
@@ -1306,7 +1308,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 		    }; // while ends if there was an error, if it's not possible to find such an interval or if success!
 		    if ((sup(left) - inf(left) >= minWidth) && (leftdeg.okay == true) && (leftdeg.sufficientDegree == true)) then {
 		       currRes = tryToIncreaseSplit(func, left, right, maxDegree, target, minWidth);
-		       print(" after moving the right border: ", currRes);
+		       print("---after moving the right border: ", currRes);
 
 		       currSplitPointsList = currSplitPointsList :. currRes.splitPoint;
 		       currDegreeList = currDegreeList :. currRes.deg;
@@ -1322,8 +1324,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 				res.splitPoints = res.splitPoints @ currRes.splitPoints;
 				res.deg = res.deg @ currRes.deg; 
 				res = currRes;
-		     };
-		            
+		     };    
 
 		    } else {
 		      print("cant' find the largest suitable interval on the left");
@@ -1340,58 +1341,37 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 };
 
 procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
-	  var res, leftdeg, m, newleft;
+	  var res, leftdeg, delta, newleft;
 	  
-	  "tryToIncreaseSplit(", func, ", ", left, ", ", rest, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
+	  "****tryToIncreaseSplit(", func, ", ", left, ", ", rest, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
 	  // For this moment we are sure that there is an approximating polynomial on the left with a degree <= maxDegree,
 	  // we are interested in the largest intervals, so we'll try to enlarge left.
-	  // As on the previous steps before calling this function we have divided interval by 2 to get the left, we'll try to 
+	  // As on the previous steps before calling this function we have divided interval by 2 in order to get the left, we'll try to 
 	  // enlarge our interval with a third of it
 
-	  m = D((sup(left) - inf(left)) / 3);
-	  newleft = [ inf(left), sup(left) + m ];
-	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target);
-	  if (leftdeg.okay == false) then {
-	     print("After a try to enlarge the interval there was an error");
-	  } else {
-	    if (leftdeg.sufficientDegree == true) then {
-	       //It's OK, we can try to enlarge even more
-	       while ((leftdeg.okay) && (leftdeg.sufficientDegree)) do {
-	       	     newleft = [ inf(newleft), D(sup(newleft) + m/2) ]; 
-		     leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target);
-	       };
-	       if ((leftdeg.okay==true) && (leftdeg.sufficientDegree == false)) then {	       
-		  left = [ inf(newleft), sup(newleft) - m  ];	
-		  leftdeg = checkIfSufficientDegreeOptimized(func, left,  maxDegree, target);
-		  print("~~~~~~~~~in try to enlarge, leftdeg now is", leftdeg); 
-		  res = leftdeg;
-		  res.splitPoint = D(sup(left));
-	       };
-	    } else {
-	      //Too big, try to add smth smaller
-	      //TODO: Handle this step, for the moment I do nothing but returning usual left bound.
-	      res = checkIfSufficientDegreeOptimized(func, left, maxDegree, target);
-	      res.splitPoint = D(sup(left));
-	      /*res = checkIfSufficientDegreeOptimized(func, left,  maxDegree, target);
-	      res.splitPoint = sup(left);
-	      m = m/2;
-	      
-	      while((sup(newleft) - sup(left) >= minWidth) && (leftdeg.okay && leftdeg.sufficientDegree == false)) do {
-	//	left = newleft;
-		newleft = [ inf(left), D(sup(left) + m) ];		
-		rest = [D(sup(left) + m), sup(rest)];
-		leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target);	  
-		print("tryToIncrease, leftdeg = ", leftdeg, " newleft = ", newleft);
-		m = m/2;		
-	      };
-	       left = [ inf(newleft), sup(newleft) - m  ];	
-		  leftdeg = checkIfSufficientDegreeOptimized(func, left,  maxDegree, target);
-		  print("~~~~~~~~~in try to enlarge, leftdeg now is", leftdeg); 
-		  res = leftdeg;
-		  res.splitPoint = D(sup(left));
-	    */};
+	  delta = round(((sup(left) - inf(left)) / 3), D, RD);
+	  newleft = left; //[ inf(left), sup(left) + delta ];
+	  while (delta > 5 * minWidth && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is 5*minWidth
+	  	print("delta = ", delta);
+	  	newleft = [ inf(newleft), sup(newleft) + delta ];
+	  	leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
+		while (leftdeg.okay && leftdeg.sufficientDegree) do {
+		    newleft = [ inf(newleft), sup(newleft) + delta ];
+	  	    leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;  
+		};
+		if (leftdeg.okay == false) then {
+		   delta = 0;
+		   res = {.okay = false};
+		} else {
+		  newleft = [ inf(newleft), sup(newleft) - delta ];
+	  	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;  
+		  delta = round(delta/2, D, RD);
+		};
 	  };
-  
+	  res = leftdeg;
+	  res.splitPoint = D(sup(newleft));
+	  print("after new version of tryToIncrease, res = ", res);
+
 	  return res;
 };
 
@@ -1429,7 +1409,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 
 	  if (!(inf(dom) * sup(dom) < 0)) then {
 	      resOpt = computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth);
-	  };
+	  };    	  
 
 	  if (!resOpt.okay) then {
 
@@ -1597,7 +1577,7 @@ procedure checkIfPropagatedErrorLessThan(func, dom, argEps, maxEps) {
 procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
 	  var resultat, res, splitPoints, myTarget, sterbenzNeeded, shiftEps, currDom, currDeg;
 
-	   write("implementwithdomainsplitting(",func,",", dom,",", maxDegree,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); 
+	  /* write("implementwithdomainsplitting(",func,",", dom,",", maxDegree,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); */
 
 	  sterbenzNeeded = true;
 	  myTarget = target;
