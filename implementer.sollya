@@ -113,6 +113,7 @@ if ((variableFormat == DD) && (target > 1b-52)) then { print("Warning: reduced f
 write("The function to be implemented is: ",f,"\n");
 write("The domain is: ",dom,"\n");
 write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n");
+write("The maximum degree is; ", maxDegree, "\n");
 
 /* -------------------------------------------------------- 
    Launch implementer
