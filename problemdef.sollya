@@ -1,11 +1,11 @@
-f = erf(x);
-dom = [-16; 16];
-target = 1b-53;
-maxDegree = 10;
+f = erfc(x);
+dom = [-1,1];
+target = 1b-24;
+maxDegree = 6;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
-tableIndexWidth = 5;
+tableIndexWidth = 0;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = 1;
-adaptWorkingPrecision = false;
+adaptWorkingPrecision = true;
 

@@ -1202,10 +1202,9 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
    can be approximated with a target error target using a polynomial of degree no greater
    that maxDegree on the whole domain dom.
 
-   This special purpose procedure is called only on domains dom where 0 is not in their
-   interior. The procedure does not have to care about the Sterbenz condition to 
-   be fullfilled for the substraction to be performed on each subdomain S_i for range 
-   reduction.
+   This special purpose procedure does not have to care about the
+   Sterbenz condition to be fullfilled for the substraction to be
+   performed on each subdomain S_i for range reduction.
 
    The purpose and particularity of this special procedure is to split the domain
    in such a way that the degree of the polynomials used on each subdomain is 
@@ -1374,11 +1373,11 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 		 We simultate the case with a dummy degree that is too huge
 	       */
 	       deg = maxDegree * 2;
-
 	  } else {
 
-	  if (!(inf(dom) * sup(dom) < 0)) then {
+	  if ((!(inf(dom) * sup(dom) < 0)) || (!sterbenzNeeded)) then {
 	      resOpt = computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth);
+	      // resOpt.okay = false;
 	  };    	  
 
 	  if (!resOpt.okay) then {
@@ -1582,6 +1581,16 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
 	          };
               };
           };
+
+	  /* In certain cases, the function so well contracts the relative error 
+	     than even if zero is in the domain we can afford an extra reduction error.
+	  */
+	  if (sterbenzNeeded) then {
+	     if (checkIfPropagatedErrorLessThan(func, dom, 1b-53, 1/4 * abs(target))) then {
+	         sterbenzNeeded = false;
+		 myTarget = 1/4 * abs(target);
+	     };
+	  };
 
 	  resultat = { .okay = false };
 
