@@ -1199,7 +1199,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
                    myFunctionName = polynomialBaseName @ "_splitter";
 		   splitterCode = "\n\n";
 		   resOpt.okay = false;
-		   if (checkIfElementsInListAllEqual(outputformats) && (outputformats != [||])) then {
+		   if (checkIfElementsInListAllEqual(outputformats) && (outputformats != [||]) && (length(domains) >= 2)) then {
 		      if (head(outputformats) == myOutputFormat) then {
 		      	 resOpt = tryGeneratePolynomialSplitterReconstruction(myFunctionName, domains, functionNames, variableFormat, myOutputFormat, implementationFile @ ".splitter.temp.c", maxDegreeReconst);
 		      };
