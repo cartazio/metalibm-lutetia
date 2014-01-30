@@ -136,6 +136,7 @@ parametrization.gappaExecutable = gappaExecutable;
 parametrization.functionBasename = polynomialName;
 parametrization.minimalReductionRatio = minimalReductionRatio;
 parametrization.performExpressionDecomposition = performExpressionDecomposition;
+parametrization.maxDegreeReconstruction = maxDegreeReconstruction;
 
 implementationTime = time({
 		   resultat = tryImplementationExternal(problemdef, parametrization);

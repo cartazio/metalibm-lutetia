@@ -970,6 +970,60 @@ procedure generateRecursiveSplitter(splitPointName, domains, functionNames, outp
 };
 
 
+procedure checkIfElementsInListAllEqual(l) {
+	  var res, c, ll, h;
+
+	  if (l == [||]) then {
+	     res = true;
+	  } else {
+	     res = true;
+	     c = head(l);
+	     ll = tail(l);
+	     while (res && (ll != [||])) do {
+	     	   h = head(ll);
+		   ll = tail(ll);
+		   if (h != c) then {
+		      res = false;
+		   };
+	     };
+	  };
+
+	  return res;
+};
+
+procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
+	  var res;
+
+	  res = { .okay = false };
+
+	  "domains = ", domains;
+	  "maxDegree = ", maxDegree;
+
+
+	  return res;
+};
+
+procedure tryGeneratePolynomialSplitterReconstruction(functionName, domains, reducedFunctionNames, variableFormat, outputFormat, tempFile, maxDegree) {
+	  var res;
+	  var resPoly;
+
+	  res = { .okay = false };
+
+	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);
+	  
+	  if (resPoly.okay) then {
+
+	     "The reconstruction polynomial is ", resPoly.poly;
+
+
+
+
+	  };
+
+	  return res;
+};
+
+
 /* implements a function by polynomial approximation in small intervals
    obtained by cutting the interval at given points
 
@@ -988,7 +1042,7 @@ procedure generateRecursiveSplitter(splitPointName, domains, functionNames, outp
    No test for this condition is made.
 
 */
-procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
+procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName, maxDegreeReconst) {
 	  var resultat;
 	  var okay, sp;
 	  var mySplitPoints;
@@ -997,8 +1051,9 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  var res, implementationFiles, implFile, myOutputFormat, opF, myOutputFormatNum;
 	  var myFunctionName, splitterCode, oldDisplay, recursiveSplitterRes, symmetrizedDom, recovered;
 	  var doElseCase;
+	  var resOpt;
 
-	   write("implementwithdomainsplitlist(",func,",", dom,",", splitPoints,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); 
+	   write("implementwithdomainsplitlist(",func,",", dom,",", splitPoints,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,",", maxDegreeReconst,")\n"); 
 
 	  resultat = { .okay = false };
 
@@ -1143,25 +1198,36 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 		   myOutputFormat = match myOutputFormatNum with 1 : (D) 2 : (DD) 3 : (TD);
                    myFunctionName = polynomialBaseName @ "_splitter";
 		   splitterCode = "\n\n";
-		   recursiveSplitterRes = generateRecursiveSplitter(myFunctionName, domains, functionNames, outputformats, variableFormat, myOutputFormat);
-		   if (!recursiveSplitterRes.okay) then okay = false;
-		   if (okay) then {
-		        splitterCode = splitterCode @ recursiveSplitterRes.defines;
-             	        splitterCode = splitterCode @ "\n\nvoid "@myFunctionName@"(";
-	       	        splitterCode = splitterCode @ (match myOutputFormat with
-                   	                                     D   : ( "double *res_resh, " )
-                                                             DD  : ( "double *res_resh, double *res_resm, " )
-                                                             TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
-                                                      );
-                        splitterCode = splitterCode @ (match variableFormat with
-                                                             D   : ( "double xh" )
-                                                             DD  : ( "double xh, double xm" )
-                                                             TD  : ( "double xh, double xm, double xl" )
-                                                      );
-                        splitterCode = splitterCode @ ") {\n";
-		        splitterCode = splitterCode @ recursiveSplitterRes.splitterCode;
-                        splitterCode = splitterCode @ "}\n\n";
-		        write(splitterCode) >> implementationFile;
+		   resOpt.okay = false;
+		   if (checkIfElementsInListAllEqual(outputformats) && (outputformats != [||])) then {
+		      if (head(outputformats) == myOutputFormat) then {
+		      	 resOpt = tryGeneratePolynomialSplitterReconstruction(myFunctionName, domains, functionNames, variableFormat, myOutputFormat, implementationFile @ ".splitter.temp.c", maxDegreeReconst);
+		      };
+		   };		   
+		   if (resOpt.okay) then {
+		      splitterCode = splitterCode @ resOpt.code @ "\n\n";
+		      write(splitterCode) >> implementationFile;		      
+		   } else {
+		       recursiveSplitterRes = generateRecursiveSplitter(myFunctionName, domains, functionNames, outputformats, variableFormat, myOutputFormat);
+		       if (!recursiveSplitterRes.okay) then okay = false;
+		       if (okay) then {
+		            splitterCode = splitterCode @ recursiveSplitterRes.defines;
+             	            splitterCode = splitterCode @ "\n\nvoid "@myFunctionName@"(";
+	       	            splitterCode = splitterCode @ (match myOutputFormat with
+                   	                                         D   : ( "double *res_resh, " )
+                                                                 DD  : ( "double *res_resh, double *res_resm, " )
+                                                                 TD  : ( "double *res_resh, double *res_resm, double *res_resl, " )
+                                                          );
+                            splitterCode = splitterCode @ (match variableFormat with
+                                                                 D   : ( "double xh" )
+                                                                 DD  : ( "double xh, double xm" )
+                                                                 TD  : ( "double xh, double xm, double xl" )
+                                                          );
+                            splitterCode = splitterCode @ ") {\n";
+		            splitterCode = splitterCode @ recursiveSplitterRes.splitterCode;
+                            splitterCode = splitterCode @ "}\n\n";
+		            write(splitterCode) >> implementationFile;
+                       };
                    };
 		   if (okay) then {
 		      resultat.okay = true;
@@ -1543,10 +1609,10 @@ procedure checkIfPropagatedErrorLessThan(func, dom, argEps, maxEps) {
    No test for this condition is made.
 
 */
-procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName) {
+procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitionDomain, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName, maxDegreeReconst) {
 	  var resultat, res, splitPoints, myTarget, sterbenzNeeded, shiftEps, currDom, currDeg;
 
-	  /* write("implementwithdomainsplitting(",func,",", dom,",", maxDegree,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,")\n"); */
+	  /* write("implementwithdomainsplitting(",func,",", dom,",", maxDegree,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,",", maxDegreeReconst, ")\n"); */
 
 	  sterbenzNeeded = true;
 	  myTarget = target;
@@ -1616,7 +1682,7 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
 
 	     print("in func implementwithdomainsplitlist, splitPoints = ", splitPoints);
 
-	     res = implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, myTarget, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+	     res = implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definitionDomain, myTarget, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName, maxDegreeReconst);
 
 	     if (res.okay) then {
 	     	resultat = res;
@@ -1666,7 +1732,8 @@ procedure tryImplementationThroughDomainSplitting(problemdef, parametrization) {
 										      parametrization.gappaFile,
 										      parametrization.gappaOutputFile,
 										      parametrization.gappaExecutable,
-										      parametrization.functionBasename);
+										      parametrization.functionBasename, 
+										      parametrization.maxDegreeReconstruction);
 					}
                 default : { };
 

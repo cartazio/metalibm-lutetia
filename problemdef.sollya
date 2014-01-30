@@ -1,4 +1,4 @@
-f = erfc(x);
+f = expm1(x);
 dom = [-1,1];
 target = 1b-24;
 maxDegree = 6;
@@ -8,4 +8,6 @@ minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = 1;
 adaptWorkingPrecision = true;
+maxDegreeReconstruction = 8;
+
 
