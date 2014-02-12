@@ -991,15 +991,152 @@ procedure checkIfElementsInListAllEqual(l) {
 	  return res;
 };
 
+/* Thanks to Sylvain Chevillard for the following interpolation routines */
+dd = proc(u,v,n,ddTab) { var i,k; i:=v-u+1;  k:=u+(i-1)*(n+1-i/2); return(ddTab[k]); };
+
+ddCompute = proc(X,Y) { var n,result,i,j;
+                        n=length(X);
+                        result=[||];
+			for j from 0 to n-1 do result:=result:.Y[j];
+                        for i from 2 to n do {
+                          for j from 0 to n-i do {
+                            b := dd(j+1, j+i-1, n, result);
+                            a := dd(j, j+i-2, n, result);
+                            result := result:.(~(  (b-a)/(X[j+i-1]-X[j])  ));
+			  };
+                        };
+                        return result;
+};
+
+interpoleWithTab = proc(X,ddTab) { var n,p,i;
+                                     p = 0;
+                                     n = length(X)-1;
+                                     for i from n to 1 by -1 do {
+                                       p := simplify(horner((x-X[i-1])*(dd(0,i,n+1,ddTab)+p)));
+                                     };
+                                     p := simplify(horner(dd(0,0,n,ddTab) + p));
+                                     return p;
+};
+
+interpole = proc(X,Y) { var ddTab;
+                        ddTab = ddCompute(X,Y);
+                        return interpoleWithTab(X,ddTab);
+};
+
+/* End of the interpolation routines */
+
+
+/*	Builds a polynomial of degree not more than maxDegree for the given domains.
+	The whole domain was split into subintervals, this polynomial approximates piecewise-constant function (steps) that gives the number of the subdomain.
+ 	If it's possible to build such a polynomial result.okay is true and the reconstructed polynomial is in result.poly
+*/
+
+
+
 procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
-	  var res;
+	  var res, leftpoly, rightpoly, funcpoints, result, leftpoints, rightpoints, leftderivative, rightderivative, leftderivzeros, rightderivzeros, i, j, okay, infdom, supdom, N, continuesearch;
 
 	  res = { .okay = false };
+	  "tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
+  	  N = length(domains);
+	  infdom = inf(domains[0]);
+	  supdom = sup(domains[N-1]);
+	  okay = true;
+	  continuesearch = true;
 
-	  "domains = ", domains;
-	  "maxDegree = ", maxDegree;
+	  leftpoints = [| |];
+	  rightpoints = [| |];
+	  funcpoints = [| |];
+	  
+	  if (N == 1) then {
+	      res = {.okay = true, .direction = "left", .poly = D(0.5/(b-a)) * x - D(0.5 /(b-a))};
+	  } else {
+	    funcpoints = [|0, ... ,  N - 1|];
+   
+	    for i from 0 to N - 1 do {
+	    	leftpoints = inf(domains[i]).:leftpoints;
+		rightpoints = sup(domains[i]).:rightpoints;
+	    };
 
+	    leftpoints = revert(leftpoints);
+	    rightpoints = revert(rightpoints);
 
+	    oldprec = prec;
+	    prec = 600;
+	  
+	    leftpoly = interpole(leftpoints, funcpoints);
+	    rightpoly = interpole(rightpoints, funcpoints);
+    	    prec = oldprec;
+	    
+	   //temp plot
+	    funcpoints = rightpoly.:funcpoints;
+	    funcpoints = leftpoly.:funcpoints;
+	    plot(funcpoints, [infdom,supdom]);	    
+	     
+	    leftderivative = diff(leftpoly);
+	    rightderivative = diff(rightpoly);  
+	    leftderivzeros = dirtyfindzeros(leftderivative, dom);
+	    rightderivzeros = dirtyfindzeros(rightderivative, dom);
+	     
+	    if ((rightpoly(supdom) > N) || (rightpoly(infdom) < -1)) then {
+		continuesearch = true;
+	    } else {
+	       if (length(rightderivzeros) == 0) then {
+	       	  continuesearch = false;
+		  res =  {.okay = true, .direction = "right", .poly = rightpoly};
+	       } else {
+		 i = 0;		    
+		 j = 0;
+		 okay = true;
+		 while (i < length(rightderivzeros) && okay) do {
+		       continueloop = true;
+		       while (continueloop && (j < N - 1)) do {
+			     continueloop = (rightderivzeros[i] in domains[j]) &&  (rightderivzeros[i] in domains[j+1]);
+			     j = j + 1;
+		       };
+		       okay = okay && ( D(rightpoly(rightderivzeros[i])) >= j-1  && D(rightpoly(rightderivzeros[i])) < j);
+		       i = i + 1;
+		 };
+		 if (okay) then {
+		    res = {.okay = true, .direction = "right", .poly = rightpoly};
+		 } else {
+		    res = {.okay = false};
+		 };
+	       };
+	     };
+
+	     if (continuesearch) then {
+	     	if (leftpoly(infdom) < 0  && leftpoly(supdom) >= N) then {
+		   res = {.okay = false};
+		} else {
+		  if (length(leftderivzeros) == 0) then {
+		     continuesearch = false;
+		     res = {.okay = true, .direction = "left", .poly = leftpoly};
+		  } else {
+		      i = 0;
+		      j = 0;
+		      okay = true;
+		      while ( (i < length(leftderivzeros)) && okay) do {
+			    continueloop = true;
+			    while (continueloop && (j < N-1)) do {
+				  continueloop = (leftderivzeros[i] in domains[j]) &&  (leftderivzeros[i] in domains[j+1]);	
+				  j = j + 1;
+			    };
+			    okay = okay && ( D(leftpoly(leftderivzeros[i])) >= j-1  && D(leftpoly(leftderivzeros[i])) < j);			   
+			    i = i + 1;
+			};
+			if (okay) then {
+			   res = {.okay = true, .direction = "left", .poly = leftpoly};
+			} else {
+			   res = {.okay = false};
+			};
+		  };
+		};
+	     };
+	     
+	  };
+
+	  print("***res = ", res);
 	  return res;
 };
 
@@ -1008,9 +1145,7 @@ procedure tryGeneratePolynomialSplitterReconstruction(functionName, domains, red
 	  var resPoly;
 
 	  res = { .okay = false };
-
-	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);
-	  
+	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);	  
 	  if (resPoly.okay) then {
 
 	     "The reconstruction polynomial is ", resPoly.poly;
