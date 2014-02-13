@@ -1025,6 +1025,22 @@ interpole = proc(X,Y) { var ddTab;
 
 /* End of the interpolation routines */
 
+/* Computes the floating-point successor of X in double precision.
+   Computes the floating-point successor of the double precision
+   number nearest to X if X is not a double precision number.
+*/
+procedure succDouble(X) {
+	  return round(D(X) + 1b-1076,D,RU);
+};
+
+/* Computes the floating-point predecessor of X in double precision.
+   Computes the floating-point predecessor of the double precision
+   number nearest to X if X is not a double precision number.
+*/
+procedure predDouble(X) {
+	  return round(D(X) - 1b-1076,D,RD);
+};
+
 
 /*	Builds a polynomial of degree not more than maxDegree for the given domains.
 	The whole domain was split into subintervals, this polynomial approximates piecewise-constant function (steps) that gives the number of the subdomain.
@@ -1062,17 +1078,19 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	    rightpoints = revert(rightpoints);
 
 	    oldprec = prec;
-	    prec = 600;
+	    prec = 600!;
 	  
-	    leftpoly = interpole(leftpoints, funcpoints);
-	    rightpoly = interpole(rightpoints, funcpoints);
-    	    prec = oldprec;
+	    leftpoly = roundcoefficients(interpole(leftpoints, funcpoints),[|D...|]);
+	    rightpoly = roundcoefficients(interpole(rightpoints, funcpoints),[|D...|]);
+    	    prec = oldprec!;
 	    
+	    /*
 	   //temp plot
 	    funcpoints = rightpoly.:funcpoints;
 	    funcpoints = leftpoly.:funcpoints;
 	    plot(funcpoints, [infdom,supdom]);	    
-	     
+	    */	     
+
 	    leftderivative = diff(leftpoly);
 	    rightderivative = diff(rightpoly);  
 	    leftderivzeros = dirtyfindzeros(leftderivative, dom);
@@ -1334,7 +1352,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
                    myFunctionName = polynomialBaseName @ "_splitter";
 		   splitterCode = "\n\n";
 		   resOpt.okay = false;
-		   if (checkIfElementsInListAllEqual(outputformats) && (outputformats != [||]) && (length(domains) >= 2)) then {
+		   if (checkIfElementsInListAllEqual(outputformats) && (outputformats != [||]) && (length(domains) >= 2) && (length(domains) <= maxDegreeReconst + 1) && (variableFormat == D)) then {
 		      if (head(outputformats) == myOutputFormat) then {
 		      	 resOpt = tryGeneratePolynomialSplitterReconstruction(myFunctionName, domains, functionNames, variableFormat, myOutputFormat, implementationFile @ ".splitter.temp.c", maxDegreeReconst);
 		      };
