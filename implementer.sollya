@@ -79,8 +79,8 @@ execute("problemdef.sollya");
 
 variableFormat = D;
 
-doplots = true;
-dotiming = true;
+doplots = false;
+dotiming = false;
 savetiming = true;
 timingsavefile = "timing.sollya";
 

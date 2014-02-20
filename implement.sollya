@@ -1129,7 +1129,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	    prec = oldprec!;
 	    print("poly to test = ", poly);
 	   // print("----dom  =", dom);
-	    plot(poly.:funcpoints, dom);
+	    // plot(poly.:funcpoints, dom);
 	    
 	    okay = checkReconstructionPolyOK(poly, domains);
 
@@ -1145,7 +1145,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	       prec = oldprec!;
 	       print("poly = ", poly);
 	       print("----dom  =", dom);	
-	       plot(poly.:funcpoints, dom);
+	       //plot(poly.:funcpoints, dom);
 	       okay = checkReconstructionPolyOK(poly, domains);
 	       if (okay) then {
 	       	  //Don't know if .direction could be useful somewhere. Add it now just for fun.
@@ -1160,7 +1160,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 		 prec = oldprec!;
 		 print("poly = ", poly);
 		 print("-----dom = ", dom);
-		 plot(poly.:funcpoints, dom);
+		 //plot(poly.:funcpoints, dom);
 		 okay = checkReconstructionPolyOK(poly, domains);
 		 if (okay) then {
 		    res = {.okay = true, .direction = "right", .poly = poly};
@@ -1174,7 +1174,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 		   prec = oldprec!;
 		   print("poly = ", poly);
 		   print("-----dom = ", dom);
-		   plot(poly.:funcpoints, dom);
+		   //plot(poly.:funcpoints, dom);
 		   okay = checkReconstructionPolyOK(poly, domains);
 		   if (okay) then {
 		      res = {.okay = true, .direction = "full", .poly = poly};
@@ -1188,7 +1188,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	     res = {.okay = false};
 	  };
 	  print("***res = ", res);
-	  print("***degree(res.poly) = ", degree(res.poly));
+	  if (res.okay) then print("***degree(res.poly) = ", degree(res.poly));
 	  return res;
 };
 
@@ -1232,11 +1232,13 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	    
     	    prec = oldprec!;	    
 	    
+	    /*
 	   //temp plot
 	    funcpoints = rightpoly.:funcpoints;
 	    funcpoints = innerpoly.:funcpoints;
 	    funcpoints = leftpoly.:funcpoints;
 	    plot(funcpoints, [infdom,supdom]);	
+	    */
 
 	    print("*** leftpoly(infdom) = ", leftpoly(infdom), " leftpoly(supdom) = ", leftpoly(supdom));   
 	    print("*** rightpoly(infdom) = ", rightpoly(infdom), " rightpoly(supdom) = ", rightpoly(supdom)); 	    	     
