@@ -1071,8 +1071,7 @@ procedure checkReconstructionPolyOK(poly, domains) {
 	      i = 0;
 	      j = 0;
 	      while (okay && i < length(derivzeros)) do {
-	      	    // I don't handle the case if derivzero[i] is a splitPoint
-	      	    
+	      	    // I don't handle the case if derivzero[i] is a splitPoint	      	    
 	      	    print("----i = ", i, " derivzeros[i] = ", derivzeros[i], "length(domains) = ", length(domains));
 		    while (!stop && j < length(domains)) do {
 		    	  print("--- j = ", j, " domains[j] = ", domains[j]);
@@ -1098,7 +1097,7 @@ procedure checkReconstructionPolyOK(poly, domains) {
  	If it's possible to build such a polynomial result.okay is true and the reconstructed polynomial is in result.poly
 */
 
-procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDegree) {
+procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
 	  var res, continuesearch, poly, funcpoints, leftpoints, rightpoints, N, oldprec, polyderivzeros, dom, okay; 
 
 	  res = {.okay = false};
@@ -1129,7 +1128,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	    prec = oldprec!;
 	    print("poly to test = ", poly);
 	   // print("----dom  =", dom);
-	    // plot(poly.:funcpoints, dom);
+	    //plot(poly.:funcpoints, dom);
 	    
 	    okay = checkReconstructionPolyOK(poly, domains);
 
@@ -1144,7 +1143,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	       poly = roundcoefficients(interpole(leftpoints, funcpoints), [|D...|]);	  
 	       prec = oldprec!;
 	       print("poly = ", poly);
-	       print("----dom  =", dom);	
+	       //print("----dom  =", dom);	
 	       //plot(poly.:funcpoints, dom);
 	       okay = checkReconstructionPolyOK(poly, domains);
 	       if (okay) then {
@@ -1159,7 +1158,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 		 poly = roundcoefficients(interpole(rightpoints, funcpoints), [|D...|]);
 		 prec = oldprec!;
 		 print("poly = ", poly);
-		 print("-----dom = ", dom);
+		 //print("-----dom = ", dom);
 		 //plot(poly.:funcpoints, dom);
 		 okay = checkReconstructionPolyOK(poly, domains);
 		 if (okay) then {
@@ -1173,7 +1172,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 		   poly = roundcoefficients(interpole(inf(dom).:rightpoints, funcpoints), [|D...|]);
 		   prec = oldprec!;
 		   print("poly = ", poly);
-		   print("-----dom = ", dom);
+		   //print("-----dom = ", dom);
 		   //plot(poly.:funcpoints, dom);
 		   okay = checkReconstructionPolyOK(poly, domains);
 		   if (okay) then {
@@ -1193,134 +1192,12 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 };
 
 
-procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
-	  var res, leftpoly, rightpoly, innerpoly, funcpoints, result, leftpoints, rightpoints, leftderivative, rightderivative, leftderivzeros, rightderivzeros, i, j, okay, infdom, supdom, N, continuesearch;
-
-	  res = { .okay = false };
-	  "tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
-  	  N = length(domains);
-	  infdom = inf(domains[0]);
-	  supdom = sup(domains[N-1]);
-	  print("*** infdom = ", infdom, " supdom  = ", supdom, " N = ", N);
-	  okay = true;
-	  continuesearch = true;
-
-	  leftpoints = [| |];
-	  rightpoints = [| |];
-	  funcpoints = [| |];
-	  
-	  if (N >= maxDegree + 1) then {
-	     print("maxDegree is too small");
-	      res = {.okay = false};
-	  } else {
-	    funcpoints = [|0, ... ,  N - 1|];
-   
-	    for i from 0 to N - 1 do {
-	    	leftpoints = inf(domains[i]).:leftpoints;
-		rightpoints = sup(domains[i]).:rightpoints;
-	    };
-
-	    leftpoints = revert(leftpoints);
-	    rightpoints = revert(rightpoints);
-
-	    oldprec = prec!;
-	    prec = 600!;
-	  
-	    leftpoly = roundcoefficients(interpole(leftpoints, funcpoints),[|D...|]);
-	    rightpoly = roundcoefficients(interpole(rightpoints, funcpoints),[|D...|]);
-	    innerpoly = roundcoefficients(interpole(tail(leftpoints), funcpoints), [|D...|]);
-	    
-    	    prec = oldprec!;	    
-	    
-	    /*
-	   //temp plot
-	    funcpoints = rightpoly.:funcpoints;
-	    funcpoints = innerpoly.:funcpoints;
-	    funcpoints = leftpoly.:funcpoints;
-	    plot(funcpoints, [infdom,supdom]);	
-	    */
-
-	    print("*** leftpoly(infdom) = ", leftpoly(infdom), " leftpoly(supdom) = ", leftpoly(supdom));   
-	    print("*** rightpoly(infdom) = ", rightpoly(infdom), " rightpoly(supdom) = ", rightpoly(supdom)); 	    	     
-
-	    leftderivative = diff(leftpoly);
-	    rightderivative = diff(rightpoly);  
-	    leftderivzeros = dirtyfindzeros(leftderivative, [infdom,supdom]);
-	    rightderivzeros = dirtyfindzeros(rightderivative, [infdom,supdom]);
-
-	    print("-----leftderivzeros = ", leftderivzeros);
-	    print("-----rightderivzeros = ", rightderivzeros);
-	     
-	    if ((rightpoly(supdom) > N) || (rightpoly(infdom) < -1) || (rightpoly(infdom) > 0)) then {
-	        print("***right jumps");
-		continuesearch = true;
-	    } else {
-	       if (length(rightderivzeros) == 0) then {
-	       	  continuesearch = false;
-		  res =  {.okay = true, .direction = "right", .poly = rightpoly};
-	       } else {
-	         print("*** right derivative has zeros");
-		 i = 0;		    
-		 j = 0;
-		 okay = true;
-		 while (i < length(rightderivzeros) && okay) do {
-		       continueloop = true;
-		       while (continueloop && (j < N - 1)) do {
-		       	     print("***i = ", i, " j = ", j, " rightderivzeros[i] = ", rightderivzeros[i], " domains[j] = ", domains[j]);
-			     continueloop = (rightderivzeros[i] in domains[j]) &&  (!(rightderivzeros[i] in domains[j+1]));
-			     j = j + 1;
-		       };
-		       okay = okay && ( D(rightpoly(rightderivzeros[i])) >= j-1  && D(rightpoly(rightderivzeros[i])) < j );
-		       i = i + 1;
-		 };
-		 if (okay) then {
-		    res = {.okay = true, .direction = "right", .poly = rightpoly};
-		 } else {
-		    res = {.okay = false};
-		 };
-	       };
-	     };
-
-	     if (continuesearch) then {
-	     	if (leftpoly(infdom) < 0  || leftpoly(supdom) >= N + 1 || leftpoly(supdom) < N) then {
-		   print("***left jumps");
-		   res = {.okay = false};
-		} else {
-		  if (length(leftderivzeros) == 0) then {
-		     continuesearch = false;
-		     res = {.okay = true, .direction = "left", .poly = leftpoly};
-		  } else {
-		      i = 0;
-		      j = 0;
-		      okay = true;
-		      while ( (i < length(leftderivzeros)) && okay) do {
-			    continueloop = true;
-			    while (continueloop && (j < N-1)) do {
-				  continueloop = (leftderivzeros[i] in domains[j]) &&  (!(leftderivzeros[i] in domains[j+1])) ;	
-				  j = j + 1;
-			    };
-			    okay = okay && ( D(leftpoly(leftderivzeros[i])) >= j-1  && D(leftpoly(leftderivzeros[i])) < j);	   
-			    i = i + 1;
-			};
-			if (okay) then {
-			   res = {.okay = true, .direction = "left", .poly = leftpoly};
-			} else {
-			   res = {.okay = false};
-			};
-		  };
-		};
-	     };
-	  };
-	  print("***res = ", res);
-	  return res;
-};
-
 procedure tryGeneratePolynomialSplitterReconstruction(functionName, domains, reducedFunctionNames, variableFormat, outputFormat, tempFile, maxDegree) {
 	  var res;
 	  var resPoly;
 
 	  res = { .okay = false };
-	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDegree);	  
+	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);	  
 	  if (resPoly.okay) then {
 
 	     "The reconstruction polynomial is ", resPoly.poly;
