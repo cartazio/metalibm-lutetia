@@ -1,7 +1,7 @@
 f = atan(x);
 dom = [-5,5];
 target = 1b-45;
-maxDegree = 10;
+maxDegree = 5;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;
