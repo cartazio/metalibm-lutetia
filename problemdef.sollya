@@ -1,6 +1,6 @@
 f = atan(x);
 dom = [-5,5];
-target = 1b-24;
+target = 1b-45;
 maxDegree = 10;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
