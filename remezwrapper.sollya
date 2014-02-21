@@ -331,7 +331,7 @@ procedure remezbugreport(f,m,d,w,eps) {
 	  var oldDisplay;
 	  var remezTime;
 	  var myM;
-	  var cacheRes, bound;
+	  var cacheRes, bound, targetPrec;
 
 	  myDom = d;
 	  if ((inf(d) == 0) || (sup(d) == 0)) then {
@@ -370,7 +370,12 @@ procedure remezbugreport(f,m,d,w,eps) {
 	     oldpoints = points = ?;
 	     points = max(65, 4 * max(myM))!;
 	     oldprec = prec = ?;
-	     prec = min(300, prec)!;
+	     if (abs(targetErr) > 0) then {
+	     	targetPrec = ceil(-log2(abs(targetErr))) + 10;
+	     } else {
+	        targetPrec = 12;
+	     };	     
+	     prec = min(300, max(prec, targetPrec))!;
 	     oldverb = verbosity = ?;
 	     verbosity = 1!;
 
