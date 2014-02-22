@@ -1434,7 +1434,6 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  return resultat;
 };
 
-
 /* Compute an ordered list of points x_i in the given domain dom, such that 
    on all subdomains S_i created by these splitpoints func can be approximated
    with a relative error no greater than target with polynomials of degree no 
@@ -1511,7 +1510,7 @@ procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth
 procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, minWidth, currSplitPointsList, currDegreeList) {
 	  var res, m, left, right, leftdeg, domdeg, currRes, found;
 
-	  "computeDomainSplittingOptimizedInner(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", currSplitPointsList, ", ", currDegreeList, ")";
+	 // "computeDomainSplittingOptimizedInner(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", currSplitPointsList, ", ", currDegreeList, ")";
 	  
 	  domdeg = checkIfSufficientDegreeOptimized(func, dom,  maxDegree, target);
 	  if (domdeg.okay == false) then {
@@ -1550,6 +1549,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 		   res.deg = currDegreeList;
 		   right = [(currRes.splitPoint), sup(right)];  
 		   if ((sup(right) - inf(right)) > 0) then {
+		      		print("inside recursive call");   
 		     		currRes = computeDomainSplittingOptimizedInner(func, right, maxDegree, target, minWidth, currSplitPointsList, currDegreeList);
 				res.splitPoints = res.splitPoints @ currRes.splitPoints;
 				res.deg = res.deg @ currRes.deg; 
@@ -1576,7 +1576,8 @@ procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 
 	  delta = round(((sup(left) - inf(left)) / 3), D, RD);
 	  newleft = left; //[ inf(left), sup(left) + delta ];
-	  while (delta > 5 * minWidth && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is 5*minWidth
+	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!; 
+	  while (delta >  minWidth/10 && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is minWidth. Sometimes changing this bound from 2*minWidth to 5*minWidth gives 10 more subdomains. The less is the bound, least domains we get.
 	  	print("delta = ", delta);
 	  	newleft = [ inf(newleft), sup(newleft) + delta ];
 	  	leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
@@ -1593,6 +1594,7 @@ procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 		  delta = round(delta/2, D, RD);
 		};
 	  };
+	  print("leftdeg here is", leftdeg);
 	  res = leftdeg;
 	  res.splitPoint = D(sup(newleft));
 	  print("after new version of tryToIncrease, res = ", res);
