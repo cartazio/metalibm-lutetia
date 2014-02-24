@@ -1050,15 +1050,17 @@ procedure checkReconstructionPolyOK(poly, domains) {
 	  okay = true;
 	  N = length(domains);
 	  dom =  [inf(domains[0]), sup(domains[N-1])];
-	//  print("N = ", N);
+
 	  infpoly = poly(inf(dom));
 	  suppoly = poly(sup(dom));
-	  print("poly(inf) = ", infpoly, "\npoly(sup) = ", suppoly);
-	  //print("floors poly(inf) = ", floor(infpoly), "\npoly(sup) = ", floor(suppoly));
-	  //print("ceils poly(inf) = ", ceil(infpoly), "\npoly(sup) = ", ceil(suppoly));
+	  //print("poly(inf) = ", D(infpoly), "\npoly(sup) = ", suppoly);
 	  
 	  if ( infpoly < 0 || infpoly >= 1 || suppoly < N - 1 || suppoly > N ) then {
-	     print("poly jumps");
+	     if (infpoly < 0 || infpoly >= 1) then {
+	     	print("poly(inf) has to be between 0 and 1; real value is about", D(infpoly));
+	     } else {
+		   print("poly(sup) has to be between ", N-1 , " and ", N, " real value is about", D(suppoly));	    
+ 	     };
 	     res = false;
 	  } else {
 	    derivzeros = dirtyfindzeros(diff(poly), dom);
@@ -1091,6 +1093,18 @@ procedure checkReconstructionPolyOK(poly, domains) {
 	  return res;
 };
 
+procedure buildReconstructPoly(xpoints, ypoints, formatlist) {
+	  var poly, oldprec;
+	  
+	  oldprec = prec;
+	  prec = 600!;
+	  poly = roundcoefficients(interpole(xpoints, ypoints), formatlist);	  
+	  prec = oldprec!;
+	  print("poly to test = ", poly);
+
+	  return poly;	  
+};
+
 
 /*	Builds a polynomial of degree not more than maxDegree for the given domains.
 	The whole domain was split into subintervals, this polynomial approximates piecewise-constant function (steps) that gives the number of the subdomain.
@@ -1102,11 +1116,11 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 
 	  res = {.okay = false};
 	  continuesearch = true;
-  	  "2 tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
+  	 // "tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
 	  
   	  N = length(domains);
 	  dom =  [inf(domains[0]), sup(domains[N-1])];
-	  "---innerpoly!";
+	  "I am trying innerpoly";
 	  
 	  if (maxDegree < N - 1) then {
 	     print("there is no possible polynomial to build. Try to increase the maxDegree");
@@ -1122,12 +1136,8 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	    leftpoints = revert(leftpoints);	
 	    rightpoints = revert(rightpoints);
 	    funcpoints = [|1, ..., N - 1|];
-	    oldprec = prec;
-	    prec = 600!;
-	    poly = roundcoefficients(interpole(tail(leftpoints), funcpoints), [|D...|]);	  
-	    prec = oldprec!;
-	    print("poly to test = ", poly);
-	   // print("----dom  =", dom);
+	    poly = buildReconstructPoly(tail(leftpoints), funcpoints, [|D...|]);	  
+	    // print("----dom  =", dom);
 	    //plot(poly.:funcpoints, dom);
 	    
 	    okay = checkReconstructionPolyOK(poly, domains);
@@ -1138,11 +1148,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	       // inner poly was not ok, need to add some point and recompute.
 	       print("i will try to add the inf point and restart searching the polynomial");
 	       funcpoints = [|0, ..., N - 1|];
-	       oldprec = prec;
-	       prec = 600!;
-	       poly = roundcoefficients(interpole(leftpoints, funcpoints), [|D...|]);	  
-	       prec = oldprec!;
-	       print("poly = ", poly);
+	       poly = buildReconstructPoly(leftpoints, funcpoints, [|D...|]);
 	       //print("----dom  =", dom);	
 	       //plot(poly.:funcpoints, dom);
 	       okay = checkReconstructionPolyOK(poly, domains);
@@ -1153,11 +1159,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	       	 //Try right poly here!
 		 print("i am trying to build right polynomial");
 		 funcpoints = [|1, ..., N|];
-		 oldprec = prec;
-		 prec = 600!;
-		 poly = roundcoefficients(interpole(rightpoints, funcpoints), [|D...|]);
-		 prec = oldprec!;
-		 print("poly = ", poly);
+		 poly = buildReconstructPoly(rightpoints, funcpoints, [|D...|]);		 
 		 //print("-----dom = ", dom);
 		 //plot(poly.:funcpoints, dom);
 		 okay = checkReconstructionPolyOK(poly, domains);
@@ -1167,11 +1169,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 		   //Full poly. Try to add all points and check
 		   print("poly built by all points");
 		   funcpoints = [| 0, ... , N |];
-		   oldprec = prec;
-		   prec = 600!;
-		   poly = roundcoefficients(interpole(inf(dom).:rightpoints, funcpoints), [|D...|]);
-		   prec = oldprec!;
-		   print("poly = ", poly);
+		   poly = buildReconstructPoly(inf(dom).:rightpoints, funcpoints, [|D...|]);	
 		   //print("-----dom = ", dom);
 		   //plot(poly.:funcpoints, dom);
 		   okay = checkReconstructionPolyOK(poly, domains);
@@ -1482,6 +1480,7 @@ procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth
 
 	  "computeDomainSplittingOptimized(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
 
+	  res = {.okay = false};
 	  /* The procedure checkIfSufficientDegreeOptimized(func, dom, maxDegree, target) is your friend 
 
 	     It checks if func can be approximated over dom with a degree no greater than
@@ -1527,7 +1526,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 	      	 print("Split is needed, But I can't do it, because the current interval is too small");
 	      	 res =  { .okay = false };
 	      } else {	      
-	      	print("---wanna compute split, I will try to divide current dom by 2 in order to find the largest left acceptable subdomain");
+	     // 	print("---wanna compute split, I will try to divide current dom by 2 in order to find the largest left acceptable subdomain");
 		found = false;
 		m = D(mid(dom));	
 		left = dom;
@@ -1536,7 +1535,11 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 		      left = [ inf(dom), m ];
 		      right = [ m, sup(dom) ];
 		      leftdeg = checkIfSufficientDegreeOptimized(func, left, maxDegree, target);
-		      found = leftdeg.okay && leftdeg.sufficientDegree;
+		      if (leftdeg.okay) then {
+		      	 found = leftdeg.sufficientDegree;
+		      } else {
+		      	found = false;
+		      };
 		};	
 		if (found) then {
 		   print("---I've found the longest interval on the left");
@@ -1549,7 +1552,6 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 		   res.deg = currDegreeList;
 		   right = [(currRes.splitPoint), sup(right)];  
 		   if ((sup(right) - inf(right)) > 0) then {
-		      		print("inside recursive call");   
 		     		currRes = computeDomainSplittingOptimizedInner(func, right, maxDegree, target, minWidth, currSplitPointsList, currDegreeList);
 				res.splitPoints = res.splitPoints @ currRes.splitPoints;
 				res.deg = res.deg @ currRes.deg; 
@@ -1568,7 +1570,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 	  var res, leftdeg, delta, newleft;
 	  
-	  "****tryToIncreaseSplit(", func, ", ", left, ", ", rest, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
+	  //"tryToIncreaseSplit(", func, ", ", left, ", ", rest, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
 	  // For this moment we are sure that there is an approximating polynomial on the left with a degree <= maxDegree,
 	  // we are interested in the largest intervals, so we'll try to enlarge left.
 	  // As on the previous steps before calling this function we have divided interval by 2 in order to get the left, we'll try to 
@@ -1578,7 +1580,7 @@ procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 	  newleft = left; //[ inf(left), sup(left) + delta ];
 	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!; 
 	  while (delta >  minWidth/10 && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is minWidth. Sometimes changing this bound from 2*minWidth to 5*minWidth gives 10 more subdomains. The less is the bound, least domains we get.
-	  	print("delta = ", delta);
+	  //	print("delta = ", delta);
 	  	newleft = [ inf(newleft), sup(newleft) + delta ];
 	  	leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
 		while (leftdeg.okay && leftdeg.sufficientDegree) do {
@@ -1594,10 +1596,10 @@ procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 		  delta = round(delta/2, D, RD);
 		};
 	  };
-	  print("leftdeg here is", leftdeg);
+	  //print("leftdeg here is", leftdeg);
 	  res = leftdeg;
 	  res.splitPoint = D(sup(newleft));
-	  print("after new version of tryToIncrease, res = ", res);
+	  //print("after new version of tryToIncrease, res = ", res);
 
 	  return res;
 };
