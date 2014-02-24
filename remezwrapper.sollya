@@ -223,7 +223,7 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	             if (poly == false) then res = inf(guess);
 		};
             } else {
-    	        res = inf(guess);
+    	        res = ceil(mid(guess));
             };
 	  };
 
