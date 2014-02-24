@@ -370,8 +370,8 @@ procedure remezbugreport(f,m,d,w,eps) {
 	     oldpoints = points = ?;
 	     points = max(65, 4 * max(myM))!;
 	     oldprec = prec = ?;
-	     if (abs(targetErr) > 0) then {
-	     	targetPrec = ceil(-log2(abs(targetErr))) + 10;
+	     if (abs(eps) > 0) then {
+	     	targetPrec = ceil(-log2(abs(eps))) + 10;
 	     } else {
 	        targetPrec = 12;
 	     };	     

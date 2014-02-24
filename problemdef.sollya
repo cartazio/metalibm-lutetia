@@ -1,13 +1,13 @@
 f = atan(x);
 dom = [-5,5];
 target = 1b-45;
-maxDegree = 5;
+maxDegree = 12;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
 performExpressionDecomposition = 1;
 adaptWorkingPrecision = true;
-maxDegreeReconstruction = 30;
+maxDegreeReconstruction = 40;
 
 
