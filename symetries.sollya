@@ -27,13 +27,14 @@
 */
 
 
-procedure testEvenSymetry(func, dom, target) {
+procedure testEvenSymetry(func, dom, target, defdom) {
 	  var res;
 	  var a, possibleBs, fa, possibleRawBs, pbs, possibleRawBs2;
 	  var t;
 	  var errSym;	
 	  var shiftedFunc, shiftedDom;
 	  var olddiam;
+	  var accessDomMinus;
 
 	  a := (3 * inf(dom) + sup(dom))/4;
 	  fa := func(a);
@@ -56,11 +57,16 @@ procedure testEvenSymetry(func, dom, target) {
 	     t := D((a + b) / 2);
 	     shiftedFunc = horner(func(x + t));
 	     shiftedDom = [inf(dom) - t; sup(dom) - t];
-	     errSym = mydirtyinfnorm(shiftedFunc(-x)/shiftedFunc(x) - 1, shiftedDom);
-	     if (errSym <= abs(target)) then {
-                res = t;
+	     accessDomMinus = -shiftedDom + t;
+	     if (accessDomMinus in (1 + 1b-50) * defDom) then {
+	     	errSym = mydirtyinfnorm(shiftedFunc(-x)/shiftedFunc(x) - 1, shiftedDom);
+	     	if (errSym <= abs(target)) then {
+                   res = t;
+	     	} else {
+	           res = false;
+	     	};
 	     } else {
-	        res = false;
+	       res = false;
 	     };
 	  } else {
 	     res = false;

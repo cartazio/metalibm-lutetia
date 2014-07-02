@@ -637,7 +637,7 @@ procedure implementcentered(func, dom, target, beta, variableFormat, galoptimize
    No test for this condition is made.
 
 */
-procedure implementsmall(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName) {
+procedure implementsmall(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName, defdom) {
 	  var res;
 	  var zerosInInterval, zerosInIntervalRaw, zr, midpoint, zerosInIntervalTemp, zerosInIntervalRaw2;
 	  var smallestAbsZero;
@@ -652,7 +652,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  var PstarOrig;
 	  var nrm;
 
-	  /* write("implementsmall(",func,",", dom,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialName,")\n"); */
+	  write("implementsmall(",func,",", dom,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialName,",",defdom,")\n");
 
 	  galoptimizedMonomials = [||];
 	  okay = true;
@@ -683,7 +683,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	     	       if (~abs(func(zr)) < ~abs(func(smallestAbsZero))) then smallestAbsZero = zr;
 	           midpoint := D(smallestAbsZero);
 	       } else {
-	           symetrypoint = testEvenSymetry(func, dom, 1b-10);
+	           symetrypoint = testEvenSymetry(func, dom, 1b-10, defdom);
 		   if (symetrypoint != false) then {
 		      write("Even symmetry dectected\n");
 		      midpoint := D(symetrypoint);
@@ -821,14 +821,14 @@ procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polyn
    No test for this condition is made.
 
 */
-procedure implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName) {
+procedure implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName, defdom) {
 	  var res, resultat, outputFormat, resShifter;
 
 	  resultat = { .okay = false };
 
 	  write("Starting to implement f = ", func, " on dom = ", dom, " with polynomial approximation\n");
 
-	  res = implementsmall(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName);
+	  res = implementsmall(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName, defdom);
 
 	  if (res[0]) then {
 	     /* Get the information returned by the implementer function working on a small interval */
@@ -1251,7 +1251,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  doElseCase = true;
 	  if (splitPoints == [||]) then {
 	     doElseCase = false;
-	     resultat = implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName);
+	     resultat = implementsmallwithcentering(func, dom, target, beta, variableFormat, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialBaseName, definitionDomain);
 
 	     if (!(resultat.okay)) then {
 	     	/* The implementation did not work out.
@@ -1305,7 +1305,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 		   write("\nStarting implementation on subdomain ",myDom,"\n");
 		   mySuffix = "_subdomain_" @ i ;
 		   myImplementationFile = implementationFile @ mySuffix;
-		   res = implementsmallwithcentering(func, myDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix);
+		   res = implementsmallwithcentering(func, myDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix, definitionDomain);
 		   if (res.okay) then { 
 		      	 print("~~~subdom = ", myDom);
 		         write("Subdomain ",myDom," done\n");
@@ -1332,7 +1332,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 			if ((inf(myDom) == 0) || (sup(myDom) == 0)) then {
 			   if (symmetrizedDom in definitionDomain) then {
 			      write("Using symmetrized domain around 0 instead of original domain to exploit symmetries of the function\n");
-			      res = implementsmallwithcentering(func, symmetrizedDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix);
+			      res = implementsmallwithcentering(func, symmetrizedDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix, definitionDomain);
       		              if (res.okay) then {
 			      	 print("~~~subdom = ", myDom);
 		                 write("Subdomain ",myDom," done\n");
