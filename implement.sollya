@@ -1020,10 +1020,13 @@ interpoleWithTab = proc(X,ddTab) { var n,p,i;
 
 interpole = proc(X,Y) { var ddTab;
                         ddTab = ddCompute(X,Y);
+		//	print("***** in interpole, x = ", X, " y = ", Y);
                         return interpoleWithTab(X,ddTab);
 };
 
 /* End of the interpolation routines */
+
+
 
 /* Computes the floating-point successor of X in double precision.
    Computes the floating-point successor of the double precision
@@ -1042,69 +1045,172 @@ procedure predDouble(X) {
 };
 
 
-procedure checkReconstructionPolyOK(poly, domains) {
-	  var res, N, dom, infpoly, suppoly, i, j, stop, okay;
-
-	  res = false;
+procedure checkReconstructionPolyOK(poly, domains, n) {
+	  var res, N, dom, infpoly, suppoly, i, j, found, okay, newpoly, imageInterval, maxdelta, maxi, maxj;
+	  "checkReconstructionPolyOK(", poly,", ", domains, ", ",  n, ");";
+	  res = {.okay = false};
 	  stop = false;
 	  okay = true;
 	  N = length(domains);
 	  dom =  [inf(domains[0]), sup(domains[N-1])];
+	  maxdelta = 0.0;
+	  maxi = -1;
 
 	  infpoly = poly(inf(dom));
 	  suppoly = poly(sup(dom));
-	  //print("poly(inf) = ", D(infpoly), "\npoly(sup) = ", suppoly);
+	  derivzeros = dirtyfindzeros(diff(poly), dom);	
+	  print("derivzeros = ", derivzeros);
+	  "n = ", n;
+	  i = 0; okay = true;
+	  while (okay && i < N) do {
+	      imageInterval  = dirtyEvaluateImage(poly, [succDouble(inf(domains[i])), predDouble(sup(domains[i]))]);
+	      print("domains[i] = ", domains[i], "f(domains[i]) = ", imageInterval, imageInterval in [i-n, i+1-n]);
+	      print("poly(inf(domains[i])) = ", ~poly(inf(domains[i])), " poly(sup(domains[i])) = ", ~poly(sup(domains[i])));
+	    //  print("inf(imageInterval) = ", inf(imageInterval), " sup(imageInterval) = ", sup(imageInterval));
+	    //  print("inf(imageInterval) >= i-n ", inf(imageInterval) >= i-n, " sup(imageInterval) < i + 1-n ", sup(imageInterval) < i + 1-n);
+	      okay = okay && (inf(imageInterval) >= i -n) && (sup(imageInterval) < i + 1-n);
+	      okay = okay && (poly(inf(domains[i])) >= i - n - 1) && (poly(sup(domains[i])) < i - n + 1); // to consider splitpoints
+	      print("okay = ", okay);
+	      i = i+1;
+	  };	  
 	  
-	  if ( infpoly < 0 || infpoly >= 1 || suppoly < N - 1 || suppoly > N ) then {
-	     if (infpoly < 0 || infpoly >= 1) then {
-	     	print("poly(inf) has to be between 0 and 1; real value is about", D(infpoly));
+	  if (! okay) then {
+	     if (length(derivzeros) > 0) then {
+	     	i = 0;
+		j = 0;
+		found = false;
+		while (i < length(derivzeros)) do {
+		      "i = ", i, " derivzeros[i] = ", derivzeros[i], " poly(derivzeros[i]) = ", poly(derivzeros[i]);
+		      j= 0;
+		      while ( (j < N)  && (! (derivzeros[i] in domains[j])) /*&& (! (found))*/) do {	      
+		      	    j = j + 1;
+		      	  /* "j = ", j, " domains[j] = ", domains[j];
+		      	   found = found  || (!(poly(derivzeros[i]) in [j - n, j + 1 - n]));
+			   "found = ", found;
+			   if (found && abs(j - n - 0.5 - poly(derivzeros[i])) > maxdelta) then {
+			      maxdelta = abs(j - n - 0.5 - poly(derivzeros[i]));
+			      maxi = i;
+			      maxj = j;
+			      print("maxdelta = ", ~maxdelta, " maxi = ", maxi, " maxj = ", maxj);
+			   };			   
+			   print("found = ", found, " maxi = ", maxi);
+			   j = j + 1; */
+		      };
+		      "after loop on domains j = ", j;
+		      if (!(poly(derivzeros[i]) in [j - n, j + 1 - n])) then {
+		      	 "maxdelta = ", maxdelta;			 
+			 if (abs(j - n + 0.5 - poly(derivzeros[i])) > maxdelta) then {
+			      maxdelta = abs(j - n - 0.5 - poly(derivzeros[i]));
+			      maxi = i;
+			      maxj = j;
+			      print("maxdelta = ", ~maxdelta, " maxi = ", maxi, " maxj = ", maxj);
+			   };	
+		      };
+		      i = i + 1;
+		};
+		if (maxdelta > 0) then {
+		   res = {.okay = false, .addPoint = true, .xpoint = derivzeros[maxi], .ypoint = (-1) / (inf(domains[maxj]) - sup(domains[maxj])) * (derivzeros[maxi] - sup(domains[maxj])) + maxj  + 1 };
+		} else {
+		  res = {.okay = false, .addPoint = false};
+		};
 	     } else {
-		   print("poly(sup) has to be between ", N-1 , " and ", N, " real value is about", D(suppoly));	    
- 	     };
-	     res = false;
+	       res = {.okay = false, .addPoint = false};
+	     };	     
 	  } else {
-	    derivzeros = dirtyfindzeros(diff(poly), dom);
-	    if (length(derivzeros) == 0) then {
-	       print("this polynomial does not jump, all its derivatives are non-zero => we take it!");
-	       res = true;
-	    } else {
-	      print("!!!!!!!!!!!!!There were some zero derivatives");
-	      print("-----derivzeros = ", derivzeros);	    
-	      i = 0;
-	      j = 0;
-	      while (okay && i < length(derivzeros)) do {
-	      	    // I don't handle the case if derivzero[i] is a splitPoint	      	    
-	      	    print("----i = ", i, " derivzeros[i] = ", derivzeros[i], "length(domains) = ", length(domains));
-		    while (!stop && j < length(domains)) do {
-		    	  print("--- j = ", j, " domains[j] = ", domains[j]);
-		    	  stop = /*continueloop && */(derivzeros[i] in domains[j]);
-			  print("continueloop = ", stop);		  
-			  j = j + 1;
-		    };
-		    j = j-1;
-		    print("After the loop! j = ", j, " domains[j] = ", domains[j]);
-		    okay = okay && (poly(derivzeros[i]) >= j  ) && (poly(derivzeros[i]) < j + 1 );
-		    print("poly(derivzeros[i]) = ", poly(derivzeros[i]));
-		    i = i + 1;
-	      };
-	      res = okay; 
-	    };
+	    res = {.okay = true};
 	  };
+	  
+	  "result in checkReconstruct = ", res;
 	  return res;
 };
 
 procedure buildReconstructPoly(xpoints, ypoints, formatlist) {
-	  var poly, oldprec;
+	  var poly, oldprec, polyWithoutRounding, n, i;
 	  
+	  n = xpoints[0];
+	  fn = ypoints[0];
+	  for i from 1  to length(xpoints) - 1 do {
+	      if (abs(xpoints[i]) < abs(n)) then {
+	      	 n = xpoints[i];
+		 fn = ypoints[i];
+		 };
+	  };
+	  for i from 0  to length(xpoints) - 1 do {
+	      ypoints[i] = ypoints[i] - fn;
+	  };     
 	  oldprec = prec;
 	  prec = 600!;
 	  poly = roundcoefficients(interpole(xpoints, ypoints), formatlist);	  
+	  polyWithoutRounding = interpole(xpoints, ypoints);
+	//  "polyWithoutRounding = ", polyWithoutRounding;
 	  prec = oldprec!;
-	  print("poly to test = ", poly);
-
-	  return poly;	  
+	  return {.poly = poly, .fn = fn};
 };
 
+
+procedure buildAndCheck(domains, name) {
+	  var i, res, buildRes, checkRes, xpoints, ypoints, N;
+
+	  res = {.okay = false, .name = name};
+	  N = length(domains);
+	  xpoints = [| |];
+	  "direction = ", name;
+	  if (name == "inner") then {
+	     for i from 1 to N - 1 do {
+	     	 xpoints = inf(domains[i]) .: xpoints; 
+	     };
+	     xpoints = revert(xpoints);	
+	     ypoints = [| 1, ..., N - 1 |];
+	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
+	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
+	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK2");
+	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
+	     res.poly = buildRes.poly;
+	     res.direction = name;	     
+	  };
+	  if (name == "left") then {
+	    for i from 0 to N - 1 do {
+	     	 xpoints = inf(domains[i]) .: xpoints; 
+	     };
+	     xpoints = revert(xpoints);	
+	     ypoints = [| 0, ..., N - 1 |];
+	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
+	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
+	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
+	     res.poly = buildRes.poly;
+	     res.direction = name;
+	  };
+	  if (name == "right") then {
+	     for i from 0 to N - 1 do {
+	     	 xpoints = sup(domains[i]) .: xpoints; 
+	     };
+	     xpoints = revert(xpoints);	
+	     ypoints = [| 1, ..., N  |];
+	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
+	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]); 
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK1");
+	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
+	     res.poly = buildRes.poly;
+	     res.direction = name;
+	  };
+	  if (name == "all") then {
+	     for i from 0 to N - 1 do {
+	     	 xpoints = sup(domains[i]) .: xpoints; 
+	     };
+	     xpoints = revert(xpoints);	
+	     xpoints = inf(domains[0]).:xpoints;
+	     ypoints = [| 0, ..., N  |];
+	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
+	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
+	    // plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyJump");
+	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
+	     "after check reconstruct, all points";
+	     res.poly = buildRes.poly;
+	     res.direction = name;
+	  };
+
+	  return res;
+};
 
 /*	Builds a polynomial of degree not more than maxDegree for the given domains.
 	The whole domain was split into subintervals, this polynomial approximates piecewise-constant function (steps) that gives the number of the subdomain.
@@ -1112,11 +1218,229 @@ procedure buildReconstructPoly(xpoints, ypoints, formatlist) {
 */
 
 procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
-	  var res, continuesearch, poly, funcpoints, leftpoints, rightpoints, N, oldprec, polyderivzeros, dom, okay; 
+	  var res, direction, N, tmpres, buildres, stablepoly, currdegree, xpoints, ypoints, stablepolydeg;	  /*
+	  //"tryGeneratePolynomialSplitterReconstructionPolynomial(", domains, ", ", maxDegree, ")";
+	  direction = "inner"; 
+	  stablepoly = 0;
+	  stablepolydeg = 0;
+	  res = {.okay = false};
+	  N = length(domains);
+	  tmpres = buildAndCheck(domains, direction);
+	  "tmpres = ", tmpres;
+	  currdegree = N - 3;
+	  if (tmpres.okay) then {
+	     stablepoly = tmpres.poly;
+	     res = tmpres;
+	  } else {
+	    direction = "left";
+	    tmpres = buildAndCheck(domains, direction);
+	    "tmpres = ", tmpres;
+	    currdegree = N - 2;
+	    if (tmpres.okay) then {
+	       stablepoly = tmpres.poly;
+	       res = tmpres;
+	    } else {
+	      direction = "right";
+	      tmpres = buildAndCheck(domains, direction);
+	      currdegree = N - 1;
+	      "tmpres = ", tmpres;
+	      if (tmpres.okay) then {
+	         "right stable";
+	      	 stablepoly = tmpres.poly;
+	       	 res = tmpres;	      
+	      } else {	      	  
+		  // right not okay
+	          ypoints = [| 0, ... , N -1 |];		  
+	  	  xpoints = [| |]; 
+		  for i from (N - 1) to 0 by -1 do {
+		      xpoints = sup(domains[i]).:xpoints;
+		  };
+	      	direction = "all";
+		currdegree = N - 1;
+		tmpres = buildAndCheck(domains, direction);
+		"affter build and check call";
+		ypoints = [| 0, ... , N |];
+		"tmpres = ", tmpres;
+		if (tmpres.okay) then {
+		   "all stable";
+		   stablepoly = tmpres.poly;
+		   res = tmpres;
+		   currdegree = N ;
+		} else {
+		  ypoints = [| 0, ... , N |];		  
+	  	  xpoints = [| |]; 
+		  for i from (N - 1) to 0 by -1 do {
+		      xpoints = sup(domains[i]).:xpoints;
+		  };
+		  xpoints = (inf(domains[0])).:xpoints;
+
+		  while (currdegree < maxDegree && (!(tmpres.okay) && (tmpres.addPoint))) do {
+		  	currdegree = currdegree + 1;
+  	
+		  	xpoints = sort((tmpres.xpoint).:xpoints);
+		  	ypoints = sort((tmpres.ypoint).:ypoints);
+		  	buildres = buildReconstructPoly(xpoints, ypoints,  [|D...|]);
+		  
+		  	tmpres = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn);
+		  	"after adding a point tmpres = ", tmpres;		  
+		  };
+		  res = tmpres;
+		  "stablepoly = ", stablepoly;
+		  "currdegree = ", currdegree;
+		  "(stablepoly != 0) ", (stablepoly != 0);
+		  "(stablepoly != 0) ", (stablepoly != 0);
+		  " (currdegree > stablepolydeg) ", (currdegree > stablepolydeg);
+
+		  if ((stablepoly != 0) && (currdegree > stablepolydeg)) then {
+		     res.poly = stablepoly;		    
+		  };
+		}; // else
+	      };	    
+	    }; // else left !OK
+	  }; // else inner !OK
+	  print("res = ", res);*/
+	  return res;
+};
+
+/*
+procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDegree) {
+	  var res, N, dom, currDegree, poly, stablepoly, i, buildres, checkRes, leftpoints, rightpoints, currPoints, ypoints;
+
+	  res = {.okay  = false};
+   	  N = length(domains);
+	  dom =  [inf(domains[0]), sup(domains[N-1])];
+	  if (maxDegree < N - 3) then {
+	     print("there is no possible polynomial to build. Try to increase the maxDegree");
+	     res = {.okay = false};
+	  } else {
+	    leftpoints = [| |];
+	    rightpoints = [| |];
+	    for i from 0 to N - 1 do {
+	    	leftpoints = inf(domains[i]).:leftpoints;
+	    	rightpoints = sup(domains[i]).:rightpoints;
+	    };
+	    leftpoints = revert(leftpoints);
+	    rightpoints = revert(rightpoints);
+	    currPoints = tail(leftpoints);
+
+	    //test inner poly first
+	    ypoints = [| 1, ..., N - 1 |];
+	    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+	    currDegree = N - 3;
+	    poly = buildres.poly;
+	    //plot(poly.:ypoints + buildres.fn, dom);
+	    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
+	    print("check Result for inner = ", checkRes);
+	    if (checkRes.okay) then {
+	       stablepoly = poly;
+	       res = {.okay = true, .direction = "inner", .poly = stablepoly};
+	    } else { 	   
+	      	//try with leftpoly!
+		currPoints = leftpoints;
+		ypoints = [| 0, ... , N - 1|];
+		buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+		currDegree = N - 2;		
+		poly = buildres.poly;
+	    	//plot(poly.:ypoints + buildres.fn, dom);
+		checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
+		print("check Result for left = ", checkRes);
+		if (checkRes.okay) then {
+		   stablepoly = poly;
+		   res = {.okay = true, .direction = "left", .poly = stablepoly};
+		} else {
+		  while (currDegree <= maxDegree && checkRes.addPoint && (!(checkRes.okay)) &&  (currDegree - N + 2 < 5)) do {
+	      	    "!!i am adding points";
+	      	    currPoints = sort(checkRes.xpoint.:currPoints);
+		    ypoints = sort(checkRes.ypoint.:ypoints);
+		    "curPoints = ", currPoints, " ypoints = ", ypoints;
+		    currDegree = currDegree + 1;
+		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+		    //plot((buildres.poly).:ypoints, dom);
+		    checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 	      	    
+	      	  };
+		  if (checkRes.okay) then {
+		     stablepoly = buildres.poly;
+		     res = {.okay = true, .direction = "leftWithAddPoints", .poly = stablepoly};
+		  } else {
+		    //try rightpoly
+		    currPoints = rightpoints;
+		    ypoints = [|1, ..., N|];
+		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+		    currDegree = N - 2;		
+		    poly = buildres.poly;
+	    	    plot(poly.:ypoints + buildres.fn, dom);
+		    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
+		    print("check Result for right = ", checkRes);	
+		    
+		    if (checkRes.okay) then {
+		       stablepoly = poly;
+		       res = {.okay = true, .direction = "left", .poly = stablepoly};
+		    } else {
+		    while (currDegree <= maxDegree && checkRes.addPoint && (!(checkRes.okay)) &&  (currDegree - N + 2 < 5)) do {
+	      	    "!!i am adding points";
+	      	    currPoints = sort(checkRes.xpoint.:currPoints);
+		    ypoints = sort(checkRes.ypoint.:ypoints);
+		    "curPoints = ", currPoints, " ypoints = ", ypoints;
+		    currDegree = currDegree + 1;
+		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+		    //plot((buildres.poly).:ypoints, dom);
+		    checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 	      	    
+	      	  };
+		  if (checkRes.okay) then {
+		     stablepoly = buildres.poly;
+		     res = {.okay = true, .direction = "rightWithAddPoints", .poly = stablepoly};
+		  } else {
+		    print("//all points");
+		    currPoints = inf(dom).:rightpoints;
+		    ypoints = [|0, ..., N|];
+		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+		    currDegree = N - 1;		
+		    poly = buildres.poly;
+	    	    plot(poly.:ypoints, dom);
+		    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
+		    print("check Result for all = ", checkRes);	
+		     if (checkRes.okay) then {
+		       stablepoly = poly;
+		       res = {.okay = true, .direction = "all", .poly = stablepoly};
+		    } else {
+		      	 
+		        while (currDegree <= maxDegree && checkRes.addPoint && (!(checkRes.okay)) &&  (currDegree - N + 2 < 5)) do {
+	      	    	      "!!i am adding points";
+	      	    	      currPoints = sort(checkRes.xpoint.:currPoints);
+			      ypoints = sort(checkRes.ypoint.:ypoints);
+		    	      "curPoints = ", currPoints, " ypoints = ", ypoints;
+		    	      currDegree = currDegree + 1;
+		    	      buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
+		    	      plot((buildres.poly).:ypoints, dom);
+		    	      checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 
+	      	  	};
+			if (checkRes.okay) then {
+		       	   stablepoly = poly;
+		       	   res = {.okay = true, .direction = "allWithPoints", .poly = stablepoly};
+		    	};
+
+		    };
+		  };   
+
+		  };
+
+		};
+	      	      
+	      };
+	    };
+
+	  };
+
+	  return res;	  
+};
+*/
+
+procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDegree) {
+	  var res, continuesearch, poly, funcpoints, leftpoints, rightpoints, allpoints, N, oldprec, derivzeros, dom, polyOK, i, buildres, currPolyDegree; 
 
 	  res = {.okay = false};
 	  continuesearch = true;
-  	 // "tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
+  	  "tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
 	  
   	  N = length(domains);
 	  dom =  [inf(domains[0]), sup(domains[N-1])];
@@ -1136,46 +1460,67 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	    leftpoints = revert(leftpoints);	
 	    rightpoints = revert(rightpoints);
 	    funcpoints = [|1, ..., N - 1|];
-	    poly = buildReconstructPoly(tail(leftpoints), funcpoints, [|D...|]);	  
-	    // print("----dom  =", dom);
-	    //plot(poly.:funcpoints, dom);
-	    
-	    okay = checkReconstructionPolyOK(poly, domains);
+	    buildres = buildReconstructPoly(tail(leftpoints), funcpoints, [|D...|]);
+	    "buildres = ", buildres;
+	    currPolyDegree = N - 3;
+	    poly = buildres.poly;
 
-	    if (okay) then {
+//	    plot(poly.:funcpoints, dom);	    
+	  
+	    polyOK = checkReconstructionPolyOK(poly, domains, buildres.fn);
+	    print("I returned res = ", polyOK);
+	    if (polyOK.okay) then {
 	       res = {.okay = true, .direction = "inner", .poly = poly};
 	    } else {
 	       // inner poly was not ok, need to add some point and recompute.
+	       //I will try to add derivPoints
+	      /* derivzeros = dirtyfindzeros(diff(poly), dom);
+	      while (length(derivzeros) > 0 && currPolyDegree < maxDegree && (!(polyOK))) do {
+	       	     derivzeros = dirtyfindzeros(diff(poly), dom);   
+		     print("derivzeros = ", derivzeros);
+		     leftpoints = derivzeros[0].:leftpoints;
+		     
+	       };
+	       */
+
 	       print("i will try to add the inf point and restart searching the polynomial");
 	       funcpoints = [|0, ..., N - 1|];
-	       poly = buildReconstructPoly(leftpoints, funcpoints, [|D...|]);
+	       buildres = buildReconstructPoly(leftpoints, funcpoints, [|D...|]); 
+	       poly = buildres.poly;
 	       //print("----dom  =", dom);	
 	       //plot(poly.:funcpoints, dom);
-	       okay = checkReconstructionPolyOK(poly, domains);
-	       if (okay) then {
+	       polyOK = checkReconstructionPolyOK(poly, domains, buildres.fn);
+	       print("I returned res = ", polyOK);
+	       if (polyOK.okay) then {
 	       	  //Don't know if .direction could be useful somewhere. Add it now just for fun.
 	       	  res = {.okay = true, .direction = "left", .poly = poly};
 	       } else {	       	 
 	       	 //Try right poly here!
 		 print("i am trying to build right polynomial");
 		 funcpoints = [|1, ..., N|];
-		 poly = buildReconstructPoly(rightpoints, funcpoints, [|D...|]);		 
+		 buildres = buildReconstructPoly(rightpoints, funcpoints, [|D...|]);
+		 poly = buildres.poly;		 
 		 //print("-----dom = ", dom);
 		 //plot(poly.:funcpoints, dom);
-		 okay = checkReconstructionPolyOK(poly, domains);
-		 if (okay) then {
+		 polyOK = checkReconstructionPolyOK(poly, domains, buildres.fn);
+		 print("I returned res = ", polyOK);
+		 if (polyOK.okay) then {
 		    res = {.okay = true, .direction = "right", .poly = poly};
 		 } else {
 		   //Full poly. Try to add all points and check
 		   print("poly built by all points");
 		   funcpoints = [| 0, ... , N |];
-		   poly = buildReconstructPoly(inf(dom).:rightpoints, funcpoints, [|D...|]);	
+		   allpoints = inf(dom).:rightpoints;
+		   buildres = buildReconstructPoly(allpoints, funcpoints, [|D...|]);		 
+		   poly = buildres.poly;
 		   //print("-----dom = ", dom);
 		   //plot(poly.:funcpoints, dom);
-		   okay = checkReconstructionPolyOK(poly, domains);
-		   if (okay) then {
+		   polyOK = checkReconstructionPolyOK(poly/* + poly(buildres.n)*/, domains, buildres.fn);
+		   print("I returned res = ", polyOK);
+		   print("after checking full poly = ", polyOK);
+		   if (polyOK.okay) then {
 		      res = {.okay = true, .direction = "full", .poly = poly};
-		   };
+		   }; 
 		 };		 
 	       };
 	    }; 
@@ -1194,6 +1539,7 @@ procedure tryGeneratePolynomialSplitterReconstruction(functionName, domains, red
 	  var res;
 	  var resPoly;
 
+	  "#####tryGeneratePolynomialSplitterReconstruction, domains = ", domains;
 	  res = { .okay = false };
 	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);	  
 	  if (resPoly.okay) then {
@@ -1526,7 +1872,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 	      	 print("Split is needed, But I can't do it, because the current interval is too small");
 	      	 res =  { .okay = false };
 	      } else {	      
-	     // 	print("---wanna compute split, I will try to divide current dom by 2 in order to find the largest left acceptable subdomain");
+	     //	print("---wanna compute split, I will try to divide current dom by 2 in order to find the largest left acceptable subdomain");
 		found = false;
 		m = D(mid(dom));	
 		left = dom;
@@ -1558,7 +1904,7 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 				res = currRes;
 		     };	
 		 } else {
-		   print("ther has been some error");
+		   print("domain split: there has been some error");
 		   res = {.okay = false};		
 		};
 	      };
@@ -1576,11 +1922,11 @@ procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 	  // As on the previous steps before calling this function we have divided interval by 2 in order to get the left, we'll try to 
 	  // enlarge our interval with a third of it
 
-	  delta = round(((sup(left) - inf(left)) / 3), D, RD);
+	  delta = round(((sup(left) - inf(left)) / 7), D, RD);
 	  newleft = left; //[ inf(left), sup(left) + delta ];
 	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!; 
-	  while (delta >  minWidth/10 && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is minWidth. Sometimes changing this bound from 2*minWidth to 5*minWidth gives 10 more subdomains. The less is the bound, least domains we get.
-	  //	print("delta = ", delta);
+	  while (delta > minWidth/2 && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is minWidth. Sometimes changing this bound from 2*minWidth to 5*minWidth gives 10 more subdomains. The less is the bound, least domains we get.
+	  	print("delta = ", delta);
 	  	newleft = [ inf(newleft), sup(newleft) + delta ];
 	  	leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
 		while (leftdeg.okay && leftdeg.sufficientDegree) do {
@@ -3143,7 +3489,7 @@ procedure dirtyEvaluateImageInner(f,dom) {
 	  var yInt, res;
 	  var oldPoints, oldPrec;
 
-	  // "dirtyEvaluateImageInner(", f, ", ", dom, ")";
+	  //"dirtyEvaluateImageInner(", f, ", ", dom, ")";
 
 	  yInt = evaluate(f,dom);
 
@@ -3159,7 +3505,7 @@ procedure dirtyEvaluateImageInner(f,dom) {
 	      fmin = inf(evaluate(f,inf(dom)));
 	      fmax = sup(evaluate(f,inf(dom)));
 	      for z in zeros do {
-	      	  y = evaluate(f,z);
+	      	  y = evaluate(f,z);		  
 	      	  if (inf(y) < fmin) then fmin = inf(y);
 	      	  if (sup(y) > fmax) then fmax = sup(y);
 	      };

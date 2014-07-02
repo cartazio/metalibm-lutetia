@@ -81,7 +81,7 @@ execute("problemdef.sollya");
 variableFormat = D;
 
 doplots = false;
-dotiming = false;
+dotiming = true;
 savetiming = true;
 timingsavefile = "timing.sollya";
 
@@ -138,6 +138,7 @@ parametrization.functionBasename = polynomialName;
 parametrization.minimalReductionRatio = minimalReductionRatio;
 parametrization.performExpressionDecomposition = performExpressionDecomposition;
 parametrization.maxDegreeReconstruction = maxDegreeReconstruction;
+//parametrization.printdebug = printdebug;
 
 implementationTime = time({
 		   resultat = tryImplementationExternal(problemdef, parametrization);
