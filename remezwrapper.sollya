@@ -73,6 +73,9 @@ procedure mydirtyfindzeros(func, dom) {
 	  dirtyfindzerostime = time({ 
 	                             res = dirtyfindzeros(func, dom);
 				  });
+
+          ">>>>>>>>>>>>>>>>> dirtyfindzeros(", func, ", ", dom, ") at prec = ", prec, " took ", dirtyfindzerostime, " sec.";
+
 	  wholeDirtyfindzerosTime := wholeDirtyfindzerosTime + dirtyfindzerostime;
 
 	  return res;
