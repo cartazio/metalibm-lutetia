@@ -1,33 +1,5 @@
 
-funktion = erfc(x);
-
-procedure FUNC(X,n,p) {
-	  var res, oldPrec, i, f, oldDisplay;
-
-	  oldPrec = prec;
-	  prec = p!;
-	  oldDisplay = display;
-	  display = decimal!;
-
-	  if (!(X in [-1.10;1.10])) then {
-	     "%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% X = ", X, ", n = ", n, ", p = ", p;
-	  };
-
-	  
-	  f = funktion;
-	  for i from 1 to n do {
-	      f = diff(f);
-	  };
-	  
-	  res = f(X);
-
-	  prec = oldPrec!;
-	  display = oldDisplay!;
-	  return res;
-};
-
-
-f = function(FUNC);
+f = erfc(x);
 dom = [-1,1];
 target = 1b-24;
 maxDegree = 6;
