@@ -1059,7 +1059,7 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 	  infpoly = poly(inf(dom));
 	  suppoly = poly(sup(dom));
 	  derivzeros = dirtyfindzeros(diff(poly), dom);	
-	  print("derivzeros = ", derivzeros);
+	  //print("derivzeros = ", derivzeros);
 	  "n = ", n;
 	  i = 0; okay = true;
 	  while (okay && i < N) do {
@@ -1080,7 +1080,7 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 		j = 0;
 		found = false;
 		while (i < length(derivzeros)) do {
-		      "i = ", i, " derivzeros[i] = ", derivzeros[i], " poly(derivzeros[i]) = ", poly(derivzeros[i]);
+		      //"i = ", i, " derivzeros[i] = ", derivzeros[i], " poly(derivzeros[i]) = ", poly(derivzeros[i]);
 		      j= 0;
 		      while ( (j < N)  && (! (derivzeros[i] in domains[j])) /*&& (! (found))*/) do {	      
 		      	    j = j + 1;
@@ -1096,7 +1096,7 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 			   print("found = ", found, " maxi = ", maxi);
 			   j = j + 1; */
 		      };
-		      "after loop on domains j = ", j;
+		     // "after loop on domains j = ", j;
 		      if (!(poly(derivzeros[i]) in [j - n, j + 1 - n])) then {
 		      	 "maxdelta = ", maxdelta;			 
 			 if (abs(j - n + 0.5 - poly(derivzeros[i])) > maxdelta) then {
@@ -1162,8 +1162,8 @@ procedure buildAndCheck(domains, name) {
 	     xpoints = revert(xpoints);	
 	     ypoints = [| 1, ..., N - 1 |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
-	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
-	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK2");
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK2");
 	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
 	     res.poly = buildRes.poly;
 	     res.direction = name;	     
@@ -1175,7 +1175,7 @@ procedure buildAndCheck(domains, name) {
 	     xpoints = revert(xpoints);	
 	     ypoints = [| 0, ..., N - 1 |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
-	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
 	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
 	     res.poly = buildRes.poly;
 	     res.direction = name;
@@ -1187,7 +1187,7 @@ procedure buildAndCheck(domains, name) {
 	     xpoints = revert(xpoints);	
 	     ypoints = [| 1, ..., N  |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
-	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]); 
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]); 
 	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK1");
 	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
 	     res.poly = buildRes.poly;
@@ -1201,7 +1201,7 @@ procedure buildAndCheck(domains, name) {
 	     xpoints = inf(domains[0]).:xpoints;
 	     ypoints = [| 0, ..., N  |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
-	     plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
 	    // plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyJump");
 	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
 	     "after check reconstruct, all points";
@@ -1218,7 +1218,7 @@ procedure buildAndCheck(domains, name) {
 */
 
 procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
-	  var res, direction, N, tmpres, buildres, stablepoly, currdegree, xpoints, ypoints, stablepolydeg;	  /*
+	  var res, direction, N, tmpres, buildres, stablepoly, currdegree, xpoints, ypoints, stablepolydeg; 
 	  //"tryGeneratePolynomialSplitterReconstructionPolynomial(", domains, ", ", maxDegree, ")";
 	  direction = "inner"; 
 	  stablepoly = 0;
@@ -1298,7 +1298,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	      };	    
 	    }; // else left !OK
 	  }; // else inner !OK
-	  print("res = ", res);*/
+	  print("res = ", res);
 	  return res;
 };
 
@@ -1368,7 +1368,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
 		    currDegree = N - 2;		
 		    poly = buildres.poly;
-	    	    plot(poly.:ypoints + buildres.fn, dom);
+	    	    //plot(poly.:ypoints + buildres.fn, dom);
 		    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
 		    print("check Result for right = ", checkRes);	
 		    
@@ -1396,7 +1396,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
 		    currDegree = N - 1;		
 		    poly = buildres.poly;
-	    	    plot(poly.:ypoints, dom);
+	    	    //plot(poly.:ypoints, dom);
 		    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
 		    print("check Result for all = ", checkRes);	
 		     if (checkRes.okay) then {
@@ -1411,7 +1411,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    	      "curPoints = ", currPoints, " ypoints = ", ypoints;
 		    	      currDegree = currDegree + 1;
 		    	      buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
-		    	      plot((buildres.poly).:ypoints, dom);
+		    	      //plot((buildres.poly).:ypoints, dom);
 		    	      checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 
 	      	  	};
 			if (checkRes.okay) then {
