@@ -38,7 +38,7 @@ roundingwarnings=off!;
 prec = 350!;
 verbosity = 1!;
 showmessagenumbers=on!;
-display = dyadic;
+display = default!;
 
 /* -------------------------------------------------------- 
    Suppress some unneeded (noisy) messages

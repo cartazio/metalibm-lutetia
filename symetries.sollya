@@ -58,7 +58,7 @@ procedure testEvenSymetry(func, dom, target, defdom) {
 	     shiftedFunc = horner(func(x + t));
 	     shiftedDom = [inf(dom) - t; sup(dom) - t];
 	     accessDomMinus = -shiftedDom + t;
-	     if (accessDomMinus in (1 + 1b-50) * defDom) then {
+	     if (accessDomMinus in (1 + 1b-50) * defdom) then {
 	     	errSym = mydirtyinfnorm(shiftedFunc(-x)/shiftedFunc(x) - 1, shiftedDom);
 	     	if (errSym <= abs(target)) then {
                    res = t;
