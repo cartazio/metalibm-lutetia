@@ -254,6 +254,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			wholeGappaTime := wholeGappaTime + gappaTime;
 			print("0|];") >> gappaOutputFile;
 			execute(gappaOutputFile);
+			bashexecute("rm " @ gappaOutputFile);
 			evalerr = 0;
 			for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
 			if (evalerr == 0) then evalerr := 1/0;
@@ -267,6 +268,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			     wholeGappaTime := wholeGappaTime + gappaTime;
 			     print("0|];") >> gappaOutputFile;
 			     execute(gappaOutputFile);
+			     bashexecute("rm " @ gappaOutputFile);
 			     evalerr = 0;
 			     for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
 			         if (evalerr == 0) then evalerr := 1/0;
@@ -1717,6 +1719,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
                 display = oldDisplay!;
 		for implFile in implementationFiles do {
 		    bashexecute("cat " @ implFile @ " >> " @ implementationFile);
+		    bashexecute("rm " @ implFile);
 		};
 		write("\n\n") >> implementationFile;
 		myOutputFormatNum = 1;
@@ -3963,6 +3966,7 @@ procedure tryImplementationThroughArgumentReductionWithParamountBehavior(problem
 						       write("Subfunction h correctly implemented\n");
 
 						       bashexecute("cat " @ parametrization.implementationFile @ "_subfunction_h >> " @ parametrization.implementationFile);
+						       bashexecute("rm " @ parametrization.implementationFile @ "_subfunction_h");
 						       myOutputFormat = res.outputformat;
 						       match (res2.outputformat) with
 						       	     D  : { }
@@ -5744,6 +5748,7 @@ procedure tryImplementationThroughArgumentReductionPowering(problemdef, parametr
 
 							    /* Combine both codes into one implementation file */
 							    bashexecute("cat " @ parametrization.implementationFile @ logSuffix @ " >> " @ parametrization.implementationFile);
+							    bashexecute("rm " @ parametrization.implementationFile @ logSuffix);
 
 							    /* Now generate the code performing range reduction
 							       and calling the two functions logarithm and
@@ -6440,6 +6445,7 @@ procedure doWorkForTryImplementationThroughMetaSplitting(problemdef, parametriza
 	     write("\n") > parametrization.implementationFile;
 	     for implFile in outputFiles do {
 	         bashexecute("cat " @ implFile @ " >> " @ (parametrization.implementationFile));
+		 bashexecute("rm " @ implFile);
 	     };
 
 	     functionNames = [||];
@@ -7578,6 +7584,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication
 		if (res2.okay) then {
 		   write("Implementation of subfunction h successful\n");
 		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g >> " @ parametrization.implementationFile);		   
+		   bashexecute("rm " @ parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g");
 		   write("Generating multiplication code\n");
 
 		   if (maxepsMul < 1b-102) then finalOutputFormat = TD else
@@ -7767,6 +7774,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 		if (res2.okay) then {
 		   write("Implementation of subfunction g successful\n");
 		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g >> " @ parametrization.implementationFile);		   
+		   bashexecute("rm " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g"); 
 		   write("Generating composition code\n");
 
 		   implementationcode = "\n";
@@ -8010,6 +8018,7 @@ procedure tryImplementationExternal(problemdef, parametrization) {
 	  write("") > parametrization.implementationFile;
 	  emitCopyrightStatement(parametrization.implementationFile);
           bashexecute("cat " @ myparam.implementationFile @ " >> " @ parametrization.implementationFile);	  
+	  bashexecute("rm " @ myparam.implementationFile);
 	  
 	  return res;
 };
