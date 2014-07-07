@@ -41,6 +41,13 @@ showmessagenumbers=on!;
 display = default!;
 
 /* -------------------------------------------------------- 
+   Compile the externally bound code.
+----------------------------------------------------------- */ 
+write("Recompiling externally bound parts of Metalibm.\n");
+bashexecute("make");
+write("Metalibm ready to run.\n\n");
+
+/* -------------------------------------------------------- 
    Use free mathematical variable x
 ----------------------------------------------------------- */ 
 __identity = x;
@@ -166,6 +173,7 @@ write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n
 write("The maximum degree is; ", maxDegree, "\n");
 write("The implementation goes into file: ", implementationFile, "\n");
 write("The Gappa base file name is: ", gappaFile, "\n");
+write("\n");
 
 /* -------------------------------------------------------- 
    Launch implementer
