@@ -1,8 +1,13 @@
 /*
- * Copyright 2008 by 
+ * Copyright 2008-2014 by 
  * 
  * Laboratoire de l'Informatique du Parallélisme, 
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
  *
  * Sollya configuration file for the metalibm implementer 
  *
@@ -26,18 +31,18 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
-/* Paths and names of the external executables */
+/* Paths to compile scripts. Should point to metalibm directory.
 
-gappaExecutable = "/home/lauter/gappa/src/gappa";
-sollyaPath = "/home/lauter/sollyaAllBranches/branches/improvedEvaluate";  
+   If left empty, will be modified to be set to directory from which
+   metalibm is run.
 
-/* Names of the implementation and proof files */
+*/
+
+compilePath = "";  
+
+/* Base names of the implementation and proof files */
 
 implementationFile = "implementation.c";
 gappaFile = "implementation.gappa";
 
-/* Name of the file where resumed information 
-   on the implementations is stored */
-
-resumedImplementationFile = "results.res";
 

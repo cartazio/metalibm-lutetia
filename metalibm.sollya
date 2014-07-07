@@ -1,5 +1,6 @@
+#!/usr/bin/env sollya
 /*
- * Copyright 2008-2013 by 
+ * Copyright 2008-2014 by 
  * 
  * Laboratoire de l'Informatique du Parallélisme, 
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
@@ -10,7 +11,6 @@
  * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
  *
  * Sollya metalibm main exploitation script for implementing functions 
- * with polynomial approximation and Horner scheme evaluation
  *
  * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN) 
  *              christoph.lauter@ens-lyon.org
@@ -41,10 +41,15 @@ showmessagenumbers=on!;
 display = default!;
 
 /* -------------------------------------------------------- 
+   Use free mathematical variable x
+----------------------------------------------------------- */ 
+__identity = x;
+
+/* -------------------------------------------------------- 
    Suppress some unneeded (noisy) messages
 ----------------------------------------------------------- */ 
 
-suppressmessage(372, 162, 175, 231, 346, 228, 247, 404);
+suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404);
 
 /* -------------------------------------------------------- 
    Initialize performance counters
@@ -72,7 +77,27 @@ execute("implement.sollya");
    Read in problem to implement 
 ----------------------------------------------------------- */ 
 
-execute("problemdef.sollya");
+argvAccessOkay = false;
+if (!isbound(__argv)) then {
+  argvAccessOkay = false;
+} else {
+  if ((!(__argv == __argv)) && (!(__argv != __argv))) then {
+     argvAccessOkay = false;
+  } else {
+     argvAccessOkay = true;
+  }; 
+};
+
+if (!argvAccessOkay) then {
+   problemDefFile = "problemdef.sollya";
+} else {
+  if (__argv == [||]) then {
+    problemDefFile = "problemdef.sollya";
+  } else {
+    problemDefFile = __argv[0];
+  }; 
+};
+execute(problemDefFile);	
 
 /* -------------------------------------------------------- 
    Put additional configuration data here
@@ -80,7 +105,7 @@ execute("problemdef.sollya");
 
 variableFormat = D;
 
-doplots = false;
+doplots = true;
 dotiming = true;
 savetiming = true;
 timingsavefile = "timing.sollya";
@@ -94,6 +119,29 @@ gappaOutputTmpFile = "gappaOutput.sollya";
 compiledCode = "implementation.so";
 compileFlags = "-DASSEMBLY_TIMING=1";
 
+gappaExecutable = "gappa";
+
+/* -------------------------------------------------------- 
+   Modifiy the implementation and Gappa file name 
+   if we have a unique id.
+----------------------------------------------------------- */ 
+uniqueIdAccessOkay = false;
+if (!isbound(__unique_id)) then {
+  uniqueIdAccessOkay = false;
+} else {
+  if ((!(__unique_id == __unique_id)) && (!(__unique_id != __unique_id))) then {
+     uniqueIdAccessOkay = false;
+  } else {
+     uniqueIdAccessOkay = true;
+  }; 
+};
+
+if (uniqueIdAccessOkay) then {
+   implementationFile = implementationFile @ "-" @ __unique_id @ ".c";
+   gappaFile = gappaFile @ "-" @ __unique_id @ ".gappa";
+   gappaOutputTmpFile = gappaOutputTmpFile @ "-" @ __unique_id @ ".out";
+   compiledCode = compiledCode @ "-" @ __unique_id @ ".so";
+};
 
 /* -------------------------------------------------------- 
    Some adaptions due to the problem definition
@@ -111,10 +159,13 @@ if (adaptWorkingPrecision) then {
 if ((variableFormat == TD) && (target > 1b-103)) then { print("Warning: reduced format of variable"); variableFormat = DD; };
 if ((variableFormat == DD) && (target > 1b-52)) then { print("Warning: reduced format of variable"); variableFormat = D; };
 
+write("Using problem definition file: ", problemDefFile, "\n");
 write("The function to be implemented is: ",f,"\n");
 write("The domain is: ",dom,"\n");
 write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n");
 write("The maximum degree is; ", maxDegree, "\n");
+write("The implementation goes into file: ", implementationFile, "\n");
+write("The Gappa base file name is: ", gappaFile, "\n");
 
 /* -------------------------------------------------------- 
    Launch implementer
@@ -160,8 +211,12 @@ write("Implementation took ",
       nearestint(wholeDirtyinfnormTime), " sec. were spent on dirtyinfnorm (",nearestint(wholeDirtyinfnormTime/implementationTime * 100),"%) and ",
       nearestint(wholeDirtyfindzerosTime), " sec. were spent on dirtyfindzeros (",nearestint(wholeDirtyfindzerosTime/implementationTime * 100),"%)\n");
 
-sollyapath = sollyaPath;
-if sollyapath[length(sollyapath)-1] != "/" then sollyapath = sollyapath @ "/";
+if (compilePath == "") then {
+   compilePath = bashevaluate("pwd");
+};
+
+compilepath = compilePath;
+if compilepath[length(compilepath)-1] != "/" then compilepath = compilepath @ "/";
 
 if (resultat.okay) then {
    
@@ -188,7 +243,7 @@ if (resultat.okay) then {
                                   TD      : ("TD")
                                   default : ("")); 
 
-   bashexecute(sollyapath@"compile.sh "@sollyapath@" "@implementationFile@" "@signature@" "@resultat.functionname@" "@compiledCode@" "@compileFlags);
+   bashexecute(compilepath@"compile.sh "@compilepath@" "@implementationFile@" "@signature@" "@resultat.functionname@" "@compiledCode@" "@compileFlags);
 
 
    if (doplots) then {
@@ -223,7 +278,7 @@ if (resultat.okay) then {
                                              match (resultat) with 
                                                    { .poly = default } : {
 								             oldPrec = prec; prec = 165!;
-                                                                             externalplot(sollyapath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision,perturb);
+                                                                             externalplot(compilepath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision,perturb);
                                                                              prec = oldPrec!;
                                                                          }
                                                    default :             {
@@ -236,15 +291,13 @@ if (resultat.okay) then {
        
        if (0 in dom) then externalplotPrecision = 14;
        oldPrec = prec; prec = 165!;
-       externalplot(sollyapath@compiledCode,relative,f,dom,externalplotPrecision,perturb); 
+       externalplot(compilepath@compiledCode,relative,f,dom,externalplotPrecision,perturb); 
        prec = oldPrec!;
    };
 
-   resultfile = resumedImplementationFile;
-
    if (dotiming) then {
 
-        externalproc(timefunc, sollyapath@compiledCode, (constant, constant, integer, integer) -> integer);
+        externalproc(timefunc, compilepath@compiledCode, (constant, constant, integer, integer) -> integer);
 
 	evaltime = round(timefunc(inf(dom), sup(dom), 4000, iterations) / iterations, 12, RN);
 
