@@ -104,7 +104,10 @@ if (!argvAccessOkay) then {
     problemDefFile = __argv[0];
   }; 
 };
+oldDieOnErrorMode = dieonerrormode;
+dieonerrormode=on!;
 execute(problemDefFile);	
+dieonerrormode=oldDieOnErrorMode!;
 
 /* -------------------------------------------------------- 
    Put additional configuration data here
