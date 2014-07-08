@@ -209,7 +209,12 @@ implementationTime = time({
 
 write("\n");
 
-if (resultat.okay) then write("Yippie! Everything worked fine.\n") else write("There has been some error. Check it out!\n");
+if (resultat.okay) then {
+   write("Yippie! Everything worked fine.\n");
+   write("\nThe implementation can be found in file: ", implementationFile, "\n\n");
+} else {
+   write("There has been some error. Check it out!\n");
+};
 
 write("Implementation took ", 
       nearestint(implementationTime), " sec. out of which ", 
