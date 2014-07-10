@@ -115,7 +115,7 @@ dieonerrormode=oldDieOnErrorMode!;
 
 variableFormat = D;
 
-doplots = true;
+doplots = false;
 dotiming = true;
 savetiming = true;
 timingsavefile = "timing.sollya";
