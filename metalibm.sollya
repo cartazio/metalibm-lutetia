@@ -326,3 +326,5 @@ if (resultat.okay) then {
    bashexecute("rm " @ compilepath@compiledCode);
 
 };
+
+quit;
