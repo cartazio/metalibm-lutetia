@@ -84,6 +84,8 @@ execute("implement.sollya");
    Read in problem to implement 
 ----------------------------------------------------------- */ 
 
+cliSpec = false;
+cliSpecList = [||];
 argvAccessOkay = false;
 if (!isbound(__argv)) then {
   argvAccessOkay = false;
@@ -101,13 +103,39 @@ if (!argvAccessOkay) then {
   if (__argv == [||]) then {
     problemDefFile = "problemdef.sollya";
   } else {
-    problemDefFile = __argv[0];
+    if (__argv[0] == "--clispec") then {
+       cliSpec = true;
+       cliSpecList = tail(__argv);
+    } else {
+       problemDefFile = __argv[0];
+    };
   }; 
 };
-oldDieOnErrorMode = dieonerrormode;
-dieonerrormode=on!;
-execute(problemDefFile);	
-dieonerrormode=oldDieOnErrorMode!;
+if (!cliSpec) then {
+  oldDieOnErrorMode = dieonerrormode;
+  dieonerrormode=on!;
+  execute(problemDefFile);	
+  dieonerrormode=oldDieOnErrorMode!;
+} else {
+  problemDefFile = "<--clispec: " @ cliSpecList @ ">";
+  f = exp(x);
+  dom = [-1,1];
+  target = 1b-24;
+  maxDegree = 6;
+  minWidth = (sup(dom) - inf(dom)) * 1/4096;
+  tableIndexWidth = 8;
+  minimalReductionRatio = 1000;
+  metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
+  performExpressionDecomposition = 0;
+  adaptWorkingPrecision = false;
+  maxDegreeReconstruction = 3;
+  myCliSpecList = cliSpecList;
+  while (myCliSpecList != [||]) do {
+  	cliSpecifier = head(myCliSpecList);
+	myCliSpecList = tail(myCliSpecList);
+	(parse("proc () {" @ cliSpecifier @ "; }"))();
+  };
+};
 
 /* -------------------------------------------------------- 
    Put additional configuration data here
@@ -173,7 +201,7 @@ write("Using problem definition file: ", problemDefFile, "\n");
 write("The function to be implemented is: ",f,"\n");
 write("The domain is: ",dom,"\n");
 write("The target error is ",target," = 2^(",round(log2(abs(target)),12,RN),")\n");
-write("The maximum degree is; ", maxDegree, "\n");
+write("The maximum degree is: ", maxDegree, "\n");
 write("The implementation goes into file: ", implementationFile, "\n");
 write("The Gappa base file name is: ", gappaFile, "\n");
 write("\n");
