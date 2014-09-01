@@ -168,7 +168,7 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  points = oldPoints!;
 
 	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
-	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "\n");
+	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	     res = sup(guess);
 	     poly = remezbugreport(f,res,d,w,eps);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
@@ -204,7 +204,7 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	  points = oldPoints!;
 
 	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
-	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "\n");
+	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	     res = sup(guess);
 	     poly = remezbugreport(f,res,d,w,eps);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
@@ -216,7 +216,7 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	    if (sup(guess) == infty) then {
                 res = b + 1;
 		if ((res - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
-	             write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "\n");	
+	             write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	             res = b + 1;
 	             poly = remezbugreport(f,res,d,w,eps);
 	             while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
