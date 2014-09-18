@@ -3528,10 +3528,25 @@ procedure dirtyEvaluateImage(f,dom) {
 	  var res;
 
 	  if ((0 in dom) && (dom != [0])) then {
-	    res = intervalHull(intervalHull(
-                    dirtyEvaluateImageInner(f,[inf(dom);-1b-1074]),
-		    dirtyEvaluateImageInner(f,[0])),
-		    dirtyEvaluateImageInner(f,[1b-1074;sup(dom)]));
+	       if (inf(dom) <= -1b-1074) then {
+	           if (sup(dom) >= 1b-1074) then {
+	                   res = intervalHull(intervalHull(
+                                                           dirtyEvaluateImageInner(f,[inf(dom);-1b-1074]),
+		                                           dirtyEvaluateImageInner(f,[0])),
+		                              dirtyEvaluateImageInner(f,[1b-1074;sup(dom)]));
+                   } else {
+	                   res = intervalHull(dirtyEvaluateImageInner(f,[inf(dom);-1b-1074]),
+		                              dirtyEvaluateImageInner(f,[0]));
+		   };
+	       } else {
+	           if (sup(dom) >= 1b-1074) then {
+	                   res = intervalHull(dirtyEvaluateImageInner(f,[1b-1074; sup(dom)]),
+		                              dirtyEvaluateImageInner(f,[0]));
+
+                   } else {
+		     	   res = dirtyEvaluateImageInner(f,[0]);
+		   };
+	       };
 	  } else {
 	    res = dirtyEvaluateImageInner(f,dom);
 	  };
