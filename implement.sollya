@@ -659,7 +659,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  galoptimizedMonomials = [||];
 	  okay = true;
 
-	  if (inf(dom) * sup(dom) >= 0) then {
+	  if (inf(dom) * sup(dom) > 0) then {
 	       zerosInInterval = [||];
 	       oldprec = (prec = ?);
 	       prec = oldprec * 3!;
@@ -3527,6 +3527,10 @@ procedure intervalHull(I,J) {
 procedure dirtyEvaluateImage(f,dom) {
 	  var res;
 
+	  if (inf(dom) == sup(dom)) then {
+	     res = evaluate(f,dom);
+	  } else {
+
 	  if ((0 in dom) && (dom != [0])) then {
 	       if (inf(dom) <= -1b-1074) then {
 	           if (sup(dom) >= 1b-1074) then {
@@ -3549,6 +3553,7 @@ procedure dirtyEvaluateImage(f,dom) {
 	       };
 	  } else {
 	    res = dirtyEvaluateImageInner(f,dom);
+	  };
 	  };
 
 	  return res;
@@ -4477,8 +4482,12 @@ procedure tryImplementationThroughSquaring(problemdef, parametrization) {
                                        .gappaExecutable = default,
 				       .functionBasename = default } } : {
 
-				       /* Start with a test if zero is actually inside the domain */
-				       if (sup(problemdef.dom) * inf(problemdef.dom) < 0) then {
+				       /* Start with a test if zero is actually inside the domain 
+				          and if width of reduced domain smaller than 1/2 of the width of 
+					  the original domain.
+				       */
+				       if ((sup(problemdef.dom) * inf(problemdef.dom) < 0) && 
+				           (((max(inf(problemdef.dom),sup(problemdef.dom)))^2) <= (1/2 * (sup(problemdef.dom) - inf(problemdef.dom))))) then {
 
 				       /* Continue with a test if the domain actually needs
                                           to be split in order to stay below the maximum
@@ -4521,7 +4530,7 @@ procedure tryImplementationThroughSquaring(problemdef, parametrization) {
 						  func = problemdef.func;
 						  g = simplifysafe(func(sqrt(x)));
 						  myDom = [0;(max(inf(problemdef.dom),sup(problemdef.dom)))^2];
-						  alpha = computeAmplification(g,myDom,1b-53);
+						  alpha = computeAmplification(g,[1b-1074;(max(inf(problemdef.dom),sup(problemdef.dom)))^2],1b-53);
 						  write("The amplification factor of the even function is approximately ", round(alpha,12,RN), " = 2^(", round(log2(alpha),12,RN),")\n");
 
 						  /* Now determine a bound epsRed on the error of the reduced argument */

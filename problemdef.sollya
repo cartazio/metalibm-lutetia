@@ -1,13 +1,13 @@
 
-f = erfc(x);
-dom = [-5,2];
-target = 1b-42;
-maxDegree = 8;
+f = exp(x^2);
+dom = [-1b-3,1b-3];
+target = 1b-32;
+maxDegree = 4;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;
 metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
-performExpressionDecomposition = 1;
+performExpressionDecomposition = 0;
 adaptWorkingPrecision = false;
 maxDegreeReconstruction = 5;
 
