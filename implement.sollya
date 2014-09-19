@@ -4483,11 +4483,11 @@ procedure tryImplementationThroughSquaring(problemdef, parametrization) {
 				       .functionBasename = default } } : {
 
 				       /* Start with a test if zero is actually inside the domain 
-				          and if width of reduced domain smaller than 1/2 of the width of 
+				          and if width of reduced domain smaller than 1/4 of the width of 
 					  the original domain.
 				       */
 				       if ((sup(problemdef.dom) * inf(problemdef.dom) < 0) && 
-				           (((max(inf(problemdef.dom),sup(problemdef.dom)))^2) <= (1/2 * (sup(problemdef.dom) - inf(problemdef.dom))))) then {
+				           (((max(inf(problemdef.dom),sup(problemdef.dom)))^2) <= (1/4 * (sup(problemdef.dom) - inf(problemdef.dom))))) then {
 
 				       /* Continue with a test if the domain actually needs
                                           to be split in order to stay below the maximum
