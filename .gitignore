@@ -1,0 +1,15 @@
+*.o
+timing.sollya
+implementation.c*
+implementation.gappa*
+vandercoeff
+matrices/mpfr/mpfr-test-matrix
+matrices/mpq/mpq-test-matrix
+matrices/mpz/mpz-test-matrix
+matrices/ui/ui-test-matrix
+vectors/mpfr/mpfr-test-vector
+vectors/mpq/mpq-test-vector
+vectors/mpz/mpz-test-vector
+vectors/si/si-test-vector
+vectors/ui/ui-test-vector
+
