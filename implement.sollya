@@ -653,6 +653,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  var galoptimizedMonomials;
 	  var PstarOrig;
 	  var nrm;
+	  var sterbenzOkay;
 
 	  write("implementsmall(",func,",", dom,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialName,",",defdom,")\n");
 
@@ -714,6 +715,14 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
           } else {
 	       midpoint = 0;
           };
+
+	  if (okay && (midpoint != 0)) then {
+	     sterbenzOkay = (((inf(dom) * sup(dom) > 0) && (inf(dom) * midpoint > 0)) && ((abs(inf(dom)) >= abs(midpoint)/2) && (abs(sup(dom)) <= 2 * abs(midpoint))));
+	     if (!sterbenzOkay) then {
+	        write("Determined midpoint = ", midpoint, " can't be chosen due to necessity to have Sterbenz condition\n");
+	     	midpoint = 0;
+	     };
+	  };
 
 	  if (okay) then {
 	     write("Chosen midpoint = ",round(midpoint,53,RN)," = ");
@@ -2291,7 +2300,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	  var remezFunc, remezDom;
 	  var zeros, t, z;
 
-	  "checkIfSufficientDegreeInner(",func,",", dom,",", maxDegree,",", target,",", sterbenzNeeded,") started";
+	  // "checkIfSufficientDegreeInner(",func,",", dom,",", maxDegree,",", target,",", sterbenzNeeded,") started";
 
 	  resultat = { .okay = false };
 	  deg = -1;
@@ -2333,7 +2342,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	     };
 	  };
 
-	  "in checkIfSufficientDegreeInner: now launching the guessdegree";
+	  // "in checkIfSufficientDegreeInner: now launching the guessdegree";
 
 	  if (0 in remezDom) then { y = evaluate(remezFunc, 0); } else { y = 1; };
 	  if ((inf(y) <= 0) && (sup(y) >= 0)) then {
@@ -2366,7 +2375,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	     	};
 	     };
 
-	  "checkIfSufficientDegreeInner(",func,",", dom,",", maxDegree,",", target,",", sterbenzNeeded,") finished, returning ", resultat;
+	  // "checkIfSufficientDegreeInner(",func,",", dom,",", maxDegree,",", target,",", sterbenzNeeded,") finished, returning ", resultat;
 
 	  return resultat;
 };
@@ -6622,8 +6631,17 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	  var okay, myPeriod;
 	  var t;
 	  var zerosUpperRaw, zerosLowerRaw, z;
+	  var zerosDeriv;
 
 	  result = { .okay = false };
+
+	  /* Functions with no local or only one local extrema can't be periodic. 
+	     So start by checking if the derivative of the function
+	     has a zero 
+	  */
+          zerosDeriv = mydirtyfindzeros(diff(func), dom);
+	  
+	  if (length(zerosDeriv) >= 2) then {
 
 	  /* We try to find all points where
 	     func admits the same value as in 
@@ -6709,6 +6727,8 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	  if (okay) then {
 	     result.okay = true;
 	     result.period = myPeriod;
+	  };
+
 	  };
 
 	  return result;
