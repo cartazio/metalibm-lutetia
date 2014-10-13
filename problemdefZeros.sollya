@@ -1,6 +1,6 @@
 
 f = exp(x) - 2;
-dom = [0.6837276785714285765038;0.72];
+dom = [-2;2];
 target = 1b-40;
 maxDegree = 8;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
