@@ -1076,6 +1076,45 @@ typedef union {
     Renormalize3((resh),(resm),(resl),_t21,_t22,_t23);                  \
   }
 
+#define recpr11(resh, dh)                                               \
+  {                                                                     \
+    (*(resh)) = 1.0 / (dh);                                             \
+  }
+
+#define recpr12(resh, resl, dh)                                         \
+  {                                                                     \
+    double _t1, _t2, _t3, _t4;                                          \
+                                                                        \
+    (*(resh)) = 1.0 / (dh);                                             \
+    Mul12(&_t1,&_t2,(*(resh)),(dh));                                    \
+    _t3 = 1.0 - _t1;                                                    \
+    _t4 = _t3 - _t2;                                                    \
+    (*(resl)) = (*(resh)) * _t4;                                        \
+  }
+
+#define recpr13(resh, resm, resl, dh)                                   \
+  {                                                                     \
+    double _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8;                      \
+                                                                        \
+    (*(resh)) = 1.0 / (dh);                                             \
+    Mul12(&_t1,&_t2,(*(resh)),(dh));                                    \
+    _t3 = 1.0 - _t1;                                                    \
+    _t8 = _t3 - _t2;                                                    \
+    (*(resm)) = _t8 * (*(resh));					\
+    Mul12(&_t4,&_t5,(*(resm)),(dh));                                    \
+    _t6 = _t8 - _t4;                                                    \
+    _t7 = _t6 - _t5;                                                    \
+    (*(resl)) = _t7 * (*(resh));                                        \
+  }
+
+#define recpr22(resh, resl, dh, dl)                                     \
+  {                                                                     \
+    double _t1, _t2, _t3, _t4, _t5, _t6, _t7, _t8;                      \
+                                                                        \
+    _t1 = 1.0 / (dh);                                                   \
+    Mul12(&_t2,&_t3,_t1,(dh));                                          \
+    
+
 /* Some special MulAdd macros needed for argument reduction */
 
 #define MulAdd1111(rh,ah,b,ch) do {             \

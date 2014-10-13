@@ -1,0 +1,13 @@
+#! /bin/bash
+
+if [ $# -lt 2 ] 
+then
+    exit 1
+fi
+
+GAPPAFILE="$1"
+EXCLUDEDOM="$2"
+
+sed -i -e 's!/\\ not \(.*\) in.*$!/\\ not \1 in '"$EXCLUDEDOM"'!g;' "$GAPPAFILE"
+
+

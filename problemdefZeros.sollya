@@ -1,0 +1,15 @@
+
+f = exp(x) - 2;
+dom = [0.6837276785714285765038;0.72];
+target = 1b-40;
+maxDegree = 8;
+minWidth = (sup(dom) - inf(dom)) * 1/4096;
+tableIndexWidth = 8;
+minimalReductionRatio = 1000;
+metaSplitMinWidth = (sup(dom) - inf(dom)) * 1/128;
+performExpressionDecomposition = 0;
+adaptWorkingPrecision = true;
+maxDegreeReconstruction = 5;
+
+
+

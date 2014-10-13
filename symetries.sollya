@@ -35,6 +35,10 @@ procedure testEvenSymetry(func, dom, target, defdom) {
 	  var shiftedFunc, shiftedDom;
 	  var olddiam;
 	  var accessDomMinus;
+	  var yDeriv;
+
+	  yDeriv = evaluate(diff(func), dom);
+	  if (inf(yDeriv) * sup(yDeriv) < 0) then {
 
 	  a := (3 * inf(dom) + sup(dom))/4;
 	  fa := func(a);
@@ -71,6 +75,10 @@ procedure testEvenSymetry(func, dom, target, defdom) {
 	  } else {
 	     res = false;
 	  };
+	  } else {
+	     res = false;
+	  };
 
 	  return res;
 };
+

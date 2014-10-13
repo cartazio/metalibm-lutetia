@@ -178,6 +178,10 @@ procedure dirtycheckinfnorm(func,dom,target) {
 	  	maxy := abs(func(t));
 		t = round(t + h,12,RU);
 	  };
+	  if (0 in dom) then {
+	     t = 0;
+	     maxy := abs(func(t));
+	  };
 	  prec = oldprec!;
 
 	  if ((maxy == maxy) && (maxy > target)) then
@@ -206,7 +210,7 @@ procedure dirtycheckinfnorm(func,dom,target) {
    The procedure may return false for problems with the implementation
 
 */
-procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta,variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable,polynomialName) {
+procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta,variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable,polynomialName,domainExcludes) {
 	  var res;
 	  var myapproxerr;
 	  var q;
@@ -216,6 +220,8 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 	  var i;
 	  var oldverb;
 	  var gappaTime;
+	  var oldDisplay;
+	  var exclDomString;
 
 	  q = poly;
 
@@ -226,8 +232,6 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 	  };
 	  implapproxerr = myapproxerr;
 	  evalerr = false;
-
-	  // myapproxerr, targeterr;
 
 	  res = (myapproxerr < targeterr);
 	  if (res) then {
@@ -247,9 +251,21 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 		};
 	        res = (implapproxerr < targeterr);
 		if (res) then {
+
+		        match (domainExcludes) with 
+			      { .excludeFromDomain = true, .excludeDomain = exclDom } : {
+			      	   oldDisplay = display;
+				   display = dyadic!;
+				   exclDomString = "[" @ inf(exclDom) @ "," @ sup(exclDom) @ "]";
+				   display = oldDisplay!;
+				   write("The domain contains a zero of the function, patching Gappa file ", gappaFile, " to exclude input domain ", exclDomString, "\n");
+				   bashexecute("./patch-gappa-file "@gappaFile@" '"@exclDomString@"'");
+			      }
+			      default : {};
+
 		   	write("boundsList = [|") > gappaOutputFile;
 			gappaTime = time({
-			                    bashexecute(gappaExecutable@" -Munconstrained < "@gappaFile@" 2>&1 | grep 'epsilon in' | sed -n 's/\\({[^}]*}\\)//g;p' | sed -n 's/epsilon in \\[//;p' | sed -n 's/\\]/,/;p' | sed -n 's/, /,\\n/;p' >> "@gappaOutputFile);
+			                    bashexecute("./gappa-wrapper DIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
 					 });
 			wholeGappaTime := wholeGappaTime + gappaTime;
 			print("0|];") >> gappaOutputFile;
@@ -263,7 +279,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			     write("\tRe-running Gappa\n");
 		   	     write("boundsList = [|") > gappaOutputFile;
 			     gappaTime = time({
-			                         bashexecute("cat "@gappaFile@" | sed -r 's/epsilon in /epsilon in ? #/g;' | "@gappaExecutable@" -Munconstrained 2>&1 | grep 'epsilon in' | sed -n 's/\\({[^}]*}\\)//g;p' | sed -n 's/epsilon in \\[//;p' | sed -n 's/\\]/,/;p' | sed -n 's/, /,\\n/;p' >> "@gappaOutputFile);
+			                         bashexecute("./gappa-wrapper INDIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
 					      });
 			     wholeGappaTime := wholeGappaTime + gappaTime;
 			     print("0|];") >> gappaOutputFile;
@@ -410,7 +426,7 @@ procedure extraroundcoefficients(poly,monomials,configuration) {
 
 */
 procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,upperbounds,optimisationPermut,
-	                          variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable,polynomialName) {
+	                          variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable,polynomialName,domainExcludes) {
           var ii;
 	  var okay;
 	  var numbercoefficients;
@@ -497,7 +513,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 				      targeterrimpl = targeterr;
 				      while (looparound && (targeterrimpl >= targeterr/16)) do {
 		      		      	    implresult = implementandcheck(func,poly,dom,targeterr,targeterrimpl,dci,beta,
-									   variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable,polynomialName);
+									   variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable,polynomialName,domainExcludes);
 
 					    // implresult[0], implresult[3];
 				            if (implresult[0]) then
@@ -556,7 +572,7 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
     No test is made whether the interval is correctly centered in 0
 
 */
-procedure implementcentered(func, dom, target, beta, variableFormat, galoptimizedMonomials, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName) {
+procedure implementcentered(func, dom, target, beta, variableFormat, galoptimizedMonomials, implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName, domainExcludes) {
 	  var res;
 	  var Pstar, upperbounds, lowerbounds, optimisationPermut;
 	  var i, monomials;
@@ -619,7 +635,7 @@ procedure implementcentered(func, dom, target, beta, variableFormat, galoptimize
 	        write("\n");
 
                 res = implementconfigurations(func,Pstar,dom,target,beta,lowerbounds,upperbounds,optimisationPermut,
-	                                      variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable, polynomialName);
+	                                      variableFormat,implementationFile,gappaFile,gappaOutputFile,gappaExecutable, polynomialName, domainExcludes);
 		};
           };
 
@@ -654,6 +670,10 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	  var PstarOrig;
 	  var nrm;
 	  var sterbenzOkay;
+	  var domainExcludes;
+	  var zeros;
+	  var shiftedZero, originalZero, originalZeroRoundedDown, originalZeroRoundedUp;
+	  var originalZeroPred, originalZeroSucc, excludeDomain;
 
 	  write("implementsmall(",func,",", dom,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialName,",",defdom,")\n");
 
@@ -731,11 +751,30 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 	     shiftedFunc = horner(func(x + midpoint));
 	     shiftedDom = [inf(dom) - midpoint ; sup(dom) - midpoint];
 
+	     domainExcludes = { .excludeFromDomain = false };
+	     zeros = mydirtyfindzeros(shiftedFunc, shiftedDom);
+	     if (zeros != [||]) then {
+	     	    shiftedZero = zeros[0];
+		    if (shiftedZero != 0) then {
+		        originalZero = shiftedZero + midpoint;
+			originalZeroRoundedDown = round(originalZero - 1b-1076, variableFormat, RD);
+			originalZeroRoundedUp = round(originalZero + 1b-1076, variableFormat, RU);
+			originalZeroPred = round(originalZeroRoundedDown - 1b-1076, variableFormat, RD);
+			originalZeroSucc = round(originalZeroRoundedUp + 1b-1076, variableFormat, RU);
+			excludeDomain = [originalZeroPred - midpoint; originalZeroSucc - midpoint];
+			if ((0 in shiftedDom) && (0 in excludeDomain)) then {
+			   excludeDomain = [ min(inf(excludeDomain), inf(shiftedDom) * 1b-400);
+			   		     max(sup(excludeDomain), sup(shiftedDom) * 1b-400) ];
+			};			
+	                domainExcludes = { .excludeFromDomain = true; .excludeDomain = excludeDomain };
+		    };
+	     }; 	     
+
 	     write("The translated function is f = ",shiftedFunc,"\n");
 	     write("The translated domain is dom = ",shiftedDom,"\n");
 
 	     resImpl = implementcentered(shiftedFunc, shiftedDom, target, beta, variableFormat, galoptimizedMonomials,
-	                                 implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName);
+	                                 implementationFile, gappaFile, gappaOutputFile, gappaExecutable, polynomialName, domainExcludes);
 
 	     res = [| resImpl[0], midpoint, resImpl[1], resImpl[2], resImpl[3], resImpl[4] |];
 
@@ -748,7 +787,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 
 procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polynomialName, functionName, implementationFile) {
 	  var res;
-	  var shifterCode, oldDisplay;
+	  var shifterCode, oldDisplay, oldPrec;
 	  var sterbenzOkay;
 
 	  res = { .okay = false };
@@ -762,8 +801,11 @@ procedure implementShifter(centerPoint, dom, variableFormat, outputFormat, polyn
                res.okay = true;
 	       oldDisplay = display;
 	       display = decimal!;
+	       oldPrec = prec;
+	       prec = 350!;
 	       shifterCode = "\n\n#define " @ functionName @ "_centerpoint " @ centerPoint;
 	       display = oldDisplay!;
+	       prec = oldPrec!;
 	       shifterCode = shifterCode @ "\n\nvoid "@functionName@"(";
 	       shifterCode = shifterCode @ (match outputFormat with
                                                   D   : ( "double *res_resh, " )

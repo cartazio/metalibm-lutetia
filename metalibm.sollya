@@ -56,7 +56,7 @@ __identity = x;
    Suppress some unneeded (noisy) messages
 ----------------------------------------------------------- */ 
 
-suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404);
+suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404, 456);
 
 /* -------------------------------------------------------- 
    Initialize performance counters
@@ -143,7 +143,7 @@ if (!cliSpec) then {
 
 variableFormat = D;
 
-doplots = false;
+doplots = true;
 dotiming = true;
 savetiming = true;
 timingsavefile = "timing.sollya";
@@ -185,9 +185,14 @@ if (uniqueIdAccessOkay) then {
    Some adaptions due to the problem definition
 ----------------------------------------------------------- */ 
 
-if (adaptWorkingPrecision) then {
+if (adaptWorkingPrecision == true) then {
    prec = max(25, min(350, ~(ceil(-log2(abs(target))) + 10)))!;
    write("Adapted working precision: prec = ", prec, "\n");
+} else {
+  if (!(adaptWorkingPrecision == false)) then {
+     prec = adaptWorkingPrecision!;
+     write("Adapted working precision: prec = ", prec, " as indicated.\n");
+  };
 };
 
 /* -------------------------------------------------------- 
