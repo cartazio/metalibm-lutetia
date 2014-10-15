@@ -459,6 +459,26 @@ procedure legacyremezorfail(func,dom,monomials,eps) {
 	  return poly;
 };
 
+procedure checkZeroConstantCache(data, X, n, p) {
+	  var res;
+
+	  res = { .okay = false };
+	  if (isbound(zeroConstantCache)) then {
+	     if ((zeroConstantCache.data == data) &&
+	         (zeroConstantCache.X == X) &&
+		 (zeroConstantCache.n == n) &&
+		 (zeroConstantCache.p >= p)) then {
+		 res = { .okay = true; .res = zeroConstantCache.res };
+             };
+	  };
+	  
+	  return res;
+};
+
+procedure insertZeroConstantCache(data, X, n, p, res) {
+	  zeroConstantCache = { .data = data, .X = X, .n = n, .p = p, .res = res };
+};
+
 procedure makeZeroConstant(func, dom) {
 	  var res, oldPrec, oldPoints;
 	  var zeros, z, myDom, zd, zu;
@@ -486,37 +506,45 @@ procedure makeZeroConstant(func, dom) {
 	     	    myDom = dom;
 	         };	     
 	         constantevaluateprocedure = proc(data, X, n, p) {
-	            var res, oldPrec, oldPoints, zeros, z, zd, zu;
+	            var res, oldPrec, oldPoints, zeros, z, zd, zu, resCache;
 	            if (n == 0) then {
-	               oldPrec = prec;
-		       oldPoints = points;
-	               prec = p + 10!;
-		       points = 5!;
-	               zeros = dirtyfindzeros(data.func,data.dom);
-		       if (zeros == [||]) then {
-		       	  res = [NaN];
+		       resCache = checkZeroConstantCache(data, X, n, p);
+		       if (resCache.okay) then {
+		       	  res = resCache.res;
 		       } else {
-                          z = zeros[0];
-	                  zd = min(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
-	                  zu = max(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
-			  res = [ round(zd, p, RD); round(zu, p, RU) ];
-			  if (!(0 in (data.func)(res))) then {
-			     res = [NaN];
-			  };
-		       };
-	               prec = oldPrec!;
-		       points = oldPoints!;
+		          write("Evaluating constant for data = ", data, " on X = ", X, " and p = ", p, " ----->\n");
+	                  oldPrec = prec;
+		          oldPoints = points;
+	                  prec = p + 10!;
+		          points = 5!;
+	                  zeros = dirtyfindzeros(data.func,data.dom);
+		          if (zeros == [||]) then {
+		       	     res = [NaN];
+		          } else {
+                             z = zeros[0];
+	                     zd = min(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
+	                     zu = max(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
+			     res = [ round(zd, p, RD); round(zu, p, RU) ];
+			     if (!(0 in (data.func)(res))) then {
+			        res = [NaN];
+			     };
+		          };
+	                  prec = oldPrec!;
+		          points = oldPoints!;
+			  insertZeroConstantCache(data, X, n, p, res);
+		          write("------> DONE\n");
+                       };
 	            } else {
 	               res = [0];
 	            };
 	            return res;
 	         };
 	         f = function(bind(constantevaluateprocedure, data, { .func = func, .dom = myDom }));
-	         res = f(1);
-	         prec = oldPrec * 5!;
+	         res = f(min(sup(dom),max(inf(dom),round(mid(dom),12,RN))));
+	         prec = oldPrec * 1.25!;
 	         c := res;
 	         delta = [res - c];
-	         prec = oldPrec * 5!;
+	         prec = oldPrec * 1.25!;
 	         f = annotatefunction(f, c, dom, delta);
 	         res = f(min(sup(dom),max(inf(dom),round(mid(dom),12,RN))));
              };
@@ -527,11 +555,50 @@ procedure makeZeroConstant(func, dom) {
 	  return res;
 };
 
+procedure tryAddAnnotationFunctionByX(func, dom) {
+	  var deriv, myDom, poly, coeffErrors, Delta, DeltaCoeff, i;
+	  var antiDerivPolyByX, res, oldPrec, oldAutosimplify, funcByX, annotatedFunc;
+
+	  res = { .okay = false };
+	  if (0 in dom) then {
+	      write("Trying to add an annotation for function ", func, " divided by x over ", dom, "\n");
+	      oldPrec = prec;
+	      prec = 2 * prec!;
+	      deriv = diff(func);
+	      myDom = [max(inf(dom),-1b-45);min(sup(dom),1b-45)];
+	      tf = taylorform(deriv, 5, 0, myDom, absolute);
+	      poly = tf[0];
+	      coeffErrors = tf[1];
+	      Delta = tf[2];
+	      DeltaCoeff = [0];
+	      for i from length(coeffErrors)-1 to 0 by -1 do {
+	          DeltaCoeff = DeltaCoeff * myDom + (coeffErrors[i]);
+	      };
+	      DeltaGlobal = Delta + DeltaCoeff;
+	      antiDerivPolyByX = 0;
+	      for i from 0 to degree(poly) do {
+	         antiDerivPolyByX = antiDerivPolyByX + (coeff(poly, i) / (i + 1)) * x^i;
+	      };
+	      antiDerivPolyByX = horner(antiDerivPolyByX);
+	      prec = oldPrec!;
+	      funcByX = simplify(func/x);	
+	      oldAutosimplify = autosimplify;
+	      autosimplify = off!;
+	      annotatedFunc = annotatefunction(funcByX, antiDerivPolyByX, myDom, DeltaGlobal);
+	      autosimplify = oldAutosimplify!;
+	      "Annotation done: p = ", antiDerivPolyByX, ", Delta = ", DeltaGlobal, ", domain = ", myDom;
+	      res = { .okay = true, .func = annotatedFunc };
+	  };
+
+	  return res;
+};
+
 procedure remezorfail(func,dom,monomials,eps) {
 	  var res;
 	  var yDom, yZero, okay, zeros;
 	  var c, shiftedFunc, shiftedDom;
 	  var shiftedRes, shiftedMonomials, m, i, h;
+	  var oldAutosimplify, shiftedFuncByX, resAnnot;
 
 	  yDom = evaluate(func, dom);
 	  if (0 in yDom) then {
@@ -564,11 +631,17 @@ procedure remezorfail(func,dom,monomials,eps) {
 	       	    shiftedFunc = horner(func(x + c));
 		    shiftedDom = dom - c;
 		    shiftedFunc = annotatefunction(shiftedFunc, 0, [0], [0]);
+		    resAnnot = tryAddAnnotationFunctionByX(shiftedFunc, shiftedDom);
+		    if (resAnnot.okay) then {
+		         shiftedFuncByX = resAnnot.func;
+		         oldAutosimplify = autosimplify;
+		         autosimplify = off!;
+		         shiftedFunc = annotatefunction(shiftedFunc, x * shiftedFuncByX, shiftedDom, [0]);
+			 shiftedFunc = simplify(shiftedFunc);
+		         autosimplify = oldAutosimplify!;
+                    };
 		    secondDerivShiftedFunc = simplify(diff(diff(shiftedFunc)));
 		    h = simplify(diff(simplify(shiftedFunc / secondDerivShiftedFunc)));
-
-		    "h = ", h;
-
 		    if (h == 0) then {
 		        write("Information: second derivative of shifted function has a zero at zero as well as the function itself.\n");
 			secondDerivShiftedFunc = annotatefunction(secondDerivShiftedFunc, 0, [0], [0]);
