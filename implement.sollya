@@ -2044,7 +2044,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 
 	  remezFunc = func;
 	  remezDom = dom;
-	  if (0 in evaluate(func,dom)) then {
+	  if (sup(evaluate(func, [inf(dom)]) * evaluate(func, [sup(dom)])) < 0) then {
 	     y = evaluate(func, 0);
 	     if (!((inf(y) <= 0) && (sup(y) >= 0))) then {
 	     	/* func has a zero in dom but not in 0 */
@@ -2361,7 +2361,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 
 	  remezFunc = func;
 	  remezDom = dom;
-	  if (0 in evaluate(func,dom)) then {
+	  if (sup(evaluate(func, [inf(dom)]) * evaluate(func, [sup(dom)])) < 0) then {
 	     y = evaluate(func, 0);
 	     if (!((inf(y) <= 0) && (sup(y) >= 0))) then {
 	     	/* func has a zero in dom but not in 0 */
