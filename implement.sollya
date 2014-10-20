@@ -6663,6 +6663,136 @@ procedure removeDoubleEntriesInSortedList(l) {
 	  return revert(ll);
 };
 
+procedure comparePossiblePeriods(ppA, ppB) {
+	  var res;
+
+	  if (mid(ppA) == mid(ppB)) then {
+	     res = 0;
+	  } else {
+	    if (mid(ppA) < mid(ppB)) then {
+	       res = -1;
+	    } else {
+	       res = 1;
+	    };
+	  };
+
+	  return res;
+};
+
+procedure insertPossiblePeriod(possiblePeriods, pp) {
+	  var res, ppH, ppT, i, m, bigger;
+
+	  if (possiblePeriods == [||]) then {
+	     res = [| pp |];
+	  } else {
+	     if (length(possiblePeriods) < 5) then {
+	     	res = [||];
+		i = 0;
+		bigger = false;
+		while ((i < length(possiblePeriods)) && (!bigger)) do {
+		       if (comparePossiblePeriods(possiblePeriods[i], pp) >= 0) then {
+                          bigger = true;
+		       } else {
+		          res = possiblePeriods[i] .: res;
+		          i = i + 1;
+		       };
+		};
+		res = pp .: res;
+		while (i < length(possiblePeriods)) do {
+		      res = possiblePeriods[i] .: res;
+		      i = i + 1;
+		};
+		res = revert(res);
+	     } else {
+	        m = floor((length(possiblePeriods) - 1) / 2);
+		ppH = [||];
+		ppT = [||];
+		for i from 0 to length(possiblePeriods) - 1 do {
+		       if (i < m) then {
+		       	  ppH = (possiblePeriods[i]) .: ppH;
+		       } else {
+		       	  ppT = (possiblePeriods[i]) .: ppT;
+		       };
+		};
+		ppH = revert(ppH);
+		ppT = revert(ppT);
+		if (comparePossiblePeriods(ppT[0], pp) < 0) then {
+		   res = ppH @ insertPossiblePeriod(ppT, pp);
+		} else {
+		   res = insertPossiblePeriod(ppH, pp) @ ppT;
+		};
+	     };
+	  };
+
+	  return res;
+};
+
+procedure testIfFunctionCouldBePeriodic(func, dom) {
+	  var res, y, myDom, myFunc, t, zerosDerivShifted;
+	  var oldPrec, zerosDeriv, myFuncDeriv, zd, zu, zI;
+	  var possiblePeriods, i, j, pp, testedPossiblePeriods, c, yC, tX;
+
+	  res = false;
+	  oldPrec = prec;
+	  prec = 24!;
+	  y = evaluate(diff(func), dom);
+	  if (0 in y) then {
+	     t = inf(dom) - 1;
+	     myDom = dom - t;
+	     myFunc = func(x + t);
+	     myFuncDeriv = diff(myFunc);
+	     zerosDerivShifted = mydirtyfindzeros(myFuncDeriv, myDom);
+	     if (length(zerosDerivShifted) >= 2) then {
+	        zerosDerivShifted = limitListToNElements(zerosDerivShifted, 25);
+	     	zerosDeriv = [||];
+		minZ = zerosDerivShifted[0];
+		for z in zerosDerivShifted do {
+		    zd = min(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
+	            zu = max(z * (1 - 2^(-prec+2)), z * (1 + 2^(-prec+2)));
+	            zI = [zd; zu];
+		    if (0 in evaluate(myFuncDeriv, zI)) then {
+		       zerosDeriv = (zI + t) .: zerosDeriv;
+                    };
+		};
+		zerosDeriv = revert(zerosDeriv);
+	 	if (length(zerosDeriv) >= 2) then {
+		    possiblePeriods = [||];
+		    for i from 0 to length(zerosDeriv) - 2 do {
+		    	for j from i + 1 to length(zerosDeriv) - 1 do {
+			    pp = zerosDeriv[j] - zerosDeriv[i];
+			    if (!(0 in pp)) then {
+			       possiblePeriods = insertPossiblePeriod(possiblePeriods, pp);
+			    };
+			};
+		    };
+		    if (possiblePeriods != [||]) then {
+		        testedPossiblePeriods = [||];
+		        c = (1023 * inf(dom) + sup(dom)) / 1024;
+		        yC = evaluate(func,c);
+		        for pp in possiblePeriods do {
+		    	    tX = c + pp;
+			    if ((inf(tX) >= inf(dom)) && 
+			        (sup(tX) <= sup(dom))) then {
+			        tY = evaluate(func, tX);
+			        if (yC in tY) then {
+			            testedPossiblePeriods = pp .: testedPossiblePeriods;
+			        };
+			    };
+		        };
+		        testedPossiblePeriods = revert(testedPossiblePeriods);
+		    	if (testedPossiblePeriods != [||]) then {	
+			   /* Add additional filters here */
+			   res = true;
+			};		
+		    };
+		};
+	     };
+	  };
+	  prec = oldPrec!;
+	  
+	  return res;
+};
+
 procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	  var result, c, zeros, i, j, len;
 	  var oldPrec;
@@ -6677,6 +6807,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 
 	  result = { .okay = false };
 
+	  if (testIfFunctionCouldBePeriodic(func, dom)) then {
 	  /* Functions with no local or only one local extrema can't be periodic. 
 	     So start by checking if the derivative of the function
 	     has a zero 
@@ -6684,7 +6815,6 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
           zerosDeriv = mydirtyfindzeros(diff(func), dom);
 	  
 	  if (length(zerosDeriv) >= 2) then {
-
 	  /* We try to find all points where
 	     func admits the same value as in 
 	     a point c. The distances to c
@@ -6771,6 +6901,7 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	     result.period = myPeriod;
 	  };
 
+	  };
 	  };
 
 	  return result;
