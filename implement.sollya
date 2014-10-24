@@ -4185,7 +4185,7 @@ procedure tryImplementationConstant(problemdef, parametrization) {
 				       dom = problemdef.dom;
 				       target = problemdef.target;
 				       oldPrec = prec;
-				       prec = max(prec, -floor(log2(target)) * 4)!;
+				       prec = max(prec, -floor(log2(target)) * 2)!;
 				       ya = mid(evaluate(func,inf(dom)));
 				       yb = mid(evaluate(func,sup(dom)));
 				       yc = mid(evaluate(func,mid(dom)));
