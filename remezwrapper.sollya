@@ -374,7 +374,7 @@ procedure remezbugreport(f,m,d,w,eps,qual) {
 	     } else {
 	        targetPrec = 12;
 	     };	     
-	     prec = min(300, max(prec, targetPrec))!;
+	     prec = min(300, max(ceil(1.5 * prec), targetPrec))!;
 	     oldverb = verbosity = ?;
 	     verbosity = 6!;
 
@@ -477,8 +477,10 @@ procedure insertZeroConstantCache(data, X, n, p, res) {
 	  zeroConstantCache = { .data = data, .X = X, .n = n, .p = p, .res = res };
 };
 
+maxZeroPrec = 1200;
+
 procedure makeZeroConstant(func, dom) {
-	  var res, oldPrec, oldPoints;
+	  var res, oldPrec, oldPoints, oldVerb;
 	  var zeros, z, myDom, zd, zu;
 	  var constantevaluateprocedure;
 	  var f, c, delta, y;
@@ -506,6 +508,10 @@ procedure makeZeroConstant(func, dom) {
 	         constantevaluateprocedure = proc(data, X, n, p) {
 	            var res, oldPrec, oldPoints, zeros, z, zd, zu, resCache, oldVerb;
 	            if (n == 0) then {
+                       if (p > maxZeroPrec) then {
+		       	  write("Refusing to evaluate a zero at more than ", maxZeroPrec, " bits\n");
+			  p = maxZeroPrec;
+		       };
 		       resCache = checkZeroConstantCache(data, X, n, p);
 		       if (resCache.okay) then {
 		       	  res = resCache.res;
@@ -531,9 +537,9 @@ procedure makeZeroConstant(func, dom) {
 		          };
 	                  prec = oldPrec!;
 		          points = oldPoints!;
-			  verbosity = oldVerb!;
 			  insertZeroConstantCache(data, X, n, p, res);
 		          write("------> DONE\n");
+			  verbosity = oldVerb!;
                        };
 	            } else {
 	               res = [0];
