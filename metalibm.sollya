@@ -341,6 +341,7 @@ if (resultat.okay) then {
        if (0 in dom) then externalplotPrecision = 14;
        oldPrec = prec; prec = 165!;
        externalplot(compilepath@compiledCode,relative,f,dom,externalplotPrecision,perturb); 
+       externalplot(compilepath@compiledCode,absolute,0,dom,externalplotPrecision,perturb); 
        prec = oldPrec!;
    };
 
