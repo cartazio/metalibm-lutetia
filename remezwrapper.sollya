@@ -376,7 +376,7 @@ procedure remezbugreport(f,m,d,w,eps,qual) {
 	     };	     
 	     prec = min(300, max(prec, targetPrec))!;
 	     oldverb = verbosity = ?;
-	     verbosity = 1!;
+	     verbosity = 6!;
 
 	     res = false;
 
