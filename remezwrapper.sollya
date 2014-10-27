@@ -165,13 +165,13 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
 
-	  if ((sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	  if ((sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	     res = sup(guess);
-	     poly = remezbugreport(f,res,d,w,eps);
+	     poly = remezbugreport(f,res,d,w,eps,0.1);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	   res := res - 1;
-	     	   poly = remezbugreport(f,res,d,w,eps);		   
+	     	   poly = remezbugreport(f,res,d,w,eps,0.1);		   
 	     };
 	     if (poly == false) then res = inf(guess);
 	  } else
@@ -201,25 +201,25 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
 
-	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	     res = sup(guess);
-	     poly = remezbugreport(f,res,d,w,eps);
+	     poly = remezbugreport(f,res,d,w,eps,0.1);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	   res := res - 1;
-	     	   poly = remezbugreport(f,res,d,w,eps);		   
+	     	   poly = remezbugreport(f,res,d,w,eps,0.1);		   
 	     };
 	     if (poly == false) then res = inf(guess);
 	  } else {
 	    if (sup(guess) == infty) then {
                 res = b + 1;
-		if ((res - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+		if ((res - inf(guess) <= 8) && (res - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
 	             write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	             res = b + 1;
-	             poly = remezbugreport(f,res,d,w,eps);
+	             poly = remezbugreport(f,res,d,w,eps,0.1);
 	             while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	        res := res - 1;
-	     	        poly = remezbugreport(f,res,d,w,eps);		   
+	     	        poly = remezbugreport(f,res,d,w,eps,0.1);		   
 	             };
 	             if (poly == false) then res = inf(guess);
 		};
@@ -321,10 +321,9 @@ procedure insertRemezCache(res,f,m,dom,w,qual,bounds) {
 };
 
 /* remezbugreport */
-procedure remezbugreport(f,m,d,w,eps) {
+procedure remezbugreport(f,m,d,w,eps,qual) {
 	  var res;
 	  var oldpoints;
-	  var qual;
 	  var oldprec;
 	  var oldverb;
 	  var myDom;
@@ -361,7 +360,6 @@ procedure remezbugreport(f,m,d,w,eps) {
 	  
 
 	  bound = [abs(eps)/4;abs(eps)];
-	  qual = 2621b-19;
 
 	  cacheRes = getRemezCache(f,myM,myDom,w,qual,bound);
 	  if (cacheRes.okay) then {
@@ -443,10 +441,10 @@ procedure legacyremezorfail(func,dom,monomials,eps) {
 	    };
 
 	    poly = false;
-	    poly = remezbugreport(1,monomials,d,1/func,eps);
+	    poly = remezbugreport(1,monomials,d,1/func,eps,2621b-19);
 	    if (symetrical) then {
 	          poly2 = false;
-	          poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/func,eps);
+	          poly2 = remezbugreport(1,monomials,[-sup(d);-inf(d)],1/func,eps,2621b-19);
 		  if (poly2 != false) then {
 		     if (mydirtyinfnorm(poly2/func - 1, dom) < mydirtyinfnorm(poly/func - 1, dom)) then {
 		        poly = poly2;
