@@ -504,7 +504,7 @@ procedure makeZeroConstant(func, dom) {
 	     	    myDom = dom;
 	         };	     
 	         constantevaluateprocedure = proc(data, X, n, p) {
-	            var res, oldPrec, oldPoints, zeros, z, zd, zu, resCache;
+	            var res, oldPrec, oldPoints, zeros, z, zd, zu, resCache, oldVerb;
 	            if (n == 0) then {
 		       resCache = checkZeroConstantCache(data, X, n, p);
 		       if (resCache.okay) then {
@@ -513,8 +513,10 @@ procedure makeZeroConstant(func, dom) {
 		          write("Evaluating constant for data = ", data, " on X = ", X, " and p = ", p, " ----->\n");
 	                  oldPrec = prec;
 		          oldPoints = points;
+			  oldVerb = verbosity;
 	                  prec = p + 10!;
 		          points = 5!;
+			  verbosity = 1!;
 	                  zeros = dirtyfindzeros(data.func,data.dom);
 		          if (zeros == [||]) then {
 		       	     res = [NaN];
@@ -529,6 +531,7 @@ procedure makeZeroConstant(func, dom) {
 		          };
 	                  prec = oldPrec!;
 		          points = oldPoints!;
+			  verbosity = oldVerb!;
 			  insertZeroConstantCache(data, X, n, p, res);
 		          write("------> DONE\n");
                        };
