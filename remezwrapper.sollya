@@ -320,6 +320,119 @@ procedure insertRemezCache(res,f,m,dom,w,qual,bounds) {
 	  remezCache = entry .: remezCache;
 };
 
+procedure myremezinterpolate(X, Y, phis) {
+	  var res, lx, ly, lphis, l, c, recXA, recYA, recXB, recYB, recPhis;
+	  var resA, resB, pA, pB, p, xA, xB;
+
+	  res = { .okay = false };
+	  lx = length(X);
+	  ly = length(Y);
+	  lphis = length(phis);
+	  if ((lx == ly) && (ly == lphis)) then {
+	     l = lx;
+	     if (l == 1) then {
+		c = Y[0] / (substitute(phis[0],X[0]));
+		res.okay = true;
+		res.poly = horner(c * (phis[0]));
+	     } else {
+	        t = simplify(phis[l-1]/phis[l-2]);
+		recXA = tail(X);
+		recYA = tail(Y);
+		recXB = revert(tail(revert(X)));
+		recYB = revert(tail(revert(Y)));
+		recPhis = revert(tail(revert(phis)));
+		xA = X[0];
+		xB = X[l-1];
+		resA = myremezinterpolate(recXA, recYA, recPhis);
+		if (resA.okay) then {
+		     resB = myremezinterpolate(recXB, recYB, recPhis);
+		     if (resB.okay) then {
+		     	pA = resA.poly;
+			pB = resB.poly;
+			p = 1/(substitute(t, xA - xB)) * (
+                                                            substitute(t, xA - x) * pA + 
+							    substitute(t, x - xB) * pB
+                                                         );
+		     	res.okay = true;
+			res.poly = horner(p);
+		     };
+		};
+	     };
+	  };
+
+	  return res;
+};
+
+procedure myremezbase(f, m, d, eps) {
+	  var res;
+	  var X, Y;
+	  var n;
+	  var i;
+	  var xi, yi;
+	  var a, b;
+	  var phis, phi;
+	  var oldPrec;
+	  var resA;
+
+	  res = { .okay = false };
+	  oldPrec = prec;
+	  prec = ceil(-log2(eps) + 10)!;
+	  n = length(m) - 1;
+	  a = inf(dom);
+	  b = sup(dom);
+	  X = [||];
+	  Y = [||];
+	  phis = [||];
+	  for i from 0 to n do {
+	      xi := 1/2 * (a + b) + 1/2 * (b - a) * cos(pi * ((2 * i + 1)/(2 * (n + 1))));
+	      yi := f(xi);
+	      if (m[i] == 0) then { phi = 1; } else { phi = simplify(x^(m[i])); };
+	      X = xi .: X;
+	      Y = yi .: Y;
+	      phis = phi .: phis;
+	  }; 
+	  X = revert(X);
+	  Y = revert(Y);
+	  phis = revert(phis);
+	  resA = myremezinterpolate(X, Y, phis);
+	  if (resA.okay) then {
+	     res.okay = true;
+	     res.poly = subpoly(resA.poly, m);
+	  };
+	  prec=oldPrec!;
+	  return res;
+};
+
+procedure myremezalternate(f, m, d, eps) {
+	  var res;
+	  var firstMonomial, myM, mon, myFunc, myRes;
+
+	  res = { .okay = false };
+	  if (m != [||]) then {
+	     firstMonomial = m[0];
+	     if (firstMonomial > 0) then {
+	     	myM = [||];
+		for mon in m do {
+		    myM = (simplify(mon - firstMonomial)) .: myM;
+		};
+		myM = revert(myM);
+		myFunc = simplify(f/(x^firstMonomial));
+		myRes = myremez(myFunc, myM, d, eps);
+		if (myRes.okay) then {
+		   res.okay = true;
+		   res.poly = simplify((x^firstMonomial) * myRes.poly);
+		};
+	     } else {
+	        if (inf(evaluate(f, inf(dom)) * evaluate(f, sup(dom))) > 0) then {
+	     	   res = myremezbase(f, m, d, eps);
+	        };
+	     };
+	  };
+	  return res;
+};
+
+// myremez = myremezalternate;
+
 /* remezbugreport */
 procedure remezbugreport(f,m,d,w,eps,qual) {
 	  var res;
@@ -332,6 +445,7 @@ procedure remezbugreport(f,m,d,w,eps,qual) {
 	  var remezTime;
 	  var myM;
 	  var cacheRes, bound, targetPrec;
+	  var haveAnswer, myremezres; 
 
 	  myDom = d;
 	  if ((inf(d) == 0) || (sup(d) == 0)) then {
@@ -385,12 +499,23 @@ procedure remezbugreport(f,m,d,w,eps,qual) {
 	     write("Remez debugging: prec = ",prec,"; points = ",points,"; remez(",f,",",myM,",",myDom,",",w,",",qual,",",bound,");", " targetErr = ", eps,";\n"); 
 	     display = oldDisplay!;
 
-	     remezTime = time({
+	     haveAnswer = false;
+	     if (isbound(myremez)) then {
+	     	myremezres = myremez(simplify(f/w), myM, myDom, abs(eps));
+		if (myremezres.okay) then {
+		   res = myremezres.poly;
+		   haveAnswer = true;
+		};
+	     };
+
+	     if (!haveAnswer) then {
+	         remezTime = time({
                          	  res = remez(f,myM,myDom,w,qual,bound);
 	                          if (!(res == res)) then res = false;
-		              });
-	     "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";
-	     wholeRemezTime := wholeRemezTime + remezTime;
+		                  });
+	         "Remez debugging: remez took ", round(remezTime,12,RN), " sec.";
+	         wholeRemezTime := wholeRemezTime + remezTime;
+	     };
 
 	     verbosity = oldverb!;
 	     points = oldpoints!;
@@ -774,6 +899,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 	  var lastcoeff;
 	  var r, q, nrm, gamma, targetDelta, nrmQ, nrmP;
 	  var firstremezpoly, firstremezpolyerr, firstremezpolyfound;
+	  var ci;
 
 	  firstremezpolyfound = false;
 
@@ -830,7 +956,11 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 			};
 			while (revMonomials != [||]) do {
 			      i = head(revMonomials);
-			      g = (x * subPolyDone) / coeff(poly,i);
+			      ci = coeff(poly,i);
+			      if (ci == 0) then {
+			      	 ci = 1b-1075;
+			      };
+			      g = (x * subPolyDone) / ci;
 			      alpha = mydirtyinfnorm(g,dom);
 			      
 		              samesign = false; nocancel = false; absoluteAuthorized = false;
