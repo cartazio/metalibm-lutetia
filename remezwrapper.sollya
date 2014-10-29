@@ -394,6 +394,7 @@ procedure myremezbase(f, m, d, eps) {
 	  X = revert(X);
 	  Y = revert(Y);
 	  phis = revert(phis);
+	  prec = 2 * prec!;
 	  resA = myremezinterpolate(X, Y, phis);
 	  if (resA.okay) then {
 	     res.okay = true;
