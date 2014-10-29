@@ -8190,7 +8190,7 @@ procedure tryImplementation(problemdef, parametrization) {
                };
 	  } else {
 	       tryImplementationChoices = [| { .method = tryImplementationThroughDomainSplitting, .name = "tryImplementationThroughDomainSplitting" },
-                                             // { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
+                                             { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
                                              // { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
 	                                     // { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
 		     			     // { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
