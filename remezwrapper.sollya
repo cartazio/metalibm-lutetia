@@ -489,7 +489,7 @@ procedure remezbugreport(f,m,d,w,eps,qual) {
 	     } else {
 	        targetPrec = 12;
 	     };	     
-	     prec = min(300, max(ceil(1.5 * prec), targetPrec))!;
+	     prec = min(300, max(ceil(1.05 * prec), targetPrec))!;
 	     oldverb = verbosity = ?;
 	     verbosity = 1!;
 
@@ -603,7 +603,7 @@ procedure insertZeroConstantCache(data, X, n, p, res) {
 	  zeroConstantCache = { .data = data, .X = X, .n = n, .p = p, .res = res };
 };
 
-maxZeroPrec = 1200;
+maxZeroPrec = 2000;
 
 procedure makeZeroConstant(func, dom) {
 	  var res, oldPrec, oldPoints, oldVerb;
