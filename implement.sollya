@@ -222,6 +222,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 	  var gappaTime;
 	  var oldDisplay;
 	  var exclDomString;
+	  var bashexecuteString;
 
 	  q = poly;
 
@@ -264,12 +265,17 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			      default : {};
 
 		   	write("boundsList = [|") > gappaOutputFile;
+			bashexecuteString = "./gappa-wrapper DIRECT '" @ gappaExecutable@"' '-Munconstrained' "@gappaFile@" "@gappaOutputFile@"_temp";
+			write("Executing in bash: \"", bashexecuteString, "\"\n");
 			gappaTime = time({
-			                    bashexecute("./gappa-wrapper DIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
+			                    bashexecute(bashexecuteString);
 					 });
 			wholeGappaTime := wholeGappaTime + gappaTime;
+			bashexecute("cat "@gappaOutputFile@"_temp"@" >> "@gappaOutputFile);
 			print("0|];") >> gappaOutputFile;
 			execute(gappaOutputFile);
+			//"boundsList = ", boundsList, ", gappaOutputFile = ", gappaOutputFile;
+			//bashexecute("cat " @ gappaOutputFile); 
 			bashexecute("rm " @ gappaOutputFile);
 			evalerr = 0;
 			for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
@@ -278,16 +284,20 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			if (abs(evalerr) > 1) then {
 			     write("\tRe-running Gappa\n");
 		   	     write("boundsList = [|") > gappaOutputFile;
+			     bashexecuteString = "./gappa-wrapper INDIRECT '" @ gappaExecutable@"' '-Munconstrained' "@gappaFile@" "@gappaOutputFile@"_temp";
+			     write("Executing in bash: \"", bashexecuteString, "\"\n");
 			     gappaTime = time({
-			                         bashexecute("./gappa-wrapper INDIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
+			                         bashexecute(bashexecuteString);
 					      });
 			     wholeGappaTime := wholeGappaTime + gappaTime;
+			     bashexecute("cat "@gappaOutputFile@"_temp"@" >> "@gappaOutputFile);
 			     print("0|];") >> gappaOutputFile;
 			     execute(gappaOutputFile);
+			     //bashexecute("cat " @ gappaOutputFile);
 			     bashexecute("rm " @ gappaOutputFile);
 			     evalerr = 0;
 			     for i in boundsList do if (abs(i) > evalerr) then evalerr = abs(i);
-			         if (evalerr == 0) then evalerr := 1/0;
+			     if (evalerr == 0) then evalerr := 1/0;
                         };
 
 			write("\tGappa determined evaluation error = 2^(",round(log2(evalerr),12,RU),")\n");
@@ -753,7 +763,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 
 	     domainExcludes = { .excludeFromDomain = false };
 	     zeros = mydirtyfindzeros(shiftedFunc, shiftedDom);
-	     if (zeros != [||]) then {
+	     if ((zeros != [||]) || (shiftedFunc(inf(shiftedDom)) * shiftedFunc(sup(shiftedDom)) <= 0)) then {
 	     	    shiftedZero = zeros[0];
 		    if (shiftedZero != 0) then {
 		        originalZero = shiftedZero + midpoint;
@@ -767,6 +777,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 			   		     max(sup(excludeDomain), sup(shiftedDom) * 1b-400) ];
 			};			
 	                domainExcludes = { .excludeFromDomain = true; .excludeDomain = excludeDomain };
+			write("Shifted function contains a zero. Exclusion domain is: ", excludeDomain, "\n");
 		    };
 	     }; 	     
 

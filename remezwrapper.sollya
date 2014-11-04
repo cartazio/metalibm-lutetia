@@ -38,7 +38,7 @@
 
 remezCache = [||];
 guessdegreeCache = [||];
-
+zeroConstantOuterCache = [||];
 
 /* A timing wrapper around dirtyinfnorm */
 procedure mydirtyinfnorm(func, dom) {
@@ -165,17 +165,22 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
 
-	  if ((sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
-	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
-	     res = sup(guess);
-	     poly = remezbugreport(f,res,d,w,eps,0.1);
-	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
-	     	   res := res - 1;
-	     	   poly = remezbugreport(f,res,d,w,eps,0.1);		   
+	  if ((sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	     if ((!(0 in evaluate(simplifysafe(f/w), dom))) && (inf(evaluate(simplifysafe(f/w), inf(dom)) * evaluate(simplifysafe(f/w), inf(dom))) > 0)) then {
+	         write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
+	         res = sup(guess);
+	         poly = remezbugreport(f,res,d,w,eps,0.1);
+	         while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
+	     	       res := res - 1;
+	     	       poly = remezbugreport(f,res,d,w,eps,0.1);		   
+	         };
+	         if (poly == false) then res = inf(guess);
+	     } else {
+	       res = inf(guess);
 	     };
-	     if (poly == false) then res = inf(guess);
-	  } else
+	  } else {
 	    res = inf(guess);
+	  };
 
 	  return res;
 };
@@ -186,6 +191,7 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	  var poly;
 	  var guessdegreeTime;
 	  var oldPoints;
+	  var condition;
 
 	  oldPoints = points;
 	  points = 65!;
@@ -201,13 +207,20 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
 
-	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
+	  condition = false;
+	  if ((sup(guess) != infty) && (sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0)) then {
+	     if ((!(0 in evaluate(simplifysafe(f/w), dom))) && (inf(evaluate(simplifysafe(f/w), inf(dom)) * evaluate(simplifysafe(f/w), inf(dom))) > 0)) then {
+	     	condition = true;
+	     };
+	  };
+	  
+	  if (condition) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	     res = sup(guess);
-	     poly = remezbugreport(f,res,d,w,eps,0.1);
+	     poly = remezbugreport(f,res,d,w,eps,0.9);
 	     while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	   res := res - 1;
-	     	   poly = remezbugreport(f,res,d,w,eps,0.1);		   
+	     	   poly = remezbugreport(f,res,d,w,eps,0.9);		   
 	     };
 	     if (poly == false) then res = inf(guess);
 	  } else {
@@ -216,10 +229,10 @@ procedure guessdegreewrapperwithboundinner(f,d,eps,w,b) {
 		if ((res - inf(guess) <= 8) && (res - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
 	             write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	             res = b + 1;
-	             poly = remezbugreport(f,res,d,w,eps,0.1);
+	             poly = remezbugreport(f,res,d,w,eps,0.9);
 	             while ((poly != false) && quickcheckinfnorm(poly * w - f,d,eps)) do {
 	     	        res := res - 1;
-	     	        poly = remezbugreport(f,res,d,w,eps,0.1);		   
+	     	        poly = remezbugreport(f,res,d,w,eps,0.9);		   
 	             };
 	             if (poly == false) then res = inf(guess);
 		};
@@ -491,7 +504,7 @@ procedure remezbugreport(f,m,d,w,eps,qual) {
 	     };	     
 	     prec = min(300, max(ceil(1.05 * prec), targetPrec))!;
 	     oldverb = verbosity = ?;
-	     // verbosity = 6!;
+	     verbosity = 1!;
 
 	     res = false;
 
@@ -605,7 +618,7 @@ procedure insertZeroConstantCache(data, X, n, p, res) {
 
 maxZeroPrec = 2000;
 
-procedure makeZeroConstant(func, dom) {
+procedure makeZeroConstantInner(func, dom) {
 	  var res, oldPrec, oldPoints, oldVerb;
 	  var zeros, z, myDom, zd, zu;
 	  var constantevaluateprocedure;
@@ -685,6 +698,42 @@ procedure makeZeroConstant(func, dom) {
 	  prec = oldPrec!;
 	  points = oldPoints!;
 
+	  return res;
+};
+
+procedure checkZeroConstantOuterCache(func, dom) {
+	  var res, cr, found, currList;
+
+	  res = { .okay = false };
+	  found = false;
+	  currList = zeroConstantOuterCache;
+	  while ((!found) && (currList != [||])) do {
+	  	cr = head(currList);
+		currList = tail(currList);
+		if ((cr.func == func) && (cr.dom == dom)) then {
+		   found = true;
+		   res = { .okay = true, .c = cr.c };
+		};
+	  };
+
+	  return res;
+};
+
+procedure insertZeroConstantOuterCache(func, dom, c) {
+	  zeroConstantOuterCache = ({ .func = func, .dom = dom, .c = c }) .: zeroConstantOuterCache;
+};
+
+procedure makeZeroConstant(func, dom) {
+	  var res;
+	  var resCache;
+
+	  resCache = checkZeroConstantOuterCache(func, dom);
+	  if (resCache.okay) then {
+	     res = resCache.c;
+	  } else {
+	     res = makeZeroConstantInner(func, dom);
+	     insertZeroConstantOuterCache(func, dom, res);
+	  };
 	  return res;
 };
 
@@ -801,7 +850,7 @@ procedure remezorfail(func,dom,monomials,eps) {
 		    };
                     shiftedRes = legacyremezorfail(shiftedFunc,shiftedDom,shiftedMonomials,eps);
 		    if (shiftedRes != false) then {
-		       p = shiftedRes(x - c);
+		       p = shiftedRes(x - round(c,3 * prec + 10, RN));
 		       q = 0;
 		       for i from 0 to degree(p) do {
 		       	   q = q + x^i * round(coeff(p,i),2 * prec + 10,RN);

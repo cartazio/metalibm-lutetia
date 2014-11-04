@@ -1,33 +1,41 @@
-#! /bin/bash
+#! /bin/bash -x
 
-if [ $# -lt 4 ] 
+if [ $# -lt 5 ] 
 then
     exit 1
 fi
+
+sleep 1
 
 MODE="$1"
 GAPPA="$2"
 GAPPAOPTIONS="$3"
 GAPPAFILE="$4"
+OUTPUTFILE="$5"
 
 if [ "$MODE" = "INDIRECT" ] 
 then
-    cat "$GAPPAFILE" | sed -r 's/epsilon in /epsilon in ? #/g;' | "$GAPPA" $GAPPAOPTIONS 2>&1 | grep 'epsilon in' | sed -n 's/\({[^}]*}\)//g;p' | sed -n 's/epsilon in \[//;p' | sed -n 's/\]/,/;p' | sed -n 's/, /,\n/;p'
+    cat "$GAPPAFILE" | sed -r 's/epsilon in /epsilon in ? #/g;' | "$GAPPA" $GAPPAOPTIONS 2>&1 | grep 'epsilon in' | sed -n 's/\({[^}]*}\)//g;p' | sed -n 's/epsilon in \[//;p' | sed -n 's/\]/,/;p' | sed -n 's/, /,\n/;p' > "$OUTPUTFILE"
+    sleep 1
     exit 0
 fi
 
 if grep 'epsilon in ?' "$GAPPAFILE" > /dev/null 
 then
-    cat "$GAPPAFILE" | "$GAPPA" $GAPPAOPTIONS 2>&1 | grep 'epsilon in' | sed -n 's/\({[^}]*}\)//g;p' | sed -n 's/epsilon in \[//;p' | sed -n 's/\]/,/;p' | sed -n 's/, /,\n/;p'
+    cat "$GAPPAFILE" | "$GAPPA" $GAPPAOPTIONS 2>&1 | grep 'epsilon in' | sed -n 's/\({[^}]*}\)//g;p' | sed -n 's/epsilon in \[//;p' | sed -n 's/\]/,/;p' | sed -n 's/, /,\n/;p' > "$OUTPUTFILE"
+    sleep 1
     exit 0
 fi
 
-if "$GAPPA" $GAPPAOPTIONS < "$GAPPAFILE" > /dev/null 2>&1
+if "$GAPPA" $GAPPAOPTIONS "$GAPPAFILE" > /dev/null 2>&1
 then
-    grep 'epsilon in ' "$GAPPAFILE" | sed -n 's/[^\[]*\[\([^,]*\),\([^]]*\)\].*/\1,\n\2,/gp;'
+    grep 'epsilon in ' "$GAPPAFILE" | sed -n 's/[^\[]*\[\([^,]*\),\([^]]*\)\].*/\1,\n\2,/gp;' > "$OUTPUTFILE"
+    sleep 1
     exit 0
 fi
 
+echo "" > "$OUTPUTFILE"
+sleep 2
 exit 0
 
 
