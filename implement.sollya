@@ -6789,7 +6789,7 @@ procedure testIfFunctionCouldBePeriodic(func, dom) {
 	     };
 	  };
 	  prec = oldPrec!;
-	  
+
 	  return res;
 };
 
@@ -7424,10 +7424,10 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		    c = 0;
 		 } else {
 		    if (0 in [inf(dom); inf(dom) + period/2]) then {
-		       c = D(inf(dom) + period/2);
+		       c = round(inf(dom) + period/2, D, RU);
 		    } else {
 		      if (0 in [sup(dom) - period/2; sup(dom)]) then {
-		      	 c = D(sup(dom) - period/2);
+		      	 c = round(sup(dom) - period/2, D, RD);
 		      } else {
 		      	 c = D(mid(dom));
 		      };
@@ -7435,6 +7435,8 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		 };
 		 reducedDom = [ c - period/2; c + period/2 ];
 		 midpointCases = [||];
+
+		 "reducedDom = ", reducedDom;
 	
 		 /* Just to be sure, we check that the reduced domain 
 		    is contained in the original domain. Otherwise, we simply fail.
