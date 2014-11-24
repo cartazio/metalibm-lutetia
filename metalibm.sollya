@@ -41,6 +41,11 @@ showmessagenumbers=on!;
 display = default!;
 
 /* -------------------------------------------------------- 
+   Display time
+----------------------------------------------------------- */ 
+write("Metalibm starting: "); bashexecute("date");
+
+/* -------------------------------------------------------- 
    Compile the externally bound code.
 ----------------------------------------------------------- */ 
 write("Recompiling externally bound parts of Metalibm.\n");
@@ -361,4 +366,10 @@ if (resultat.okay) then {
 
 };
 
+/* -------------------------------------------------------- 
+   Display time
+----------------------------------------------------------- */ 
+write("Metalibm ending: "); bashexecute("date");
+
 quit;
+
