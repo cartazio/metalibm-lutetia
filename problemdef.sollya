@@ -1,8 +1,8 @@
 
-f = exp(x^2);
-dom = [-1,1];
-target = 1b-32;
-maxDegree = 4;
+f = sin(x / 17) + 42;
+dom = [-3,3];
+target = 1b-42;
+maxDegree = 7;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;
 minimalReductionRatio = 1000;

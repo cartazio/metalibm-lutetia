@@ -644,6 +644,28 @@ procedure implementcentered(func, dom, target, beta, variableFormat, galoptimize
 
 
 
+procedure checkSterbenzForMidpoint(midpoint, dom) {
+	  var res;
+
+	  if (midpoint == 0) then {
+	     res = true;
+	  } else {
+	     if (0 in dom) then {
+	     	res = (midpoint == 0);
+	     } else {
+	        if (midpoint * inf(dom) < 0) then {
+		   res = false;
+		} else {
+		   /* Here midpoint has the same sign as all values in dom */
+		   res = (((abs(midpoint)/2 <= abs(inf(dom))) && (abs(inf(dom)) <= 2 * abs(midpoint))) &&
+		          ((abs(midpoint)/2 <= abs(sup(dom))) && (abs(sup(dom)) <= 2 * abs(midpoint))));
+		};
+	     };
+	  };
+
+	  return res;
+};
+
 /* implements a function by polynomial approximation in a small interval
 
    Returns
@@ -714,7 +736,7 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 		     nrm = mydirtyinfnorm(func, dom);
                      if (abs(func(inf(dom))) < 1b-12 * nrm) then midpoint := D(inf(dom)) else {
 		     if (abs(func(sup(dom))) < 1b-12 * nrm) then midpoint := D(sup(dom)) else {
-		     if (target < 1b-50) then {
+		     if ((target < 1b-50) && (checkSterbenzForMidpoint(D(mid(dom)), dom))) then {
 		      PstarOrig = remezwrapper(func(x + D(mid(dom))), [inf(dom) - D(mid(dom));sup(dom) - D(mid(dom))], target, 3);
 	              if (!(PstarOrig == false)) then {
 	                 Pstar = simplifysafe(horner(simplifysafe(substitute(PstarOrig,(x - D(mid(dom)))))));
@@ -730,6 +752,10 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 		      };
 		      }; };
 		   };
+	       };
+
+	       if (!checkSterbenzForMidpoint(midpoint, dom)) then {
+	       	  midpoint = 0;
 	       };
 
           } else {
@@ -2025,7 +2051,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 
 	  if (abs(sup(dom) - inf(dom)) - minWidth >= 0) then {
 
-	  if (((!(0 in dom)) &&
+	  if (((!((0 in dom) || (0 in [inf(dom) - min(1b-1023, 2 * inf(abs(dom))); sup(dom) + min(1b-1023, 2 * inf(abs(dom)))]))) &&
 	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) && sterbenzNeeded) then {
 	      /* We have to split because the Sterbenz condition will
 	         not be fulfilled for center points on this subdomain

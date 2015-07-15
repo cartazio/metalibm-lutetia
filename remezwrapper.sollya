@@ -165,6 +165,8 @@ procedure guessdegreewrapper(f,d,eps,w) {
 	  wholeGuessdegreeTime := wholeGuessdegreeTime + guessdegreeTime;
 	  points = oldPoints!;
 
+	  "--------------> guessdegree(",f,",",d,",",eps,",",w,") yields ", guess;
+
 	  if ((sup(guess) - inf(guess) <= 8) && (sup(guess) - inf(guess) > 4) && (degree(simplifysafe(f/w)) < 0) && (!(0 in evaluate(simplifysafe(f/w), dom)))) then {
 	     write("guessdegree has failed on ", f, ", ", d, ", ", eps, ", ", w, " - the result was:", guess, "(prec = ", prec, ", points = ", points,")\n");
 	     res = sup(guess);
@@ -917,7 +919,7 @@ procedure remezwrapper(func, dom, targetErr, iterations) {
 	     { guess = guessdegreewrapper(1,dom,abs(targetErr),1/func); };
 	     noConstantTerm = false;
 	  };
-	
+
 	  err = 1b1000;
 	  deg = guess - 1;
 	  if (deg < 0) then deg = 0;
