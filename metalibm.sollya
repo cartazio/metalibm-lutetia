@@ -56,7 +56,7 @@ __identity = x;
    Suppress some unneeded (noisy) messages
 ----------------------------------------------------------- */ 
 
-suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404, 456);
+suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404, 456, 401);
 
 /* -------------------------------------------------------- 
    Initialize performance counters

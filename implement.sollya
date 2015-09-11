@@ -41,6 +41,8 @@ execute("fpminimax.sollya");
 execute("galoptimisation.sollya");
 execute("symetries.sollya");
 execute("inverse.sollya");
+execute("newimplementpoly.sollya");
+
 
 procedure targetErrorToImplementpolyType(err) {
 	  var res;
@@ -96,8 +98,8 @@ procedure myimplementpoly(l = ...) {
           display = oldDisplay!;
 
 	  res = match (length(l)) with
-	  	6 : (implementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5]))
-		8 : (implementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5],l[6],l[7]))
+	  	6 : (newimplementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5]))
+		8 : (newimplementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5],l[6],l[7]))
 		default : (error);
 
           prec = oldPrec!;		    

@@ -1,0 +1,314 @@
+/*
+ * Copyright 2008-2015 by
+ *
+ * Laboratoire de l'Informatique du Parallélisme,
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
+ * Sollya metalibm main procedures for implementing functions
+ * with polynomial approximation and Horner scheme evaluation
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN)
+ *              christoph.lauter@ens-lyon.org
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
+*/
+
+procedure newimplementpolyFormat(X) {
+	  var res;
+	  var r, t, i;
+
+	  if ((X != 0) && (TD(X - X) == TD(X - X))) then {
+	     r = X;
+	     i = 0;
+	     while (r != 0) do {
+	     	   t = D(r);
+		   r = r - t;
+		   i = i + 1;
+	     };
+	     res = (match (i) with
+	                  1       : (D)
+			  2       : (DD)
+			  3       : (TD)
+			  default : (error));
+	  } else {
+	    res = D;
+	  };
+
+	  return res;
+};
+
+procedure newimplementpolyAccuraciesInnerToPoly(monomials) {
+	  var res;
+	  var p, q, xk;
+	  var i, k, c;
+
+	  q = 0;
+	  for i from length(monomials) - 1 to 1 by -1 do {
+	      c = monomials[i].c;
+	      k = monomials[i].k;
+	      q = c + x^k * q;
+	  };
+	  c = monomials[0].c;
+	  k = monomials[0].k;
+	  xk = x^k;
+	  p = c + xk * q;
+
+	  res.c = c;
+	  res.p = p;
+	  res.xk = xk;
+	  res.q = q;
+
+	  return res;
+};
+
+procedure newimplementpolyAccuraciesInner(monomials, dom, tgt) {
+	  var res;
+	  var mm;
+	  var hornersteps;
+	  var steps;
+	  var okay;
+	  var pb;
+	  var xk, p, q, c;
+	  var budget, budgetStep, budgetRest;
+	  var accuracyStep, temp;
+
+	  res.okay = false;
+
+	  okay = true;
+	  mm = monomials;
+	  hornersteps = [||];
+	  budget = abs(tgt);
+	  while ((mm != [||]) && okay) do {
+	        steps = length(mm);
+		budgetStep = budget / steps;
+		budgetRest = ((steps - 1) * budget) / steps;
+	        pb = newimplementpolyAccuraciesInnerToPoly(mm);
+		xk = pb.xk;
+		p = pb.p;
+		q = pb.q;
+		c = pb.c;
+		alpha1 = mydirtyinfnorm(c/p,dom);
+		alpha2 = mydirtyinfnorm((xk * q)/p,dom);
+		accuracyStep = round(budgetStep / (alpha1 + alpha2), prec, RD);
+		temp = mm[0];
+		hornersteps = { .c = temp.c, .f = temp.f, .k = temp.k, .accuracy = accuracyStep } .: hornersteps;
+		budget = budgetRest / (alpha2 + accuracyStep);
+	  	mm = tail(mm);
+	  };
+	  hornersteps = revert(hornersteps);
+
+	  if (okay) then {
+	     res.hornersteps = hornersteps;
+	     res.okay = true;
+	  };
+
+	  return res;
+};
+
+procedure newimplementpolyAccuracies(p, dom, target) {
+	  var i, deg;
+	  var res;
+	  var monomials;
+	  var c;
+	  var steps;
+	  var hornersteps;
+	  var lastdeg;
+	  var okay;
+	  var temp;
+	  var tgt;
+
+	  res.okay = false;
+
+	  deg = degree(p);
+	  monomials = [||];
+	  for i from 0 to deg do {
+	      c = coeff(p, i);
+	      if (c != 0) then {
+	      	 monomials = { .c = c, .f = newimplementpolyFormat(c), .deg = i } .: monomials;
+	      };
+	  };
+	  monomials = revert(monomials);
+
+	  steps = length(monomials);
+	  okay = false;
+	  if (steps > 1) then {
+	    temp = monomials[steps - 1];
+	    temp.k = 1;
+	    monomials[steps - 1] = temp;
+	    for i from steps - 2 to 0 by -1 do {
+	    	temp = monomials[i];
+		temp.k = monomials[i + 1].deg - temp.deg;
+		monomials[i] = temp;
+	    };
+
+	    if (monomials[0].deg == 0) then {
+	       tgt = abs(target);
+	    } else {
+	       tgt = (steps * abs(target)) / (steps + 2);
+	    };
+	    
+	    resInner = newimplementpolyAccuraciesInner(monomials, dom, tgt);
+	    if (resInner.okay) then {
+	       hornersteps = resInner.hornersteps;
+               okay = true;
+	    };
+
+	    if (monomials[0].deg != 0) then {
+	       hornersteps = { .c = 0, .f = D, .k = monomials[0].deg, .accuracy = abs(target) / (steps + 2) } .: hornersteps;
+	    };
+	  } else {
+	    if (steps > 0) then {
+	       temp = monomials[0];
+	       if (temp.deg == 0) then {
+	           hornersteps = [| { .c = temp.c, .f = temp.f, .k = 1, .accuracy = abs(target) } |];
+	       } else {
+	           hornersteps = [| { .c = 0, .f = D, .k = temp.deg, .accuracy = abs(target) / 3 }, { .c = temp.c, .f = temp.f, .k = 1, .accuracy = abs(target) / 3 } |];
+	       };
+	       okay = true;
+	    };
+	  };
+
+	  if (okay) then {
+	     res.hornersteps = hornersteps;
+	  };
+	  res.okay = okay;
+	  
+	  return res;
+};
+
+procedure newimplementpoly_cularo(pbdef) {
+	  var res;
+	  var oldDisplay;
+	  var cularoPbdefFile;
+	  var resultfilename;
+	  var cularoExecutable;
+	  var cularoOkay;
+	  var cularoAnswer;
+	  var cularoParsedAnswer;
+
+	  cularoExecutable = "./cularo";
+
+	  res.okay = false;
+
+	  cularoPbdefFile = "newimplementpoly_" @ __unique_id @ ".pbdef";
+	  cularoPbdefFile = bashevaluate("readlink -f '" @ cularoPbdefFile @ "'");
+	  resultfilename = pbdef.resultfilename;
+	  
+	  oldDisplay = display;
+	  display = hexadecimal!;
+	  write(pbdef, "\n") > cularoPbdefFile;
+	  display = oldDisplay!;
+
+	  bashexecute(cularoExecutable @ " " @ cularoPbdefFile @ " " @ resultfilename);
+
+	  cularoOkay = false;
+	  cularoAnswer = readfile(resultfilename);
+	  if (cularoAnswer != "") then {
+	     cularoParsedAnswer = parse(cularoAnswer);
+	     if (cularoParsedAnswer == cularoParsedAnswer) then {
+	     	match (cularoParsedAnswer) with
+		      true    : { cularoOkay = true; }
+		      default : { };
+	     };
+	  };
+	  
+	  if (cularoOkay) then {
+	     res.okay = true;
+	  };
+	  
+	  return res;
+};
+
+procedure newimplementpoly_code(p, dom, target, format, functname, codefilename, prooffilename) {
+	  var res;
+	  var resAccuracies;
+	  var implementpolyPbDef;
+	  var resultfilename;
+	  var outputFormat;
+	  var resCularo;
+
+	  res.okay = false;
+	  res.q = p;
+
+	  implementpolyPbDef.dom = dom;
+	  implementpolyPbDef.variableformat = format;
+	  implementpolyPbDef.funcname = functname;
+	  implementpolyPbDef.codefilename = bashevaluate("readlink -f '" @ codefilename @ "'");
+	  implementpolyPbDef.prooffilename = bashevaluate("readlink -f '" @ prooffilename @ "'");
+	  resultfilename = "newimplementpoly_" @ __unique_id @ ".res";
+	  implementpolyPbDef.resultfilename = bashevaluate("readlink -f '" @ resultfilename @ "'");
+	  if (abs(target) < 1b-102) then {
+	     outputFormat = TD;
+	  } else {
+	     if (abs(target) < 1b-52) then {
+	     	outputFormat = DD;
+	     } else {
+	        outputFormat = D;
+	     };
+	  };
+	  implementpolyPbDef.outputFormat = outputFormat;
+
+	  resAccuracies = newimplementpolyAccuracies(p, dom, target);
+	  if (resAccuracies.okay) then {
+	     implementpolyPbDef.hornersteps = resAccuracies.hornersteps;
+	     resCularo = newimplementpoly_cularo(implementpolyPbDef);
+	     if (resCularo.okay) then {
+	     	res.okay = true;
+	     };
+	  };
+
+	  return res;
+};
+
+
+procedure actualnewimplementpoly(p, dom, target, format, functname, codefilename, coeffprecisions, prooffilename) {
+	  var res;
+	  var result;
+
+	  if (coeffprecisions == honorcoeffprec) then {
+	    result.okay = false;
+	    result = newimplementpoly_code(p, dom, target, format, functname, codefilename, prooffilename);
+	    if (result.okay) then {
+	      res = result.q;
+	    } else {
+	      res = implementpoly(p, dom, target, format, functname, codefilename, coeffprecisions, prooffilename);
+	    };
+	  } else {
+	    res = implementpoly(p, dom, target, format, functname, codefilename, coeffprecisions, prooffilename);
+	  };
+
+	  return res;
+};
+
+procedure newimplementpoly(l = ...) {
+	  var res;
+
+	  res = (match (length(l)) with 
+	      	       6       : (implementpoly(l[0],l[1],l[2],l[3],l[4],l[5]))
+		       8       : (actualnewimplementpoly(l[0],l[1],l[2],l[3],l[4],l[5],l[6],l[7]))
+		       default : (error)
+	        );
+
+	  return res;
+};

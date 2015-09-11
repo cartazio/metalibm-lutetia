@@ -1,0 +1,11 @@
+#! /bin/bash
+
+INPUT="$1"
+OUTPUT="$2"
+
+echo "I am Cularo"
+echo "My input is"
+cat "$INPUT"
+
+echo "false" > "$OUTPUT"
+
