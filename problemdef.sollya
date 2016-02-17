@@ -1,7 +1,7 @@
 
 f = sin(x / 17) + 42;
-dom = [-3,3];
-target = 1b-42;
+dom = [-4,4];
+target = 3b-51;
 maxDegree = 7;
 minWidth = (sup(dom) - inf(dom)) * 1/4096;
 tableIndexWidth = 8;

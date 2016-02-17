@@ -1196,7 +1196,7 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 	       res = {.okay = false, .addPoint = false};
 	     };	     
 	  } else {
-	    res = {.okay = true};
+	    res = {.okay = true, .addPoint = false};
 	  };
 	  
 	  "result in checkReconstruct = ", res;
@@ -1361,6 +1361,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 		  	buildres = buildReconstructPoly(xpoints, ypoints,  [|D...|]);
 		  
 		  	tmpres = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn);
+			tmpres.poly = buildres.poly;
 		  	"after adding a point tmpres = ", tmpres;		  
 		  };
 		  res = tmpres;
