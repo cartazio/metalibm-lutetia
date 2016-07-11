@@ -47,7 +47,7 @@
 
 /* Some declarations */
 
-double sollya_mpfr_get_d(mpfr_t, mp_rnd_t);
+double glue_mpfr_get_d(mpfr_t, mp_rnd_t);
 
 #if defined(D_TO_D)
 extern void POLYNOMIALNAME(double *, double);
@@ -63,8 +63,23 @@ extern void POLYNOMIALNAME(double *, double *, double *, double, double);
 extern void POLYNOMIALNAME(double *, double *, double *, double, double, double);
 #endif
 
+double glue_mpfr_get_d(mpfr_t op, mpfr_rnd_t rnd) {
+  union {
+    uint64_t i;
+    double d;
+  } xdb;
+
+  /* Handle NaNs on our own */
+  if (mpfr_nan_p(op)) {
+    xdb.i = 0x7ff800007ff80000ull;
+    return xdb.d;
+  }
+
+  return mpfr_get_d(op, rnd);
+}
+
 void mpfr_to_double(double *dh, mpfr_t op) {
-  *dh = sollya_mpfr_get_d(op, GMP_RNDN);
+  *dh = glue_mpfr_get_d(op, GMP_RNDN);
   mpfr_set_d(op, *dh, GMP_RNDN);
 }
 
@@ -76,12 +91,12 @@ void mpfr_to_doubledouble(double *dh, double *dm, mpfr_t op) {
 
   mpfr_set(rest,op,GMP_RNDN);
 
-  *dh = sollya_mpfr_get_d(rest, GMP_RNDN);
+  *dh = glue_mpfr_get_d(rest, GMP_RNDN);
   mpfr_set_d(temp,*dh,GMP_RNDN);
   mpfr_set(op,temp,GMP_RNDN);
   mpfr_sub(rest,rest,temp,GMP_RNDN);
 
-  *dm = sollya_mpfr_get_d(rest, GMP_RNDN);
+  *dm = glue_mpfr_get_d(rest, GMP_RNDN);
   mpfr_set_d(temp,*dm,GMP_RNDN);
   mpfr_add(op,op,temp,GMP_RNDN);
   
@@ -97,17 +112,17 @@ void mpfr_to_tripledouble(double *dh, double *dm, double *dl, mpfr_t op) {
 
   mpfr_set(rest,op, GMP_RNDN);
 
-  *dh = sollya_mpfr_get_d(rest, GMP_RNDN);
+  *dh = glue_mpfr_get_d(rest, GMP_RNDN);
   mpfr_set_d(temp,*dh,GMP_RNDN);
   mpfr_set(op,temp,GMP_RNDN);
   mpfr_sub(rest,rest,temp,GMP_RNDN);
 
-  *dm = sollya_mpfr_get_d(rest, GMP_RNDN);
+  *dm = glue_mpfr_get_d(rest, GMP_RNDN);
   mpfr_set_d(temp,*dm,GMP_RNDN);
   mpfr_add(op,op,temp,GMP_RNDN);
   mpfr_sub(rest,rest,temp,GMP_RNDN);
 
-  *dl = sollya_mpfr_get_d(rest, GMP_RNDN);
+  *dl = glue_mpfr_get_d(rest, GMP_RNDN);
   mpfr_set_d(temp,*dl,GMP_RNDN);
   mpfr_add(op,op,temp,GMP_RNDN);
 

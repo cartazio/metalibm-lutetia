@@ -34,6 +34,12 @@
 #include <mpfr.h>
 #include <stdlib.h>
 #include "sollya.h"
+
+#define malloc sollya_lib_malloc
+#define calloc sollya_lib_calloc
+#define realloc sollya_lib_realloc
+#define free sollya_lib_free
+
 #include "libVanderCoeffsSparse.h"
 
 /* Example of an external procedure linked to an identifier in sollya
@@ -55,8 +61,6 @@ struct chainStruct
   void *value;
   chain *next;
 };
-
-extern mp_prec_t tools_precision;
 
 int noDuplicate(int count, int *array) {
   int i,k;
@@ -94,7 +98,14 @@ chain *addElement(chain *c, void *elem) {
 }
 
 mp_prec_t getToolPrecision() {
-  return tools_precision;
+  sollya_obj_t t;
+  int temp;
+  t = sollya_lib_get_prec();
+  if (!sollya_lib_get_constant_as_int(&temp, t)) {
+    temp = 300;
+  }
+  sollya_lib_clear_obj(t);
+  return temp;
 }
 
 int myvandercoeff(chain **results, int absRel, chain *monomials, chain* points, chain *evals, mpfr_t maxerr) {
