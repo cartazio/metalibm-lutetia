@@ -34,6 +34,8 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
+__metalibmdir = bashevaluate("pwd") @ "/";
+
 roundingwarnings=off!;
 prec = 350!;
 verbosity = 1!;
@@ -44,7 +46,7 @@ display = default!;
    Compile the externally bound code.
 ----------------------------------------------------------- */ 
 write("Recompiling externally bound parts of Metalibm.\n");
-bashexecute("make");
+bashexecute("cd '"@ __metalibmdir @ "'; make");
 write("Metalibm ready to run.\n\n");
 
 /* -------------------------------------------------------- 
@@ -56,7 +58,7 @@ __identity = x;
    Suppress some unneeded (noisy) messages
 ----------------------------------------------------------- */ 
 
-suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404, 456);
+suppressmessage(158, 372, 162, 175, 231, 346, 228, 247, 404, 456, 165);
 
 /* -------------------------------------------------------- 
    Initialize performance counters
@@ -181,6 +183,11 @@ if (uniqueIdAccessOkay) then {
    compiledCode = compiledCode @ "-" @ __unique_id @ ".so";
 };
 
+implementationFile = __metalibmdir @ "/" @ implementationFile;
+gappaFile = __metalibmdir @ "/" @ gappaFile;
+gappaOutputTmpFile = __metalibmdir @ "/" @ gappaOutputTmpFile;
+compiledCode = __metalibmdir @ "/" @ compiledCode;
+
 /* -------------------------------------------------------- 
    Some adaptions due to the problem definition
 ----------------------------------------------------------- */ 
@@ -233,7 +240,6 @@ parametrization.functionBasename = polynomialName;
 parametrization.minimalReductionRatio = minimalReductionRatio;
 parametrization.performExpressionDecomposition = performExpressionDecomposition;
 parametrization.maxDegreeReconstruction = maxDegreeReconstruction;
-//parametrization.printdebug = printdebug;
 
 implementationTime = time({
 		   resultat = tryImplementationExternal(problemdef, parametrization);
@@ -261,7 +267,7 @@ write("Implementation took ",
       nearestint(wholeDirtyfindzerosTime), " sec. were spent on dirtyfindzeros (",nearestint(wholeDirtyfindzerosTime/implementationTime * 100),"%)\n");
 
 if (compilePath == "") then {
-   compilePath = bashevaluate("pwd");
+   compilePath = bashevaluate("cd '" @ __metalibmdir @ "' > /dev/null 2> /dev/null; pwd");
 };
 
 compilepath = compilePath;
@@ -327,7 +333,7 @@ if (resultat.okay) then {
                                              match (resultat) with 
                                                    { .poly = default } : {
 								             oldPrec = prec; prec = 165!;
-                                                                             externalplot(compilepath@compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision,perturb);
+                                                                             externalplot(compiledCode,relative,resultat.poly(x - resultat.centerpoint),dom,externalplotPrecision,perturb);
                                                                              prec = oldPrec!;
                                                                          }
                                                    default :             {
@@ -340,14 +346,14 @@ if (resultat.okay) then {
        
        if (0 in dom) then externalplotPrecision = 14;
        oldPrec = prec; prec = 165!;
-       externalplot(compilepath@compiledCode,relative,f,dom,externalplotPrecision,perturb); 
-       externalplot(compilepath@compiledCode,absolute,0,dom,externalplotPrecision,perturb); 
+       externalplot(compiledCode,relative,f,dom,externalplotPrecision,perturb); 
+       externalplot(compiledCode,absolute,0,dom,externalplotPrecision,perturb); 
        prec = oldPrec!;
    };
 
    if (dotiming) then {
 
-        externalproc(timefunc, compilepath@compiledCode, (constant, constant, integer, integer) -> integer);
+        externalproc(timefunc, compiledCode, (constant, constant, integer, integer) -> integer);
 
 	evaltime = round(timefunc(inf(dom), sup(dom), 4000, iterations) / iterations, 12, RN);
 
@@ -357,7 +363,7 @@ if (resultat.okay) then {
 
    };
 
-   bashexecute("rm " @ compilepath@compiledCode);
+   bashexecute("rm " @ compiledCode);
 
 };
 

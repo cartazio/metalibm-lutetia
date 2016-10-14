@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2013 by
+ * Copyright 2008-2016 by
  *
  * Laboratoire de l'Informatique du Parallélisme,
  * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
@@ -34,13 +34,20 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.
 */
 
-execute("remezwrapper.sollya");
-execute("upperbounds.sollya");
-execute("vandercoeff.sollya");
-execute("fpminimax.sollya");
-execute("galoptimisation.sollya");
-execute("symetries.sollya");
-execute("inverse.sollya");
+__implement_metalibmdir = bashevaluate("pwd") @ "/";
+if (isbound(__metalibmdir)) then {
+   __implement_metalibmdir = "" @ __metalibmdir @ "";
+} else {
+  __implement_metalibmdir = bashevaluate("pwd") @ "/";
+};
+
+execute(__implement_metalibmdir @ "remezwrapper.sollya");
+execute(__implement_metalibmdir @ "upperbounds.sollya");
+execute(__implement_metalibmdir @ "vandercoeff.sollya");
+execute(__implement_metalibmdir @ "fpminimax.sollya");
+execute(__implement_metalibmdir @ "galoptimisation.sollya");
+execute(__implement_metalibmdir @ "symetries.sollya");
+execute(__implement_metalibmdir @ "inverse.sollya");
 
 procedure targetErrorToImplementpolyType(err) {
 	  var res;
@@ -259,13 +266,13 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 				   exclDomString = "[" @ inf(exclDom) @ "," @ sup(exclDom) @ "]";
 				   display = oldDisplay!;
 				   write("The domain contains a zero of the function, patching Gappa file ", gappaFile, " to exclude input domain ", exclDomString, "\n");
-				   bashexecute("./patch-gappa-file "@gappaFile@" '"@exclDomString@"'");
+				   bashexecute(__implement_metalibmdir @ "/patch-gappa-file "@gappaFile@" '"@exclDomString@"'");
 			      }
 			      default : {};
 
 		   	write("boundsList = [|") > gappaOutputFile;
 			gappaTime = time({
-			                    bashexecute("./gappa-wrapper DIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
+			                    bashexecute(__implement_metalibmdir @ "/gappa-wrapper DIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
 					 });
 			wholeGappaTime := wholeGappaTime + gappaTime;
 			print("0|];") >> gappaOutputFile;
@@ -279,7 +286,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 			     write("\tRe-running Gappa\n");
 		   	     write("boundsList = [|") > gappaOutputFile;
 			     gappaTime = time({
-			                         bashexecute("./gappa-wrapper INDIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
+			                         bashexecute(__implement_metalibmdir @ "/gappa-wrapper INDIRECT " @ gappaExecutable@" '-Munconstrained' "@gappaFile@" >> "@gappaOutputFile);
 					      });
 			     wholeGappaTime := wholeGappaTime + gappaTime;
 			     print("0|];") >> gappaOutputFile;

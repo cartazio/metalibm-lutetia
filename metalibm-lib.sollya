@@ -1,0 +1,301 @@
+/*
+ * Copyright 2008-2016 by 
+ * 
+ * Laboratoire de l'Informatique du Parallélisme, 
+ * UMR CNRS - ENS Lyon - UCB Lyon 1 - INRIA 5668
+ *
+ * and by
+ *
+ * Laboratoire d'Informatique de Paris 6, equipe PEQUAN,
+ * UPMC Universite Paris 06 - CNRS - UMR 7606 - LIP6, Paris, France.
+ *
+ * Sollya metalibm main exploitation script for implementing functions 
+ *
+ * Contributor: Christoph Quirin Lauter (ENS Lyon/ UPMC LIP6 PEQUAN) 
+ *              christoph.lauter@ens-lyon.org
+ *
+ * This file is part of the metalibm library developed by the Arenaire
+ * project at Ecole Normale Superieure de Lyon and by the equipe PEQUAN
+ * at Universite Pierre et Marie Curie Paris 6.
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU Lesser General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or 
+ * (at your option) any later version.
+ * 
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU Lesser General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
+*/
+
+/* Usage:
+
+   (i)   Set the Sollya variable '__metalibmdir' to the directory Metalibm is located in.
+   
+   (ii)  'Execute' (i.e. read in) this file
+   
+   (iii) Call the Sollya procedure 'metalibm_implement' with one argument
+
+         The argument is a structure defining at least one of the following fields. If
+	 a field is not defined, it is set to the default value indicated.
+
+	 * .f                              the function to be implemented                         - default: exp(x)
+	 * .dom                            the domain of the function                             - default: [-1;1]
+	 * .target                         the target error                                       - default: 2^-24
+	 * .variableFormat                 the format of the function argument                    - default: double
+	 * .maxDegree                      the maximum degree for polynomials                     - default: 7
+	 * .minWidth                       the minimum width of subdomains                        - default: width(dom) / 4096
+	 * .metaSplitMinWidth              the minimum width of meta-subdomains                   - default: width(dom) / 128
+         * .tableIndexWidth                the bitwidth of table indices                          - default: 8
+	 * .implementationFile             a suggestion for the name the implementation goes into - default: implementation.c
+	 * .gappaFile                      a suggestion for the name the Gappa proof goes into    - default: implementation.gappa
+         * .gappaOutputFile                a suggestion for the name the Gappa output goes into   - default: gappaOutput.out
+	 * .gappaExecutable                the basename of the Gappa executable that must be in   - default: gappa
+	                                   the executable PATH
+         * .functionBasename               a suggestion for the name of the function implementing - default: f_approx
+	                                   the mathematical function
+         * .minimalReductionRatio          the minimal range reduction ratio                      - default: 1000
+	 * .performExpressionDecomposition the maximum level of expression decomposition          - default: 0
+	 * .maxDegreeReconstruction        the maximum degree of a reconstruction polynomial      - default: 5
+	 * .adaptWorkingPrecision          a boolean indicating whether the working precision     - default: false
+	                                   should be adapted. The boolean 'true' may be
+					   replaced with an integer indicating the working
+					   precision (in bits) to be used.
+					   
+	 The procedure returns a structure containing at least the field '.okay', set to a boolean
+	 indicating whether or not the call to metalibm was successful. If that boolean is
+	 set to true, the structure also contains the following fields:
+
+	 * .functionName                   the actual name used for the function implementing
+	                                   the mathematical function
+	 * .variableFormat                 the format of the function argument
+	 * .outputFormat                   the format of the function's output
+	 * .implementationFile             the name of the file the implementation went into
+	 * .errorBound                     a bound for the maximum error proven for that function.
+
+*/
+
+__metalibmdir = bashevaluate("pwd") @ "/";
+if isbound(metalibmdir) then {
+   __metalibmdir = "" @ metalibmdir @ "";
+} else {
+  __metalibmdir = bashevaluate("pwd") @ "/";
+};
+
+__metalibm_lib_roundingwarnings = roundingwarnings;
+__metalibm_lib_prec = prec;
+__metalibm_lib_verbosity = verbosity;
+__metalibm_lib_showmessagenumbers = showmessagenumbers;
+__metalibm_lib_display = display;
+
+roundingwarnings=off!;
+prec = 350!;
+verbosity = 1!;
+showmessagenumbers=on!;
+display = default!;
+
+/* -------------------------------------------------------- 
+   Compile the externally bound code.
+----------------------------------------------------------- */ 
+__makemessages = bashevaluate("cd '" @ __metalibmdir @ "'; make");
+
+/* -------------------------------------------------------- 
+   Use free mathematical variable x
+----------------------------------------------------------- */ 
+__identity = x;
+
+/* -------------------------------------------------------- 
+   Suppress some unneeded (noisy) messages
+----------------------------------------------------------- */ 
+
+__metalibm_suppressmessages = [| 158, 372, 162, 175, 231, 346, 228, 247, 404, 456, 165 |];
+
+__metalibm_lib_suppressedmessages = getsuppressedmessages();
+unsuppressmessage(getsuppressedmessages());
+suppressmessage(__metalibm_suppressmessages);
+
+/* -------------------------------------------------------- 
+   Initialize performance counters
+----------------------------------------------------------- */ 
+
+wholeRemezTime = 0;
+wholeGuessdegreeTime = 0;
+wholeGappaTime = 0;
+wholeDirtyinfnormTime = 0;
+wholeDirtyfindzerosTime = 0;
+
+/* --------------------------------------------------------
+   Read in configuration
+----------------------------------------------------------- */ 
+
+execute(__metalibmdir @ "/config.sollya");
+
+/* --------------------------------------------------------
+   Load implementer
+----------------------------------------------------------- */ 
+
+execute(__metalibmdir @ "/implement.sollya");
+
+/* --------------------------------------------------------
+   The implementation procedure to call
+----------------------------------------------------------- */ 
+
+procedure metalibm_implement(pbdef) {
+	  var problemdef, parametrization;
+	  var trim;
+	  var myImplementationFile, myGappaFile, myGappaOutputFile;
+	  var implementationTime;
+	  var adaptWorkingPrecision, workingPrec;
+	  var resultat, res;
+	  var oldRoundingwarnings, oldPrec, oldVerbosity, oldShowmessagenumbers, oldDisplay, oldSuppressedmessages;
+	  var oldWholeRemezTime, oldWholeGuessdegreeTime, oldWholeGappaTime, oldWholeDirtyinfnormTime, oldWholeDirtyfindzerosTime;
+
+	  res = { .okay = false };
+
+	  trim = 1/2;
+
+	  problemdef.func = (match (pbdef) with
+	  		     	  { .f = f } : (f)
+				  default    : (exp(_x_)));		  
+	  problemdef.dom = (match (pbdef) with
+	  		     	  { .dom = dom } : (dom)
+				  default    : ([-1;1]));
+	  problemdef.target = trim * (match (pbdef) with
+	  		     	  { .target = target } : (target)
+				  default    : (1b-24));
+	  problemdef.variableFormat = (match (pbdef) with
+	  		     	  { .variableFormat = variableFormat } : (variableFormat)
+				  default    : (D));
+	  parametrization.maxDegree = (match (pbdef) with
+	  		     	  { .maxDegree = maxDegree } : (maxDegree)
+				  default    : (7));
+	  parametrization.minWidth = (match (pbdef) with
+	  		     	  { .minWidth = minWidth } : (minWidth)
+				  default    : ((sup(problemdef.dom) - inf(problemdef.dom)) * 1/4096));
+	  parametrization.metaSplitMinWidth = (match (pbdef) with
+	  		     	  { .metaSplitMinWidth = metaSplitMinWidth } : (metaSplitMinWidth)
+				  default    : ((sup(problemdef.dom) - inf(problemdef.dom)) * 1/128));
+	  parametrization.tableIndexWidth = (match (pbdef) with
+	  		     	  { .tableIndexWidth = tableIndexWidth } : (tableIndexWidth)
+				  default    : (8));
+          parametrization.beta = trim + trim + trim * trim;
+	  myImplementationFile = (match (pbdef) with
+	  		     	  { .implementationFile = anImplementationFile } : (anImplementationFile)
+				  default    : (__metalibmdir @ "/" @ implementationFile));
+	  myImplementationFile = myImplementationFile @ "-" @ __unique_id @ ".c";
+	  myImplementationFile = bashevaluate("readlink -f '" @ myImplementationFile @"'");
+	  parametrization.implementationFile = myImplementationFile;
+	  myGappaFile = (match (pbdef) with
+	  		     	  { .gappaFile = aGappaFile } : (aGappaFile)
+				  default    : (__metalibmdir @ "/" @ gappaFile));
+	  myGappaFile = myGappaFile @ "-" @ __unique_id @ ".gappa";
+	  myGappaFile = bashevaluate("readlink -f '" @ myGappaFile @"'");
+	  parametrization.gappaFile = myGappaFile;
+	  myGappaOutputFile = (match (pbdef) with
+	  		     	  { .gappaOutputFile = aGappaOutputFile } : (aGappaOutputFile)
+				  default    : (__metalibmdir @ "/" @ "gappaOutput.sollya"));
+	  myGappaOutputFile = myGappaOutputFile @ "-" @ __unique_id @ ".out";
+	  parametrization.gappaOutputFile = myGappaOutputFile;
+	  parametrization.gappaExecutable = (match (pbdef) with
+	  		     	  { .gappaExecutable = gappaExecutable } : (gappaExecutable)
+				  default    : ("gappa"));
+	  parametrization.functionBasename = (match (pbdef) with
+	  		     	  { .functionBasename = functionBasename } : (functionBasename)
+				  default    : ("f_approx"));
+	  parametrization.minimalReductionRatio = (match (pbdef) with
+	  		     	  { .minimalReductionRatio = minimalReductionRatio } : (minimalReductionRatio)
+				  default    : (1000));
+	  parametrization.performExpressionDecomposition = (match (pbdef) with
+	  		     	  { .performExpressionDecomposition = performExpressionDecomposition } : (performExpressionDecomposition)
+				  default    : (0));
+	  parametrization.maxDegreeReconstruction = (match (pbdef) with
+	  		     	  { .maxDegreeReconstruction = maxDegreeReconstruction } : (maxDegreeReconstruction)
+				  default    : (5));
+	  adaptWorkingPrecision = (match (pbdef) with
+	  		     	  { .adaptWorkingPrecision = adaptWorkingPrecision } : (adaptWorkingPrecision)
+				  default    : (false));
+	  workingPrec = 350;
+	  if (adaptWorkingPrecision == true) then {
+              workingPrec = max(25, min(350, ~(ceil(-log2(abs(target))) + 10)));
+          } else {
+              if (!(adaptWorkingPrecision == false)) then {
+                 workingPrec = adaptWorkingPrecision;
+              };
+          };
+
+	  oldWholeRemezTime = wholeRemezTime;
+          oldWholeGuessdegreeTime = wholeGuessdegreeTime;
+          oldWholeGappaTime = wholeGappaTime;
+          oldWholeDirtyinfnormTime = wholeDirtyinfnormTime;
+          oldWholeDirtyfindzerosTime = wholeDirtyfindzerosTime;
+
+	  wholeRemezTime = 0;
+          wholeGuessdegreeTime = 0;
+          wholeGappaTime = 0;
+          wholeDirtyinfnormTime = 0;
+          wholeDirtyfindzerosTime = 0;
+
+          oldRoundingwarnings = roundingwarnings;
+	  oldPrec = prec;
+	  oldVerbosity = verbosity;
+	  oldShowmessagenumbers = showmessagenumbers;
+	  oldDisplay = display;
+	  oldSuppressedmessages = getsuppressedmessages();
+
+          roundingwarnings=off!;
+          prec = workingPrec!;
+          verbosity = 1!;
+          showmessagenumbers = on!;
+          display = default!;
+	  unsuppressmessage(getsuppressedmessages());
+	  suppressmessage(__metalibm_suppressmessages);
+
+          implementationTime = time({
+		                      resultat = tryImplementationExternal(problemdef, parametrization);
+		                    });
+	  
+	  roundingwarnings=oldRoundingwarnings!;
+          prec = oldPrec!;
+          verbosity = oldVerbosity!;
+          showmessagenumbers=oldShowmessagenumbers!;
+          display = oldDisplay!;
+	  unsuppressmessage(getsuppressedmessages());
+	  suppressmessage(oldSuppressedmessages);
+
+	  wholeRemezTime = oldWholeRemezTime;
+          wholeGuessdegreeTime = oldWholeGuessdegreeTime;
+          wholeGappaTime = oldWholeGappaTime;
+          wholeDirtyinfnormTime = oldWholeDirtyinfnormTime;
+          wholeDirtyfindzerosTime = oldWholeDirtyfindzerosTime;
+	  
+	  match (resultat) with
+	  	{ .okay = true } : {
+				      res = { .okay = true };
+				      res.functionName = resultat.functionname;
+				      res.variableFormat = problemdef.variableFormat;
+				      res.outputFormat = resultat.outputformat;
+				      res.implementationFile = parametrization.implementationFile;
+				      res.errorBound = max(abs(problemdef.target), abs(resultat.implerr) + abs(resultat.approxerr) + abs(resultat.implerr) * abs(resultat.approxerr));
+		  	       	   }
+	        default:           {  res = { .okay = false }; };
+
+	  return res;
+};
+
+/* --------------------------------------------------------
+   Resetting stuff
+----------------------------------------------------------- */ 
+
+roundingwarnings = __metalibm_lib_roundingwarnings!;
+prec = __metalibm_lib_prec!;
+verbosity = __metalibm_lib_verbosity!;
+showmessagenumbers = __metalibm_lib_showmessagenumbers!;
+display = __metalibm_lib_display!;
+unsuppressmessage(getsuppressedmessages());
+suppressmessage(__metalibm_lib_suppressedmessages);
+
