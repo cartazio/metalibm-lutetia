@@ -35,7 +35,7 @@
 
 /* Usage:
 
-   (i)   Set the Sollya variable '__metalibmdir' to the directory Metalibm is located in.
+   (i)   Set the Sollya variable 'metalibmdir' to the directory Metalibm is located in.
    
    (ii)  'Execute' (i.e. read in) this file
    
