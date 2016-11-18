@@ -7766,7 +7766,6 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g,
 
 	  /* TODO */
 
-
 	  return result;
 };
 
@@ -8172,6 +8171,478 @@ procedure tryImplementationThroughExpressionDecomposition(problemdef, parametriz
 	  return result;
 };
 
+procedure tryImplementationThroughExpressionDecomposition(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, performExpressionDecompositionLevel;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default,
+				       .tableIndexWidth = default,
+				       .metaSplitMinWidth = default } } : {
+
+				       /* Test if we may perform this type of argument
+				          reduction
+				       */
+				       performExpressionDecompositionLevel = 0;
+				       match (parametrization) with
+				             { .performExpressionDecomposition = a } : { performExpressionDecompositionLevel = a; }
+					     default : { };
+
+				       if (performExpressionDecompositionLevel > 0) then {
+				           /* Start with a test if the domain actually needs
+                                              decomposition or argument reduction in order to stay below the maximum
+					      polynomial degree
+				           */
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+					      result = doWorkForTryImplementationThroughExpressionDecomposition(problemdef, parametrization);
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
+
+procedure tryDetectTrigonometric(func, dom) {
+	  var result;
+	  var f, p, found;
+
+	  result = { .okay = false };
+
+	  found = false;
+	  match (func) with
+	  	(sin(q)) : {
+				f = sin(x);
+				p = q;
+				found = true;
+		           }
+	        (cos(q)) : {
+				f = cos(x);
+				p = q;
+				found = true;
+			   }
+		(default) : { };
+
+          if (found) then {
+	     if (degree(p) >= 1) then {
+	     	result.func = f;
+		result.c = (2 * coeff(p, degree(p))) / pi;
+		result.poly = horner(p / coeff(p, degree(p)));
+		result.okay = true;
+	     };
+	  };
+	  
+	  return result;
+};
+
+procedure solvePolynomialEquation(p, dom) {
+	  var res, n, oldPrec, a, b, c, sol;
+
+	  n = degree(p);
+	  if (n < 0) then {
+	     res = mydirtyfindzeros(p, dom);
+	  } else {
+	     if (n == 0) then {
+	     	c = coeff(p, 0);
+		if (c == 0) then {
+		  res = [| inf(dom), mid(dom), sup(dom) |];
+		} else {
+		  res = [||];
+		};
+	     } else {
+	       if (n == 1) then {
+	       	 c = coeff(p, 0);
+		 b = coeff(p, 1);
+		 if (-c/b in dom) then {
+		   res = [| -c/b |];
+		 } else {
+		   res = [||];
+		 };
+	       } else {
+	       	 if (n == 2) then {
+		    a = coeff(p, 2);
+		    b = coeff(p, 1);
+		    c = coeff(p, 0);
+		    if (b^2 - 4 * a * c >= 0) then {
+		       res = [||];
+		       for sol in [| (-b + sqrt(b^2 - 4 * a * c))/(2 * a), (-b + sqrt(b^2 - 4 * a * c))/(2 * a) |] do {
+		       	   if (sol in dom) then {
+			      res = sol .: res;
+			   };
+		       };
+		    } else {
+		       res = [||];
+		    };
+		 } else {
+		   oldPrec = prec;
+		   prec = 2 * prec!;
+		   res = mydirtyfindzeros(p, dom);
+		   prec = oldPrec!;
+		 };
+	       };
+	     };
+	  };
+
+	  return res;
+};
+
+procedure boundPolynomial(p, dom) {
+	  var res, cp, criticalPoints, Y, minVal, maxVal;
+
+	  criticalPoints = inf(dom) .: (sup(dom) .: (solvePolynomialEquation(diff(p), dom)));
+	  Y = evaluate(p, mid(dom));
+	  minVal = inf(Y);
+	  maxVal = sup(Y);
+	  for cp in criticalPoints do {
+	      Y = evaluate(p, cp);
+	      minVal = min(minVal, inf(Y));
+	      maxVal = max(maxVal, sup(Y));
+	  };
+	  res = [ minVal, maxVal ];
+
+	  return res;
+};
+
+procedure tryGenerateArgumentReductionTrigonometricDetermineAlphas(c, p, dom, kDom, variableFormat) {
+	  var result;
+	  var alpha1, alpha2, okay;
+	  var k;
+	  var a1, a2;
+	  var X, criticalX, rndX;
+	  
+	  result = { .okay = false };
+
+	  okay = true;
+	  alpha1 = 0;
+	  alpha2 = 0;
+	  k = floor(inf(kDom));
+	  while (okay && (k <= ceil(sup(kDom)))) do {
+	  	if (k != 0) then {	  	
+		   criticalX = solvePolynomialEquation(c * p - k, dom);
+		   for X in criticalX do {
+		       if (abs((c * p - k)(round(X, variableFormat, RN))) <= 1b-1076) then {
+		       	   okay = false;
+		       } else {
+		           for rndX in [| round(X, variableFormat, RD), round(X, variableFormat, RU),
+		                          round(round(X, variableFormat, RD) - 1b-1076, variableFormat, RD), round(round(X, variableFormat, RU) + 1b-1076, variableFormat, RU) |] do {
+		                 a2 = -k / (c * p(rndX) - k);
+		                 a1 = 1.5 * a2;
+		                 alpha1 = max(alpha1, abs(a1));
+		                 alpha2 = max(alpha2, abs(a2));
+                           };
+		       };
+		   };
+		};
+		k = k + 1;
+	  };
+	  
+	  if (okay) then {
+	     result.okay = true;
+	     result.alpha1 = alpha1;
+	     result.alpha2 = alpha2;
+	  };
+	  
+	  return result;
+};
+
+procedure testRealNonZeroConstant(X) {
+	  var res;
+
+	  if (X == 0) then {
+	     res = false;
+	  } else {
+	    if (!(X == X)) then {
+	       res = false;
+	    } else {
+	      if (abs(X) == infty) then {
+	      	 res = false;
+	      } else {
+	      	 res = true;
+	      };
+	    };
+	  };
+
+	  return res;
+};
+
+procedure tryGenerateArgumentReductionTrigonometricCodeForK(c, p, dom, variableFormat) {
+	  var result;
+
+	  result = { .okay = false };
+
+	  return result;
+};
+
+procedure tryGenerateArgumentReductionTrigonometricCodeForKPiHalf(dom, target) {
+	  var result;
+
+	  result = { .okay = false };
+
+	  return result;
+};
+
+procedure tryGenerateArgumentReductionTrigonometricCodeForQ(q, dom, variableFormat, target) {
+	  var result;
+
+	  result = { .okay = false };
+
+	  return result;
+};
+
+procedure tryGenerateArgumentReductionTrigonometricCodeForAddition(operandFormat1, operandFormat2, target) {
+	  var result;
+
+	  result = { .okay = false };
+
+	  return result;
+};
+
+procedure tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, target, implementationFile, functionBaseName) {
+	  var result;
+	  var cPDom, kDom;
+	  var resAlphas;
+	  var alpha1, alpha2;
+	  var target1, target2, target3;
+	  var q;
+	  var resCodeK, resCodeKPiHalf;
+	  var resCodeQ, resCodeAddition;
+
+	  result = { .okay = false };
+
+	  /* Let k defined as
+
+             k = nearestint(c * p(x))
+
+	     The reduced argument r will be
+
+	     r(x) = pi/2 * (c * p(x) - k(x))
+
+	     We start by determining the range of possible values
+	     for k, by bounding c * p(x) over dom and then deducing
+	     the range of k.
+
+	  */
+	  cPDom = boundPolynomial(c * p, dom);
+	  kDom = [ nearestint(inf(cPDom)), nearestint(sup(cPDom)) ];
+
+	  /* This argument reduction implementer can work only
+	     if k stays bounded in magnitude by 2^12 and if there
+	     are less than 2^11 possible values of k.
+	  */
+	  if ((abs(inf(kDom)) <= 2^12) && (abs(sup(kDom)) <= 2^12) &&
+	      (abs(sup(kDom) - inf(kDom)) <= 2^11)) then {
+	      /* We need to determine the factors alpha1 and alpha2
+	         the two relative errors eps1 and eps2 on the evaluation
+		 of pi/2 * c * p(x) and k * pi/2 will be amplified by
+		 in the cancellation
+
+		 pi/2 * c * p(x) - k * pi/2
+
+		 These two amplification factors are given by
+
+		 alpha1 = (c * p)/(c * p - k)
+
+		 and
+
+		 alpha2 = -k / (c * p - k)
+
+		 The determination of the two factors will be performed
+		 by a sub-routine.
+
+              */	 
+	      resAlphas = tryGenerateArgumentReductionTrigonometricDetermineAlphas(c, p, dom, kDom, variableFormat);
+
+	      if (resAlphas.okay) then {
+	      	 alpha1 = resAlphas.alpha1;
+		 alpha2 = resAlphas.alpha2;
+		 
+		 /* Now determine three new target errors:
+
+		    target1 = 1/4 * 1/alpha1 * target   for the error evaluating pi/2 * c * p(x),
+
+		    target2 = 1/4 * 1/alpha2 * target   for the error evaluating pi/2 * k and
+
+		    target3 = 1/4 * target              for the error evaluating the difference.
+
+		 */
+		 target1 = 1/4 * 1/alpha1 * target;
+		 target2 = 1/4 * 1/alpha2 * target;
+		 target3 = 1/4 * target;
+
+		 /* Check if all quantities are non-zero real numbers */
+		 if (testRealNonZeroConstant(target1) &&
+		     testRealNonZeroConstant(target2) &&
+		     testRealNonZeroConstant(target3)) then {
+		    /* Form the polynomial q = pi/2 * c * p */
+		    q = horner(pi/2 * c * p);
+		    if (horner(p - q) == 0) then {
+		       q = p;
+		    };
+
+		    /* Try to generate the code that computes k as a double */
+		    resCodeK = tryGenerateArgumentReductionTrigonometricCodeForK(c, p, dom, variableFormat);
+
+		    if (resCodeK.okay) then {
+		       /* Try to generate the code that computes -k * pi/2 with accuracy target2 */
+		       resCodeKPiHalf = tryGenerateArgumentReductionTrigonometricCodeForKPiHalf(kDom, target2);
+
+		       if (resCodeKPiHalf.okay) then {
+		       	  /* Try to generate the code that computes q = pi/2 * c * p with accuracy target1 */
+		          resCodeQ = tryGenerateArgumentReductionTrigonometricCodeForQ(q, dom, variableFormat, target1);
+
+			  if (resCodeQ.okay) then {
+			     /* Try to generate the code for the addition of q and -k * pi/2 with accuracy target3 */
+			     resCodeAddition = tryGenerateArgumentReductionTrigonometricCodeForAddition(resCodeQ.outputFormat, resCodeKPiHalf.outputFormat, target3);
+
+			     if (resCodeAddition.okay) then {
+			     	/* Generate the wrapper function */
+
+				/* TODO */
+
+			     };
+			  };
+		       };
+		    };
+		 };
+	      };
+	  };
+
+	  return result;
+};
+
+procedure doWorkForTryImplementationTrigonometric(problemdef, parametrization) {
+	  var result, res, f, c, p, dom, variableFormat;
+	  var resArgRed;
+
+	  result = { .okay = false };
+
+	  dom = problemdef.dom;
+	  variableFormat = problemdef.variableFormat;
+
+          res = tryDetectTrigonometric(problemdef.func, dom);
+
+	  if (res.okay) then {
+	     /* Here, we know that the function func(x) can be written
+
+	        func(x) = f(pi/2 * c * p(x))
+
+	        where f is either sin or cos, c a constant and p is a
+	        non-constant unitary polynomial.
+
+	     */
+	     f = res.func;
+	     p = res.poly;
+	     c = res.c;
+
+	     /* Try to generate code for the argument reduction function
+
+	        r(x) = pi/2 * (c * p(x) - k)    with  k = nearestint(c * p(x))
+
+		The argument reduction must be precise to 3/16 * eps
+
+		where eps is the target error.
+
+             */
+	     resArgRed = tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, 3/16 * (problemdef.target),
+	     	                                                   parametrization.implementationFile,
+								   parametrization.functionBasename @ "_trigo_arg_red");
+
+	     if (resArgRed.okay) then {
+	     	/* We could generate code for the argument reduction
+
+		   Now try to generate sin(r) and cos(r) with a target error of 3/8 * eps
+		   and r being represented in the format produced by the argument reduction.
+
+		   The mathematically exact domain for r is [-pi/4;pi/4]. As the actual r
+		   is guaranteed to be precise to a relative error of 3/16 * eps,
+		   we can easily determine a rigorous bound for the actual r.
+
+		*/
+		
+
+
+
+
+	     };
+	  };
+
+	  return result;
+};
+
+procedure tryImplementationTrigonometric(problemdef, parametrization) {
+	  var result, needArgumentReduction, res, doNotPerformTrignometric;
+
+	  result = { .okay = false };
+
+	  match ( { .problemdef = problemdef,
+                    .parametrization = parametrization } ) with
+                { .problemdef =      { .func = default,
+                                       .dom = default,
+                                       .target = default,
+                                       .variableFormat = default },
+                  .parametrization = { .maxDegree = default,
+                                       .minWidth = default,
+                                       .beta = default,
+			               .implementationFile = default,
+                                       .gappaFile = default,
+                                       .gappaOutputFile = default,
+                                       .gappaExecutable = default,
+				       .functionBasename = default,
+				       .tableIndexWidth = default,
+				       .metaSplitMinWidth = default } } : {
+
+				       /* Test if we may perform this type of implementation */
+				       doNotPerformTrignometric = false;
+				       match (parametrization) with
+				             { .doNotPerformTrigonometric = true } : { doNotPerformTrignometric = true; }
+					     default : { };
+
+				       if (!doNotPerformTrignometric) then {
+				           /* Start with a test if the domain actually needs
+                                              argument reduction in order to stay below the maximum
+					      polynomial degree
+				           */
+				           needArgumentReduction = true;
+				           res = checkIfSufficientDegree(problemdef.func, problemdef.dom, parametrization.maxDegree, problemdef.target);
+
+      	                                   if (res.okay) then {
+   	                                       if (res.sufficientDegree) then needArgumentReduction = false;
+				           } else {
+				               needArgumentReduction = false;
+				           };
+
+				           if (needArgumentReduction) then {
+					      result = doWorkForTryImplementationTrigonometric(problemdef, parametrization);
+				           };
+				         };
+				     }
+                default : { };
+
+	  return result;
+};
+
 procedure tryImplementation(problemdef, parametrization) {
 	  var result, res, tryImplementationInstance, tryImplementationChoices;
 	  var okay, i;
@@ -8202,6 +8673,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	       if (argumentAlreadyReduced) then {
 	           tryImplementationChoices = [| { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
                                                  { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
+						 { .method = tryImplementationTrigonometric, .name = "tryImplementationTrigonometric" },
 	                                         { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
 		     	    		         { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
 	                                         { .method = tryImplementationThroughArgumentReductionExponential, .name = "tryImplementationThroughArgumentReductionExponential" },
@@ -8214,6 +8686,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	       } else {
 	           tryImplementationChoices = [| { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
                                                  { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
+						 { .method = tryImplementationTrigonometric, .name = "tryImplementationTrigonometric" },
 	                                         { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
 		     	    		         { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
 	                                         { .method = tryImplementationThroughArgumentReductionExponential, .name = "tryImplementationThroughArgumentReductionExponential" },
@@ -8228,6 +8701,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	       tryImplementationChoices = [| { .method = tryImplementationThroughDomainSplitting, .name = "tryImplementationThroughDomainSplitting" },
                                              { .method = tryImplementationThroughExpressionDecomposition, .name = "tryImplementationThroughExpressionDecomposition" },
                                              { .method = tryImplementationConstant, .name = "tryImplementationConstant" },
+					     { .method = tryImplementationTrigonometric, .name = "tryImplementationTrigonometric" },
 	                                     { .method = tryImplementationThroughArgumentReductionPowering, .name = "tryImplementationThroughArgumentReductionPowering" },
 		     			     { .method = tryImplementationThroughArgumentReductionLogarithm, .name = "tryImplementationThroughArgumentReductionLogarithm" },
 	                                     { .method = tryImplementationThroughArgumentReductionExponential, .name = "tryImplementationThroughArgumentReductionExponential" },
