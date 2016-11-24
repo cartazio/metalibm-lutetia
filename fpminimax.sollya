@@ -107,14 +107,18 @@ procedure fpminimaxwrapper(func,dom,monomials,pstar,pointlist,formatlist) {
 	  };
 
 	  if (pointlist == [||]) then {
-	    mypointlist = mydirtyfindzeros(pstar/func-1,d);
+	    if (horner(pstar/func-1)!=0) then {
+	       mypointlist = mydirtyfindzeros(pstar/func-1,d);
+	    } else {
+	      mypointlist = [||];
+	    };
 	  } else {
 	    mypointlist = pointlist;
 	  };
-
+	  
 	  if (degree(pstar) >= 1) then {
-	      if (length(mypointlist) < length(mymonomials)) then {
-	         write("Warning: not enough points for fpminimax - delegating the issue\n");
+	      if ((length(mypointlist) < length(mymonomials)) || (length(mypointlist) >= 2 * length(mymonomials) + 3)) then {
+	         write("Warning: not enough (or too much) points for fpminimax - delegating the issue\n");
 	         if (fpminimaxdebug) then {
 	     	    olddisplay2 = display; display = dyadic!; 
 	     	    write("Information: calling fpminimax with prec = ",prec," and points = ",points,":\n\tfpminimax(",func,",",mymonomials,",",formatlist,",",d,",",default,",",default,",",default,",",pstar,");\n");

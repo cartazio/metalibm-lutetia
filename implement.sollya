@@ -58,7 +58,7 @@ procedure targetErrorToImplementpolyType(err) {
 	    if (abs(err) < 1b-51) then {
 	      res = DD;
 	    } else {
-	      res = D;	      
+	      res = D;
 	    };
 	  };
 
@@ -69,34 +69,34 @@ procedure myimplementpoly(l = ...) {
 	  var res;
 	  var myTarget, myVarFormat, myResFormat;
 	  var oldDisplay, oldPrec;
-	  
+
 	  oldPrec = prec;
 	  prec = 165!;
 
 	  myTarget = l[2];
-	  myVarFormat = l[3];	  
+	  myVarFormat = l[3];
 	  myResFormat = targetErrorToImplementpolyType(myTarget);
-	  match myResFormat with 
+	  match myResFormat with
 	  	D  : {
-			match (myVarFormat) with 
+			match (myVarFormat) with
 			      D  : { }
 			      DD : {
 					myTarget = 1b-54;
 			      	   }
 			      TD : {
 					myTarget = 1b-103;
-			      	   };		         
+			      	   };
 		     }
 	        DD : {
 			if (myVarFormat == TD) then {
 			   myTarget = 1b-103;
 			};
 		     }
-	        TD : { };		      
+	        TD : { };
 
           oldDisplay = display;
 	  display = dyadic!;
-          match(length(l)) with 
+          match(length(l)) with
 	  	6 : { write("Calling implementpoly(",l[0],",",l[1],",",myTarget,",",myVarFormat,",",l[4],",",l[5],")\n"); }
 		8 : { write("Calling implementpoly(",l[0],",",l[1],",",myTarget,",",myVarFormat,",",l[4],",",l[5],",",l[6],",",l[7],")\n"); }
 		default : { };
@@ -107,7 +107,7 @@ procedure myimplementpoly(l = ...) {
 		8 : (implementpoly(l[0],l[1],myTarget,myVarFormat,l[4],l[5],l[6],l[7]))
 		default : (error);
 
-          prec = oldPrec!;		    
+          prec = oldPrec!;
 
 	  return res;
 };
@@ -259,7 +259,7 @@ procedure implementandcheck(func,poly,dom,targeterr,targeterrimpl,approxerr,beta
 	        res = (implapproxerr < targeterr);
 		if (res) then {
 
-		        match (domainExcludes) with 
+		        match (domainExcludes) with
 			      { .excludeFromDomain = true, .excludeDomain = exclDom } : {
 			      	   oldDisplay = display;
 				   display = dyadic!;
@@ -484,7 +484,11 @@ procedure implementconfigurations(func,pstar,dom,targeterr,beta,lowerbounds,uppe
 	        d = dom;
 	     };
 
-	     pointlist = mydirtyfindzeros(pstar/func-1,d);
+	     if (horner(pstar/func-1) != 0) then {
+	     	pointlist = mydirtyfindzeros(pstar/func-1,d);
+             } else {
+	        pointlist = [| inf(d), mid(d), sup(d) |];
+	     };
 
 	     firstConfigNumber = configToNumber(lowerbounds,optimisationPermut);
 	     lastConfigNumber = configToNumber(upperbounds,optimisationPermut);
@@ -798,10 +802,10 @@ procedure implementsmall(func, dom, target, beta, variableFormat, implementation
 			if ((0 in shiftedDom) && (0 in excludeDomain)) then {
 			   excludeDomain = [ min(inf(excludeDomain), inf(shiftedDom) * 1b-400);
 			   		     max(sup(excludeDomain), sup(shiftedDom) * 1b-400) ];
-			};			
+			};
 	                domainExcludes = { .excludeFromDomain = true; .excludeDomain = excludeDomain };
 		    };
-	     }; 	     
+	     };
 
 	     write("The translated function is f = ",shiftedFunc,"\n");
 	     write("The translated domain is dom = ",shiftedDom,"\n");
@@ -1144,7 +1148,7 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 
 	  infpoly = poly(inf(dom));
 	  suppoly = poly(sup(dom));
-	  derivzeros = dirtyfindzeros(diff(poly), dom);	
+	  derivzeros = dirtyfindzeros(diff(poly), dom);
 	  //print("derivzeros = ", derivzeros);
 	  "n = ", n;
 	  i = 0; okay = true;
@@ -1158,8 +1162,8 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 	      okay = okay && (poly(inf(domains[i])) >= i - n - 1) && (poly(sup(domains[i])) < i - n + 1); // to consider splitpoints
 	      print("okay = ", okay);
 	      i = i+1;
-	  };	  
-	  
+	  };
+
 	  if (! okay) then {
 	     if (length(derivzeros) > 0) then {
 	     	i = 0;
@@ -1168,7 +1172,7 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 		while (i < length(derivzeros)) do {
 		      //"i = ", i, " derivzeros[i] = ", derivzeros[i], " poly(derivzeros[i]) = ", poly(derivzeros[i]);
 		      j= 0;
-		      while ( (j < N)  && (! (derivzeros[i] in domains[j])) /*&& (! (found))*/) do {	      
+		      while ( (j < N)  && (! (derivzeros[i] in domains[j])) /*&& (! (found))*/) do {
 		      	    j = j + 1;
 		      	  /* "j = ", j, " domains[j] = ", domains[j];
 		      	   found = found  || (!(poly(derivzeros[i]) in [j - n, j + 1 - n]));
@@ -1178,19 +1182,19 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 			      maxi = i;
 			      maxj = j;
 			      print("maxdelta = ", ~maxdelta, " maxi = ", maxi, " maxj = ", maxj);
-			   };			   
+			   };
 			   print("found = ", found, " maxi = ", maxi);
 			   j = j + 1; */
 		      };
 		     // "after loop on domains j = ", j;
 		      if (!(poly(derivzeros[i]) in [j - n, j + 1 - n])) then {
-		      	 "maxdelta = ", maxdelta;			 
+		      	 "maxdelta = ", maxdelta;
 			 if (abs(j - n + 0.5 - poly(derivzeros[i])) > maxdelta) then {
 			      maxdelta = abs(j - n - 0.5 - poly(derivzeros[i]));
 			      maxi = i;
 			      maxj = j;
 			      print("maxdelta = ", ~maxdelta, " maxi = ", maxi, " maxj = ", maxj);
-			   };	
+			   };
 		      };
 		      i = i + 1;
 		};
@@ -1201,18 +1205,18 @@ procedure checkReconstructionPolyOK(poly, domains, n) {
 		};
 	     } else {
 	       res = {.okay = false, .addPoint = false};
-	     };	     
+	     };
 	  } else {
 	    res = {.okay = true, .addPoint = false};
 	  };
-	  
+
 	  "result in checkReconstruct = ", res;
 	  return res;
 };
 
 procedure buildReconstructPoly(xpoints, ypoints, formatlist) {
 	  var poly, oldprec, polyWithoutRounding, n, i;
-	  
+
 	  n = xpoints[0];
 	  fn = ypoints[0];
 	  for i from 1  to length(xpoints) - 1 do {
@@ -1223,10 +1227,10 @@ procedure buildReconstructPoly(xpoints, ypoints, formatlist) {
 	  };
 	  for i from 0  to length(xpoints) - 1 do {
 	      ypoints[i] = ypoints[i] - fn;
-	  };     
+	  };
 	  oldprec = prec;
 	  prec = 600!;
-	  poly = roundcoefficients(interpole(xpoints, ypoints), formatlist);	  
+	  poly = roundcoefficients(interpole(xpoints, ypoints), formatlist);
 	  polyWithoutRounding = interpole(xpoints, ypoints);
 	//  "polyWithoutRounding = ", polyWithoutRounding;
 	  prec = oldprec!;
@@ -1243,22 +1247,22 @@ procedure buildAndCheck(domains, name) {
 	  "direction = ", name;
 	  if (name == "inner") then {
 	     for i from 1 to N - 1 do {
-	     	 xpoints = inf(domains[i]) .: xpoints; 
+	     	 xpoints = inf(domains[i]) .: xpoints;
 	     };
-	     xpoints = revert(xpoints);	
+	     xpoints = revert(xpoints);
 	     ypoints = [| 1, ..., N - 1 |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
 	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
 	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK2");
 	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
 	     res.poly = buildRes.poly;
-	     res.direction = name;	     
+	     res.direction = name;
 	  };
 	  if (name == "left") then {
 	    for i from 0 to N - 1 do {
-	     	 xpoints = inf(domains[i]) .: xpoints; 
+	     	 xpoints = inf(domains[i]) .: xpoints;
 	     };
-	     xpoints = revert(xpoints);	
+	     xpoints = revert(xpoints);
 	     ypoints = [| 0, ..., N - 1 |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
 	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
@@ -1268,12 +1272,12 @@ procedure buildAndCheck(domains, name) {
 	  };
 	  if (name == "right") then {
 	     for i from 0 to N - 1 do {
-	     	 xpoints = sup(domains[i]) .: xpoints; 
+	     	 xpoints = sup(domains[i]) .: xpoints;
 	     };
-	     xpoints = revert(xpoints);	
+	     xpoints = revert(xpoints);
 	     ypoints = [| 1, ..., N  |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
-	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]); 
+	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])]);
 	     //plot((buildRes.poly + buildRes.fn).:ypoints, [inf(domains[0]), sup(domains[N - 1])], postscript, "/home/kupriianova/metalibm/metalibm/reconstrunctPolyOK1");
 	     res = checkReconstructionPolyOK(buildRes.poly, domains, buildRes.fn);
 	     res.poly = buildRes.poly;
@@ -1281,9 +1285,9 @@ procedure buildAndCheck(domains, name) {
 	  };
 	  if (name == "all") then {
 	     for i from 0 to N - 1 do {
-	     	 xpoints = sup(domains[i]) .: xpoints; 
+	     	 xpoints = sup(domains[i]) .: xpoints;
 	     };
-	     xpoints = revert(xpoints);	
+	     xpoints = revert(xpoints);
 	     xpoints = inf(domains[0]).:xpoints;
 	     ypoints = [| 0, ..., N  |];
 	     buildRes = buildReconstructPoly(xpoints, ypoints, [|D...|]);
@@ -1304,9 +1308,9 @@ procedure buildAndCheck(domains, name) {
 */
 
 procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree) {
-	  var res, direction, N, tmpres, buildres, stablepoly, currdegree, xpoints, ypoints, stablepolydeg; 
+	  var res, direction, N, tmpres, buildres, stablepoly, currdegree, xpoints, ypoints, stablepolydeg;
 	  //"tryGeneratePolynomialSplitterReconstructionPolynomial(", domains, ", ", maxDegree, ")";
-	  direction = "inner"; 
+	  direction = "inner";
 	  stablepoly = 0;
 	  stablepolydeg = 0;
 	  res = {.okay = false};
@@ -1333,11 +1337,11 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 	      if (tmpres.okay) then {
 	         "right stable";
 	      	 stablepoly = tmpres.poly;
-	       	 res = tmpres;	      
-	      } else {	      	  
+	       	 res = tmpres;
+	      } else {
 		  // right not okay
-	          ypoints = [| 0, ... , N -1 |];		  
-	  	  xpoints = [| |]; 
+	          ypoints = [| 0, ... , N -1 |];
+	  	  xpoints = [| |];
 		  for i from (N - 1) to 0 by -1 do {
 		      xpoints = sup(domains[i]).:xpoints;
 		  };
@@ -1353,8 +1357,8 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 		   res = tmpres;
 		   currdegree = N ;
 		} else {
-		  ypoints = [| 0, ... , N |];		  
-	  	  xpoints = [| |]; 
+		  ypoints = [| 0, ... , N |];
+	  	  xpoints = [| |];
 		  for i from (N - 1) to 0 by -1 do {
 		      xpoints = sup(domains[i]).:xpoints;
 		  };
@@ -1362,14 +1366,14 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 
 		  while (currdegree < maxDegree && (!(tmpres.okay) && (tmpres.addPoint))) do {
 		  	currdegree = currdegree + 1;
-  	
+
 		  	xpoints = sort((tmpres.xpoint).:xpoints);
 		  	ypoints = sort((tmpres.ypoint).:ypoints);
 		  	buildres = buildReconstructPoly(xpoints, ypoints,  [|D...|]);
-		  
+
 		  	tmpres = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn);
 			tmpres.poly = buildres.poly;
-		  	"after adding a point tmpres = ", tmpres;		  
+		  	"after adding a point tmpres = ", tmpres;
 		  };
 		  res = tmpres;
 		  "stablepoly = ", stablepoly;
@@ -1379,10 +1383,10 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegr
 		  " (currdegree > stablepolydeg) ", (currdegree > stablepolydeg);
 
 		  if ((stablepoly != 0) && (currdegree > stablepolydeg)) then {
-		     res.poly = stablepoly;		    
+		     res.poly = stablepoly;
 		  };
 		}; // else
-	      };	    
+	      };
 	    }; // else left !OK
 	  }; // else inner !OK
 	  print("res = ", res);
@@ -1421,12 +1425,12 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 	    if (checkRes.okay) then {
 	       stablepoly = poly;
 	       res = {.okay = true, .direction = "inner", .poly = stablepoly};
-	    } else { 	   
+	    } else {
 	      	//try with leftpoly!
 		currPoints = leftpoints;
 		ypoints = [| 0, ... , N - 1|];
 		buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
-		currDegree = N - 2;		
+		currDegree = N - 2;
 		poly = buildres.poly;
 	    	//plot(poly.:ypoints + buildres.fn, dom);
 		checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
@@ -1443,7 +1447,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    currDegree = currDegree + 1;
 		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
 		    //plot((buildres.poly).:ypoints, dom);
-		    checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 	      	    
+		    checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn);
 	      	  };
 		  if (checkRes.okay) then {
 		     stablepoly = buildres.poly;
@@ -1453,12 +1457,12 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    currPoints = rightpoints;
 		    ypoints = [|1, ..., N|];
 		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
-		    currDegree = N - 2;		
+		    currDegree = N - 2;
 		    poly = buildres.poly;
 	    	    //plot(poly.:ypoints + buildres.fn, dom);
 		    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
-		    print("check Result for right = ", checkRes);	
-		    
+		    print("check Result for right = ", checkRes);
+
 		    if (checkRes.okay) then {
 		       stablepoly = poly;
 		       res = {.okay = true, .direction = "left", .poly = stablepoly};
@@ -1471,7 +1475,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    currDegree = currDegree + 1;
 		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
 		    //plot((buildres.poly).:ypoints, dom);
-		    checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 	      	    
+		    checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn);
 	      	  };
 		  if (checkRes.okay) then {
 		     stablepoly = buildres.poly;
@@ -1481,16 +1485,16 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    currPoints = inf(dom).:rightpoints;
 		    ypoints = [|0, ..., N|];
 		    buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
-		    currDegree = N - 1;		
+		    currDegree = N - 1;
 		    poly = buildres.poly;
 	    	    //plot(poly.:ypoints, dom);
 		    checkRes = checkReconstructionPolyOK(poly, domains, buildres.fn);
-		    print("check Result for all = ", checkRes);	
+		    print("check Result for all = ", checkRes);
 		     if (checkRes.okay) then {
 		       stablepoly = poly;
 		       res = {.okay = true, .direction = "all", .poly = stablepoly};
 		    } else {
-		      	 
+
 		        while (currDegree <= maxDegree && checkRes.addPoint && (!(checkRes.okay)) &&  (currDegree - N + 2 < 5)) do {
 	      	    	      "!!i am adding points";
 	      	    	      currPoints = sort(checkRes.xpoint.:currPoints);
@@ -1499,7 +1503,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    	      currDegree = currDegree + 1;
 		    	      buildres = buildReconstructPoly(currPoints, ypoints, [|D...|]);
 		    	      //plot((buildres.poly).:ypoints, dom);
-		    	      checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn); 
+		    	      checkRes = checkReconstructionPolyOK(buildres.poly, domains, buildres.fn);
 	      	  	};
 			if (checkRes.okay) then {
 		       	   stablepoly = poly;
@@ -1507,44 +1511,44 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial8(domains, maxDeg
 		    	};
 
 		    };
-		  };   
+		  };
 
 		  };
 
 		};
-	      	      
+
 	      };
 	    };
 
 	  };
 
-	  return res;	  
+	  return res;
 };
 */
 
 procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDegree) {
-	  var res, continuesearch, poly, funcpoints, leftpoints, rightpoints, allpoints, N, oldprec, derivzeros, dom, polyOK, i, buildres, currPolyDegree; 
+	  var res, continuesearch, poly, funcpoints, leftpoints, rightpoints, allpoints, N, oldprec, derivzeros, dom, polyOK, i, buildres, currPolyDegree;
 
 	  res = {.okay = false};
 	  continuesearch = true;
   	  "tryGeneratePolynomialSplitterReconstructionPolynomial, domains = ", domains, " maxDegree = ", maxDegree;
-	  
+
   	  N = length(domains);
 	  dom =  [inf(domains[0]), sup(domains[N-1])];
 	  "I am trying innerpoly";
-	  
+
 	  if (maxDegree < N - 1) then {
 	     print("there is no possible polynomial to build. Try to increase the maxDegree");
 	     res = {.okay = false};
 	  } else {
 	    leftpoints = [| |];
-	    rightpoints = [| |];	    
+	    rightpoints = [| |];
 	    //1. Start with the leftpoly built by innerpoints: for each splitpoint take the upper value
 	    for domain in domains do {
-	      leftpoints = inf(domain).:leftpoints;	
-	      rightpoints = sup(domain).:rightpoints;	      
+	      leftpoints = inf(domain).:leftpoints;
+	      rightpoints = sup(domain).:rightpoints;
 	    };
-	    leftpoints = revert(leftpoints);	
+	    leftpoints = revert(leftpoints);
 	    rightpoints = revert(rightpoints);
 	    funcpoints = [|1, ..., N - 1|];
 	    buildres = buildReconstructPoly(tail(leftpoints), funcpoints, [|D...|]);
@@ -1552,8 +1556,8 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	    currPolyDegree = N - 3;
 	    poly = buildres.poly;
 
-//	    plot(poly.:funcpoints, dom);	    
-	  
+//	    plot(poly.:funcpoints, dom);
+
 	    polyOK = checkReconstructionPolyOK(poly, domains, buildres.fn);
 	    print("I returned res = ", polyOK);
 	    if (polyOK.okay) then {
@@ -1563,30 +1567,30 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 	       //I will try to add derivPoints
 	      /* derivzeros = dirtyfindzeros(diff(poly), dom);
 	      while (length(derivzeros) > 0 && currPolyDegree < maxDegree && (!(polyOK))) do {
-	       	     derivzeros = dirtyfindzeros(diff(poly), dom);   
+	       	     derivzeros = dirtyfindzeros(diff(poly), dom);
 		     print("derivzeros = ", derivzeros);
 		     leftpoints = derivzeros[0].:leftpoints;
-		     
+
 	       };
 	       */
 
 	       print("i will try to add the inf point and restart searching the polynomial");
 	       funcpoints = [|0, ..., N - 1|];
-	       buildres = buildReconstructPoly(leftpoints, funcpoints, [|D...|]); 
+	       buildres = buildReconstructPoly(leftpoints, funcpoints, [|D...|]);
 	       poly = buildres.poly;
-	       //print("----dom  =", dom);	
+	       //print("----dom  =", dom);
 	       //plot(poly.:funcpoints, dom);
 	       polyOK = checkReconstructionPolyOK(poly, domains, buildres.fn);
 	       print("I returned res = ", polyOK);
 	       if (polyOK.okay) then {
 	       	  //Don't know if .direction could be useful somewhere. Add it now just for fun.
 	       	  res = {.okay = true, .direction = "left", .poly = poly};
-	       } else {	       	 
+	       } else {
 	       	 //Try right poly here!
 		 print("i am trying to build right polynomial");
 		 funcpoints = [|1, ..., N|];
 		 buildres = buildReconstructPoly(rightpoints, funcpoints, [|D...|]);
-		 poly = buildres.poly;		 
+		 poly = buildres.poly;
 		 //print("-----dom = ", dom);
 		 //plot(poly.:funcpoints, dom);
 		 polyOK = checkReconstructionPolyOK(poly, domains, buildres.fn);
@@ -1598,7 +1602,7 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 		   print("poly built by all points");
 		   funcpoints = [| 0, ... , N |];
 		   allpoints = inf(dom).:rightpoints;
-		   buildres = buildReconstructPoly(allpoints, funcpoints, [|D...|]);		 
+		   buildres = buildReconstructPoly(allpoints, funcpoints, [|D...|]);
 		   poly = buildres.poly;
 		   //print("-----dom = ", dom);
 		   //plot(poly.:funcpoints, dom);
@@ -1607,11 +1611,11 @@ procedure tryGeneratePolynomialSplitterReconstructionPolynomial2(domains, maxDeg
 		   print("after checking full poly = ", polyOK);
 		   if (polyOK.okay) then {
 		      res = {.okay = true, .direction = "full", .poly = poly};
-		   }; 
-		 };		 
+		   };
+		 };
 	       };
-	    }; 
-	  };	  
+	    };
+	  };
 	  if (degree(poly) > maxDegree) then { //just to be sure
 	     print("your poly degree was higher than maxDegreeReconstruction");
 	     res = {.okay = false};
@@ -1628,7 +1632,7 @@ procedure tryGeneratePolynomialSplitterReconstruction(functionName, domains, red
 
 	  "#####tryGeneratePolynomialSplitterReconstruction, domains = ", domains;
 	  res = { .okay = false };
-	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);	  
+	  resPoly = tryGeneratePolynomialSplitterReconstructionPolynomial(domains, maxDegree);
 	  if (resPoly.okay) then {
 
 	     "The reconstruction polynomial is ", resPoly.poly;
@@ -1638,7 +1642,7 @@ procedure tryGeneratePolynomialSplitterReconstruction(functionName, domains, red
 		 print("in successor poly = ", (D(resPoly.poly(succDouble(inf(domain))))));
 	     	 print("sup(domain) = ", sup(domain), " floor(poly(*)) = ", floor(D(resPoly.poly(sup(domain)))), " ceil(poly(*)) = ", ceil(D(resPoly.poly(inf(domain)))));
 		 print("in predecessor poly = ", (D(resPoly.poly(predDouble(sup(domain))))));
-		 print("in successor poly = ", (D(resPoly.poly(succDouble(sup(domain)))))); 
+		 print("in successor poly = ", (D(resPoly.poly(succDouble(sup(domain))))));
 	     };*/
 	  };
 	  return res;
@@ -1674,7 +1678,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  var doElseCase;
 	  var resOpt;
 
-	   write("implementwithdomainsplitlist(",func,",", dom,",", splitPoints,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,",", maxDegreeReconst,")\n"); 
+	   write("implementwithdomainsplitlist(",func,",", dom,",", splitPoints,",", minWidth,",", definitionDomain,",", target,",", beta,",", variableFormat,",", implementationFile,",", gappaFile,",", gappaOutputFile,",", gappaExecutable,",", polynomialBaseName,",", maxDegreeReconst,")\n");
 
 	  resultat = { .okay = false };
 
@@ -1688,8 +1692,8 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 
 	     if (!(resultat.okay)) then {
 	     	/* The implementation did not work out.
-		
-		   We split the interval by "inventing" 
+
+		   We split the interval by "inventing"
 		   one or two split points.
 
 		*/
@@ -1739,7 +1743,7 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 		   mySuffix = "_subdomain_" @ i ;
 		   myImplementationFile = implementationFile @ mySuffix;
 		   res = implementsmallwithcentering(func, myDom, target, beta, variableFormat, myImplementationFile, gappaFile @ mySuffix, gappaOutputFile @ mySuffix, gappaExecutable, polynomialBaseName @ mySuffix, definitionDomain);
-		   if (res.okay) then { 
+		   if (res.okay) then {
 		      	 print("~~~subdom = ", myDom);
 		         write("Subdomain ",myDom," done\n");
    		         domains = domains :. myDom;
@@ -1825,10 +1829,10 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 		      if (head(outputformats) == myOutputFormat) then {
 		      	 resOpt = tryGeneratePolynomialSplitterReconstruction(myFunctionName, domains, functionNames, variableFormat, myOutputFormat, implementationFile @ ".splitter.temp.c", maxDegreeReconst);
 		      };
-		   };		   
+		   };
 		   if (resOpt.okay) then {
 		      splitterCode = splitterCode @ resOpt.code @ "\n\n";
-		      write(splitterCode) >> implementationFile;		      
+		      write(splitterCode) >> implementationFile;
 		   } else {
 		       recursiveSplitterRes = generateRecursiveSplitter(myFunctionName, domains, functionNames, outputformats, variableFormat, myOutputFormat);
 		       if (!recursiveSplitterRes.okay) then okay = false;
@@ -1866,16 +1870,16 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
 	  return resultat;
 };
 
-/* Compute an ordered list of points x_i in the given domain dom, such that 
+/* Compute an ordered list of points x_i in the given domain dom, such that
    on all subdomains S_i created by these splitpoints func can be approximated
-   with a relative error no greater than target with polynomials of degree no 
+   with a relative error no greater than target with polynomials of degree no
    greater than maxDegree. All subdomains S_i are larger in width than minWidth.
 
-   In case of failure (no such splitting exists), return a structure containing 
+   In case of failure (no such splitting exists), return a structure containing
    an element .okay that is equal to false.
 
    In case of success (a splitting has been found), return a structure containing
-   an element .okay that is equal to false and an element .splitPoints that is 
+   an element .okay that is equal to false and an element .splitPoints that is
    a list of the points x_i described above.
 
    Attention:
@@ -1894,8 +1898,8 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
    performed on each subdomain S_i for range reduction.
 
    The purpose and particularity of this special procedure is to split the domain
-   in such a way that the degree of the polynomials used on each subdomain is 
-   maximal, i.e. that the subdomains are of maximum width. 
+   in such a way that the degree of the polynomials used on each subdomain is
+   maximal, i.e. that the subdomains are of maximum width.
 
    The splitting to be returned is supposed to be optimized for that specificity.
 
@@ -1903,19 +1907,19 @@ procedure implementwithdomainsplitlist(func, dom, splitPoints, minWidth, definit
    greedy algorithms and heuristics are allowed if they are well explained.
 
    As the procedure will be called on almost every instance of a metalibm run,
-   it should be pretty fast, even if this means that some opportunities for 
+   it should be pretty fast, even if this means that some opportunities for
    optimizing the split points are left aside.
 
 */
 procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth) {
-	  
+
 	  var res;
 	  var left, right, m, preSplitPoints, leftdeg, wholedomdeg;
 
 	  "computeDomainSplittingOptimized(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
 
 	  res = {.okay = false};
-	  /* The procedure checkIfSufficientDegreeOptimized(func, dom, maxDegree, target) is your friend 
+	  /* The procedure checkIfSufficientDegreeOptimized(func, dom, maxDegree, target) is your friend
 
 	     It checks if func can be approximated over dom with a degree no greater than
 	     maxDegree and a target error target.
@@ -1925,11 +1929,11 @@ procedure computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth
 	     - .okay that indicates if the check was successful or if the procedure failed (which might sometimes happen)
 
 	     - if .okay is equal to true, the structure contains a field .sufficientDegree that is either false or true
-	       The field indicates whether or not approximation of func over dom with a degree no greater maxDegree 
+	       The field indicates whether or not approximation of func over dom with a degree no greater maxDegree
 	       is possible for a target error target.
 
 	     - if .okay is true and .sufficientDegree is true, the structure contains a field .deg indicating (a good
-               guess of) the degree that is needed to approximate func over dom with target error target.  
+               guess of) the degree that is needed to approximate func over dom with target error target.
 	  */
 
 	  /* I return .deg as a list of degrees for the corresponding subdomains */
@@ -1944,28 +1948,28 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 	  var res, m, left, right, leftdeg, domdeg, currRes, found;
 
 	 // "computeDomainSplittingOptimizedInner(", func, ", ", dom, ", ", maxDegree, ", ", target, ", ", minWidth, ", ", currSplitPointsList, ", ", currDegreeList, ")";
-	  
+
 	  domdeg = checkIfSufficientDegreeOptimized(func, dom,  maxDegree, target);
 	  if (domdeg.okay == false) then {
   	     print("There was some error in checkIfSufficientDegreeOptimized on domain ", dom);
 	     res = domdeg;
 	  } else {
-	    // case when domdeg.okay == true;	   
+	    // case when domdeg.okay == true;
 	    if (domdeg.sufficientDegree == true) then {
 	       res = domdeg;
 	       res.splitPoints = currSplitPointsList;
 	       res.deg = currDegreeList :. domdeg.deg;
-	    } else {   
+	    } else {
 	      if (sup(dom) - inf(dom) < 2 * minWidth) then {
 	      	 print("Split is needed, But I can't do it, because the current interval is too small");
 	      	 res =  { .okay = false };
-	      } else {	      
+	      } else {
 	     //	print("---wanna compute split, I will try to divide current dom by 2 in order to find the largest left acceptable subdomain");
 		found = false;
-		m = D(mid(dom));	
+		m = D(mid(dom));
 		left = dom;
 		while (!found &&  (sup(left) - inf(left)) >= 2*minWidth) do {
-		      m = D(mid(left));		
+		      m = D(mid(left));
 		      left = [ inf(dom), m ];
 		      right = [ m, sup(dom) ];
 		      leftdeg = checkIfSufficientDegreeOptimized(func, left, maxDegree, target);
@@ -1974,26 +1978,26 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 		      } else {
 		      	found = false;
 		      };
-		};	
+		};
 		if (found) then {
 		   print("---I've found the longest interval on the left");
 		   currRes = tryToIncreaseSplit(func, left, right, maxDegree, target, minWidth);
 		   print("---after moving the right border: ", currRes);
 		   currSplitPointsList = currSplitPointsList :. currRes.splitPoint;
-		   currDegreeList = currDegreeList :. currRes.deg;		       		      
+		   currDegreeList = currDegreeList :. currRes.deg;
 		   res = currRes;
 		   res.splitPoints = currSplitPointsList;
 		   res.deg = currDegreeList;
-		   right = [(currRes.splitPoint), sup(right)];  
+		   right = [(currRes.splitPoint), sup(right)];
 		   if ((sup(right) - inf(right)) > 0) then {
 		     		currRes = computeDomainSplittingOptimizedInner(func, right, maxDegree, target, minWidth, currSplitPointsList, currDegreeList);
 				res.splitPoints = res.splitPoints @ currRes.splitPoints;
-				res.deg = res.deg @ currRes.deg; 
+				res.deg = res.deg @ currRes.deg;
 				res = currRes;
-		     };	
+		     };
 		 } else {
 		   print("domain split: there has been some error");
-		   res = {.okay = false};		
+		   res = {.okay = false};
 		};
 	      };
 	    }; // end "need a split"
@@ -2003,30 +2007,30 @@ procedure computeDomainSplittingOptimizedInner(func, dom,  maxDegree, target, mi
 
 procedure tryToIncreaseSplit(func, left, rest, maxDegree, target, minWidth) {
 	  var res, leftdeg, delta, newleft;
-	  
+
 	  //"tryToIncreaseSplit(", func, ", ", left, ", ", rest, ", ", maxDegree, ", ", target, ", ", minWidth, ")";
 	  // For this moment we are sure that there is an approximating polynomial on the left with a degree <= maxDegree,
 	  // we are interested in the largest intervals, so we'll try to enlarge left.
-	  // As on the previous steps before calling this function we have divided interval by 2 in order to get the left, we'll try to 
+	  // As on the previous steps before calling this function we have divided interval by 2 in order to get the left, we'll try to
 	  // enlarge our interval with a third of it
 
 	  delta = round(((sup(left) - inf(left)) / 7), D, RD);
 	  newleft = left; //[ inf(left), sup(left) + delta ];
-	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!; 
+	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
 	  while (delta > minWidth/2 && sup(newleft) < sup(rest) ) do {  	//I don't know how to bound delta, just for experiment it is minWidth. Sometimes changing this bound from 2*minWidth to 5*minWidth gives 10 more subdomains. The less is the bound, least domains we get.
 	  	print("delta = ", delta);
 	  	newleft = [ inf(newleft), sup(newleft) + delta ];
 	  	leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
 		while (leftdeg.okay && leftdeg.sufficientDegree) do {
 		    newleft = [ inf(newleft), sup(newleft) + delta ];
-	  	    leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;  
+	  	    leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
 		};
 		if (leftdeg.okay == false) then {
 		   delta = 0;
 		   res = {.okay = false};
 		} else {
 		  newleft = [ inf(newleft), sup(newleft) - delta ];
-	  	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;  
+	  	  leftdeg = checkIfSufficientDegreeOptimized(func, newleft,  maxDegree, target)!;
 		  delta = round(delta/2, D, RD);
 		};
 	  };
@@ -2072,7 +2076,7 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 	  if ((!(inf(dom) * sup(dom) < 0)) || (!sterbenzNeeded)) then {
 	      resOpt = computeDomainSplittingOptimized(func, dom, maxDegree, target, minWidth);
 	      // resOpt.okay = false;
-	  };    	  
+	  };
 
 	  if (!resOpt.okay) then {
 
@@ -2106,13 +2110,13 @@ procedure computeDomainSplitting(func, dom, maxDegree, target, minWidth, sterben
 	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),x/remezFunc,maxDegree+2); };
 	     guess = guess + 1;
 
-	  /*   
+	  /*
 	  oldDisplay = display;
 	  display = dyadic!;
 	  "guessdegreewrapperwithbound(",1,",",remezDom,",",abs(target),",",x/remezFunc,",",maxDegree+2,") = ", guess;
 	  display = oldDisplay!;
 	  */
-	     
+
 	  } else {
 	     { guess = guessdegreewrapperwithbound(1,remezDom,abs(target),1/remezFunc,maxDegree+2); };
 
@@ -2245,28 +2249,28 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
 	  sterbenzNeeded = true;
 	  myTarget = target;
 
-	  /* Check if we actually need to enforce Sterbenz condition 
+	  /* Check if we actually need to enforce Sterbenz condition
 	     on the sub-domain midpoints.
 	  */
 
 	  if ((variableFormat == D) &&
-	      (abs(target) > 1b-50) && 
+	      (abs(target) > 1b-50) &&
 	      ((!(0 in dom)) &&
 	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100])))) then {
 	      /* First do a quick check if the perturbation affects the error by no more than a
-	         quarter of the target error 
+	         quarter of the target error
               */
 	      if (checkIfPropagatedErrorLessThan(func, dom, 1b-53, 1/4 * abs(target))) then {
 	      	     sterbenzNeeded = false;
 		     myTarget = 1/4 * abs(target);
 	      } else {
-	          /* Bound the amount of final error added when adding one double precision 
-                     rounding-error upon shifting 
+	          /* Bound the amount of final error added when adding one double precision
+                     rounding-error upon shifting
 	          */
 	          shiftEps = abs(1b-53 * computeAmplification(func,dom,1b-53));
 
 	          /* If that shifting error and a quarter of the target
-	             error combined are less than the target error, do no longer 
+	             error combined are less than the target error, do no longer
 		     try to get Sterbenz condition fullfilled.
                   */
 	          if (shiftEps + 1/4 * abs(target) + shiftEps * 1/4 * abs(target) <= abs(target)) then {
@@ -2276,7 +2280,7 @@ procedure implementwithdomainsplitting(func, dom, maxDegree, minWidth, definitio
               };
           };
 
-	  /* In certain cases, the function so well contracts the relative error 
+	  /* In certain cases, the function so well contracts the relative error
 	     than even if zero is in the domain we can afford an extra reduction error.
 	  */
 	  if (sterbenzNeeded) then {
@@ -2360,7 +2364,7 @@ procedure tryImplementationThroughDomainSplitting(problemdef, parametrization) {
 										      parametrization.gappaFile,
 										      parametrization.gappaOutputFile,
 										      parametrization.gappaExecutable,
-										      parametrization.functionBasename, 
+										      parametrization.functionBasename,
 										      parametrization.maxDegreeReconstruction);
 					}
                 default : { };
@@ -2382,7 +2386,7 @@ procedure checkIfSufficientDegreeInner(func, dom, maxDegree, target, sterbenzNee
 	  deg = -1;
 
 	  if (((!(0 in dom)) &&
-	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) && 
+	      (!(dom in [(mid(dom) * 100)/199;(mid(dom)*199)/100]))) &&
 	      sterbenzNeeded) then {
 	      /* We have to split because the Sterbenz condition will
 	         not be fulfilled for center points on this subdomain
@@ -3593,7 +3597,7 @@ procedure dirtyEvaluateImageInner(f,dom) {
 	      fmin = inf(evaluate(f,inf(dom)));
 	      fmax = sup(evaluate(f,inf(dom)));
 	      for z in zeros do {
-	      	  y = evaluate(f,z);		  
+	      	  y = evaluate(f,z);
 	      	  if (inf(y) < fmin) then fmin = inf(y);
 	      	  if (sup(y) > fmax) then fmax = sup(y);
 	      };
@@ -3738,18 +3742,18 @@ procedure tryDetectExponentialBehaviorArgRed(func, dom, maxReducRatio) {
 	     reducRatio = widthReduc / widthOrig;
 
 	     if (reducRatio <= maxReducRatio) then {
-	     	/* Now check if the divided function is not 
-		   just 1 or something really close. 
-		   If this were the case, we do not 
-		   really have an argument reduction 
+	     	/* Now check if the divided function is not
+		   just 1 or something really close.
+		   If this were the case, we do not
+		   really have an argument reduction
 		   as we can always multiply by 1 without
 		   any change in the problem set.
 		*/
-		testfuncjustone = false; 
+		testfuncjustone = false;
 		if (sup(abs(yReduc - 1)) <= 2^(-(prec/2))) then {
 		   testfuncjustone = true;
 		};
-		
+
 		if (!testfuncjustone) then {
 	     	    result.okay = true;
 		    result.g = base^x;
@@ -3771,7 +3775,7 @@ procedure tryDetectLogarithmicBehaviorArgRed(func, dom, maxReducRatio) {
 	  /* Dividing by a logarithm is only possible if the
 	     domain only contains (strictly) positive numbers.
 	  */
-	  if (inf(dom) > 0) then {	  
+	  if (inf(dom) > 0) then {
 
 	     /* Just check if dividing the given function by
 	        log(x) reduces the output domain for the factor g(x):
@@ -3786,18 +3790,18 @@ procedure tryDetectLogarithmicBehaviorArgRed(func, dom, maxReducRatio) {
 	     reducRatio = widthReduc / widthOrig;
 
 	     if ((reducRatio == reducRatio) && (abs(reducRatio) != infty) && (reducRatio <= maxReducRatio)) then {
-	     	/* Now check if the divided function is not 
-		   just 1 or something really close. 
-		   If this were the case, we do not 
-		   really have an argument reduction 
+	     	/* Now check if the divided function is not
+		   just 1 or something really close.
+		   If this were the case, we do not
+		   really have an argument reduction
 		   as we can always multiply by 1 without
 		   any change in the problem set.
 		*/
-		testfuncjustone = false; 
+		testfuncjustone = false;
 		if (sup(abs(yReduc - 1)) <= 2^(-(prec/2))) then {
 		   testfuncjustone = true;
 		};
-		
+
 		if (!testfuncjustone) then {
 	     	    result.okay = true;
 		    result.g = log2(x);
@@ -3899,18 +3903,18 @@ procedure tryDetectPoweringBehaviorArgRed(func, dom, maxReducRatio) {
 	         reducRatio = widthReduc / widthOrig;
 
 	         if ((reducRatio == reducRatio) && (abs(reducRatio) != infty) && (reducRatio <= maxReducRatio)) then {
-	     	    /* Now check if the divided function is not 
-		       just 1 or something really close. 
-		       If this were the case, we do not 
-		       really have an argument reduction 
+	     	    /* Now check if the divided function is not
+		       just 1 or something really close.
+		       If this were the case, we do not
+		       really have an argument reduction
 		       as we can always multiply by 1 without
 		       any change in the problem set.
 		    */
-		    testfuncjustone = false; 
+		    testfuncjustone = false;
 		    if (sup(abs(yReduc - 1)) <= 2^(-(prec/2))) then {
 		       testfuncjustone = true;
 		    };
-		
+
 		    if (!testfuncjustone) then {
 	     	        result.okay = true;
 		        result.g = (sign * x^c);
@@ -3928,14 +3932,14 @@ procedure tryDetectParamountBehaviorArgRed(func, dom, maxReducRatio) {
 	  var detectors, result, res, detector, okay;
 	  var best;
 
-	  detectors = [| 
-                         tryDetectExponentialBehaviorArgRed, 
+	  detectors = [|
+                         tryDetectExponentialBehaviorArgRed,
 	                 tryDetectLogarithmicBehaviorArgRed,
-			 tryDetectPoweringBehaviorArgRed 
+			 tryDetectPoweringBehaviorArgRed
 		      |];
 
 	  result = { .okay = false };
-	  okay = false;	  
+	  okay = false;
 
 	  for detector in detectors do {
 		res = detector(func, dom, maxReducRatio);
@@ -4390,7 +4394,7 @@ procedure computeNeededAccuracyOfArgumentSpecialCaseExponential(func, dom, maxep
 		   };
 		   subdoms = subdomsPrime;
 	     };
-	     
+
 
 	     reseps = 1;
 	     for d in subdoms do {
@@ -4410,7 +4414,7 @@ procedure computeNeededAccuracyOfArgumentSpecialCaseExponential(func, dom, maxep
 		 if (abs(teps) > 1) then teps = 1;
 		 reseps = min(reseps, abs(teps));
 	     };
-	  
+
 	     res = { .okay = true, .res = reseps };
 	  };
 
@@ -4428,15 +4432,15 @@ procedure computeNeededAccuracyOfArgumentSpecialCaseGeneralExponential(func, dom
 
 	  res = { .okay = false };
 
-	  match (func) with 
-	       a^x     : { 
+	  match (func) with
+	       a^x     : {
                              if (a > 0) then {
 	                        res = computeNeededAccuracyOfArgumentSpecialCaseExponential(exp(x), dom * log(a), maxeps);
                              };
 	                 }
                default : {
 	                 };
-	  
+
 	  return res;
 };
 
@@ -4477,7 +4481,7 @@ procedure computeNeededAccuracyOfArgument(func, dom, maxeps) {
 	  if (specialRes.okay) then {
 	     res = specialRes.res;
 	  } else {
-	  
+
 	      res = 1b-1;
 	      okay = false;
 
@@ -4521,18 +4525,18 @@ procedure computeNeededAccuracyOfArgumentTrisect(func, dom, maxeps, minWidth) {
 	  var res, w, a, b;
 
 	  res = computeNeededAccuracyOfArgument(func, dom, maxeps);
-	   
+
 	  a = inf(dom);
 	  b = sup(dom);
-	  w = b - a;	  
+	  w = b - a;
 
 	  if ((res == 0) && (w > minWidth)) then {
-	      
+
 	      res = min( computeNeededAccuracyOfArgumentTrisect(func, [a; a + 1/3 * w], maxeps, minWidth),
 	                 computeNeededAccuracyOfArgumentTrisect(func, [a + 1/3 * w; a + 2/3 * w], maxeps, minWidth),
 			 computeNeededAccuracyOfArgumentTrisect(func, [a + 2/3 * w; b], maxeps, minWidth));
 
-	  }; 
+	  };
 
 	  return res;
 };
@@ -4541,7 +4545,7 @@ procedure computeNeededAccuracyOfArgumentWorkHard(func, dom, maxeps) {
 	  var res;
 
 	  res = computeNeededAccuracyOfArgumentTrisect(func, dom, maxeps, (sup(dom) - inf(dom)) / 2187);
-	  
+
 	  return res;
 };
 
@@ -4567,11 +4571,11 @@ procedure tryImplementationThroughSquaring(problemdef, parametrization) {
                                        .gappaExecutable = default,
 				       .functionBasename = default } } : {
 
-				       /* Start with a test if zero is actually inside the domain 
-				          and if width of reduced domain smaller than 1/4 of the width of 
+				       /* Start with a test if zero is actually inside the domain
+				          and if width of reduced domain smaller than 1/4 of the width of
 					  the original domain.
 				       */
-				       if ((sup(problemdef.dom) * inf(problemdef.dom) < 0) && 
+				       if ((sup(problemdef.dom) * inf(problemdef.dom) < 0) &&
 				           (((max(inf(problemdef.dom),sup(problemdef.dom)))^2) <= (1/4 * (sup(problemdef.dom) - inf(problemdef.dom))))) then {
 
 				       /* Continue with a test if the domain actually needs
@@ -5058,7 +5062,7 @@ procedure tryImplementationThroughArgumentReductionLogarithm(problemdef, paramet
 						    if (inf(abs(problemdef.dom)) < 0x0010000000000000) then {
 						      reductionCode = reductionCode @ "E = 0;\n";
 						      reductionCode = reductionCode @ "if (argRedCaster.l < 0x0010000000000000) {\n";
-						      reductionCode = reductionCode @ "argRedCaster.d *= 9007199254740992.0;\n";						     
+						      reductionCode = reductionCode @ "argRedCaster.d *= 9007199254740992.0;\n";
 						      reductionCode = reductionCode @ "E -= 53;\n";
 						      reductionCode = reductionCode @ "}\n";
 						      reductionCode = reductionCode @ "E += (int) ((argRedCaster.l >> 52) - 1023ll);\n";
@@ -5659,8 +5663,8 @@ procedure tryImplementationThroughArgumentReductionPowering(problemdef, parametr
 						       	  postNegate = false;
 						       };
 
-						       /* Test if we need to be able to handle zero as an 
-						          argument 
+						       /* Test if we need to be able to handle zero as an
+						          argument
 						        */
 						       handleZero = (0 in problemdef.dom);
 
@@ -6571,7 +6575,7 @@ procedure doWorkForTryImplementationThroughMetaSplitting(problemdef, parametriza
 		 functionNames = functionNames :. (res.functionname);
 	     };
 
-	     myOutputFormat = match myOutputFormatNum with 1 : (D) 2 : (DD) 3 : (TD);	     
+	     myOutputFormat = match myOutputFormatNum with 1 : (D) 2 : (DD) 3 : (TD);
 
 	     splitterCode = "\n";
 	     recursiveSplitterRes = generateRecursiveSplitter((parametrization.functionBasename) @ "_metasplit", outputDomains, functionNames, outputFormats, problemdef.variableFormat, myOutputFormat);
@@ -6805,7 +6809,7 @@ procedure testIfFunctionCouldBePeriodic(func, dom) {
 		        yC = evaluate(func,c);
 		        for pp in possiblePeriods do {
 		    	    tX = c + pp;
-			    if ((inf(tX) >= inf(dom)) && 
+			    if ((inf(tX) >= inf(dom)) &&
 			        (sup(tX) <= sup(dom))) then {
 			        tY = evaluate(func, tX);
 			        if (yC in tY) then {
@@ -6814,10 +6818,10 @@ procedure testIfFunctionCouldBePeriodic(func, dom) {
 			    };
 		        };
 		        testedPossiblePeriods = revert(testedPossiblePeriods);
-		    	if (testedPossiblePeriods != [||]) then {	
+		    	if (testedPossiblePeriods != [||]) then {
 			   /* Add additional filters here */
 			   res = true;
-			};		
+			};
 		    };
 		};
 	     };
@@ -6842,15 +6846,15 @@ procedure tryDetectPeriodicArgRed(func, dom, target, xFormat) {
 	  result = { .okay = false };
 
 	  if (testIfFunctionCouldBePeriodic(func, dom)) then {
-	  /* Functions with no local or only one local extrema can't be periodic. 
+	  /* Functions with no local or only one local extrema can't be periodic.
 	     So start by checking if the derivative of the function
-	     has a zero 
+	     has a zero
 	  */
           zerosDeriv = mydirtyfindzeros(diff(func), dom);
-	  
+
 	  if (length(zerosDeriv) >= 2) then {
 	  /* We try to find all points where
-	     func admits the same value as in 
+	     func admits the same value as in
 	     a point c. The distances to c
 	     then give an idea of a possible
 	     period.
@@ -6949,7 +6953,7 @@ procedure checkSterbenzConditionForPeriodicArgRed(dom, c, period) {
 	  var actualA, actualB, actualDom;
 	  var actualExpoDom, possibleExpoDom;
 
-	  /* Given k = nearestint((x - c)/p), we have to check if 
+	  /* Given k = nearestint((x - c)/p), we have to check if
 
 	     1/2 <= abs(x) / abs(p * k) <= 2
 
@@ -6994,14 +6998,14 @@ procedure checkSterbenzConditionForPeriodicArgRed(dom, c, period) {
 		           actualB = min(sup(dom), actualB);
 		           if (actualA <= actualB) then {
 		       	      actualDom = [actualA; actualB];
-			      currRes = (inf(abs(actualDom)) >= 1/2 * abs(k * period)) && 
+			      currRes = (inf(abs(actualDom)) >= 1/2 * abs(k * period)) &&
                                         (sup(abs(actualDom)) <= 2 * abs(k * period));
 		              if ((!currRes) && (!(0 in actualDom))) then {
 			          actualExpoDom = floor(log2(abs(actualDom)));
 				  possibleExpoDom = [floor(log2(abs(k * period))) - 1, floor(log2(abs(k * period))) + 1];
 				  currRes = actualExpoDom in possibleExpoDom;
 			      };
-			      res = res && currRes;  
+			      res = res && currRes;
 		           };
                        };
 	           };
@@ -7011,7 +7015,7 @@ procedure checkSterbenzConditionForPeriodicArgRed(dom, c, period) {
 	         };
 	      };
 	  };
-	  
+
 	  return res;
 };
 
@@ -7023,7 +7027,7 @@ procedure computePeriodicArgumentReductionErrorAmplification(dom, c, period, xFo
    var hardK;
 
    kRange = nearestint((dom - c)/period);
-   alpha = 0;	
+   alpha = 0;
    hardK = inf(kRange);
    for k from inf(kRange) to sup(kRange) do {
        if (k != 0) then {
@@ -7065,7 +7069,7 @@ procedure constantIsRepresentableOnDoubleExpansion(c) {
 	  return res;
 };
 
-procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat, argRedConstantFormat, reducedArgFormat, outputFormat, haveSterbenzOnArgRed, 
+procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat, argRedConstantFormat, reducedArgFormat, outputFormat, haveSterbenzOnArgRed,
 	  		                            reducedFunctionName, implementationFile, functionName) {
     var res;
     var roundedPeriod;
@@ -7075,7 +7079,7 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     var oldDisplay;
 
     res = { .okay = false };
-    okay = true;    
+    okay = true;
     roundedPeriod = round(~period, argRedConstantFormat, RN);
     res.epsConst = abs(roundedPeriod/period - 1);
     if (haveSterbenzOnArgRed) then {
@@ -7090,17 +7094,17 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     /* Generate the variable declarations and the code for the argument reduction */
     oldDisplay = display;
     display = decimal!;
-    poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_shifter 6755399441055744.0\n"; 
-    if (D(c) != 0) then poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_center " @  D(c) @ "\n"; 
-    poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_recpr " @  D(1/period) @ "\n"; 
+    poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_shifter 6755399441055744.0\n";
+    if (D(c) != 0) then poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_center " @  D(c) @ "\n";
+    poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_recpr " @  D(1/period) @ "\n";
     match (argRedConstantFormat) with
           D  : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n"; }
-	  DD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n"; 
-                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(-roundedPeriod - D(-roundedPeriod)) @ "\n"; 
+	  DD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n";
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(-roundedPeriod - D(-roundedPeriod)) @ "\n";
 	       }
-          TD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n"; 
-                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(-roundedPeriod - D(-roundedPeriod)) @ "\n"; 
-                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_lo " @  D(-roundedPeriod - (D(-roundedPeriod) + D(-roundedPeriod - D(-roundedPeriod)))) @ "\n"; 
+          TD : { poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_hi " @  D(-roundedPeriod) @ "\n";
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_mi " @  D(-roundedPeriod - D(-roundedPeriod)) @ "\n";
+                 poundDefineDecls = poundDefineDecls @ "#define " @ functionName @ "_period_lo " @  D(-roundedPeriod - (D(-roundedPeriod) + D(-roundedPeriod - D(-roundedPeriod)))) @ "\n";
                };
     display = oldDisplay!;
 
@@ -7112,149 +7116,149 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     };
     codeDecls = codeDecls @ "s = " @ functionName @ "_shifter + t;\n";
     codeDecls = codeDecls @ "k = s - " @ functionName @ "_shifter;\n";
-    
-    match (inputFormat) with 
+
+    match (inputFormat) with
           D  : {
-			match (argRedConstantFormat) with 
+			match (argRedConstantFormat) with
 			      D  : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd1111(&rh, xh, k, " @ functionName @ "_period_hi);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd1112(&rh, &rm, xh, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd1113(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   }
 			      DD : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd1121(&rh, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd1122(&rh, &rm, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd1123(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   }
 			      TD : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd1131(&rh, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd1132(&rh, &rm, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd1133(&rh, &rm, &rl, xh, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   };
 	       }
           DD : {
-			match (argRedConstantFormat) with 
+			match (argRedConstantFormat) with
 			      D  : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd2111(&rh, xh, xm, k, " @ functionName @ "_period_hi);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd2112(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd2113(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   }
 			      DD : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd2121(&rh, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd2122(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd2123(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   }
 			      TD : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd2131(&rh, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd2132(&rh, &rm, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd2133(&rh, &rm, &rl, xh, xm, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   };
 	       }
           TD : {
-			match (argRedConstantFormat) with 
+			match (argRedConstantFormat) with
 			      D  : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd3111(&rh, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd3112(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd3113(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   }
 			      DD : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd3121(&rh, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd3122(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd3123(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   }
 			      TD : {
-					match (reducedArgFormat) with 
+					match (reducedArgFormat) with
 					      D  : {
 							codeDecls = codeDecls @ "MulAdd3131(&rh, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
 							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-51;
 					      	   }
 					      DD : {
 							codeDecls = codeDecls @ "MulAdd3132(&rh, &rm, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-104;
 					      	   }
 					      TD : {
 							codeDecls = codeDecls @ "MulAdd3133(&rh, &rm, &rl, xh, xm, xl, k, " @ functionName @ "_period_hi, " @ functionName @ "_period_mi, " @ functionName @ "_period_lo);\n";
-							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150; 
+							if (!haveSterbenzOnArgRed) then epsSubstr = 1b-150;
 					      	   };
 			      	   };
 	       };
@@ -7262,17 +7266,17 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
     /* Write the pound-defines, the function header and the code to the file */
     write("\n\n",poundDefineDecls,"\n\n") >> implementationFile;
     write("void ", functionName, "(") >> implementationFile;
-    match (outputFormat) with 
+    match (outputFormat) with
     	  D  : {
 	          write("double *res_resh, ") >> implementationFile;
-	       } 
+	       }
     	  DD : {
 	          write("double *res_resh, double *res_resm, ") >> implementationFile;
-	       } 
+	       }
     	  TD : {
 	          write("double *res_resh, double *res_resm, double *res_resl, ") >> implementationFile;
 	       };
-    match (inputFormat) with 
+    match (inputFormat) with
           D  : {
                   write("double xh") >> implementationFile;
 	       }
@@ -7283,7 +7287,7 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
                   write("double xh, double xm, double xl") >> implementationFile;
 	       };
     write(") {\n") >> implementationFile;
-    match (reducedArgFormat) with 
+    match (reducedArgFormat) with
           D  : {
                   write("double rh;\n") >> implementationFile;
 	       }
@@ -7295,17 +7299,17 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
 	       };
     write(variableDecls,"\n\n",codeDecls,"\n") >> implementationFile;
     write(reducedFunctionName,"(") >> implementationFile;
-    match (outputFormat) with 
+    match (outputFormat) with
     	  D  : {
 	          write("res_resh, ") >> implementationFile;
-	       } 
+	       }
     	  DD : {
 	          write("res_resh, res_resm, ") >> implementationFile;
-	       } 
+	       }
     	  TD : {
 	          write("res_resh, res_resm, res_resl, ") >> implementationFile;
 	       };
-    match (reducedArgFormat) with 
+    match (reducedArgFormat) with
           D  : {
                   write("rh") >> implementationFile;
 	       }
@@ -7315,34 +7319,34 @@ procedure tryImplementArgumentReductionCodePeriodic(dom, period, c, inputFormat,
           TD : {
                   write("rh, rm, rl") >> implementationFile;
 	       };
-    write(");\n}\n\n") >> implementationFile;	 
-    
+    write(");\n}\n\n") >> implementationFile;
+
     /* Return the status */
     res.epsSubstr = epsSubstr;
     if (okay) then {
        res.okay = true;
     };
 
-    return res;					    
+    return res;
 };
 
 procedure computeReducedDomainAndMidpointCasesPeriodic(func, dom, c, p, xFormat) {
 	  var midpointCases;
 	  var a, b, r, t, s, k, i, ia, ib, td, xt, tpl, xtp;
 
-	  /* We have to compute the image domain of the 
-	     argument reduction 
+	  /* We have to compute the image domain of the
+	     argument reduction
 
 	      r = x - p * nearestint((x - c) / p)
 
 	     for x in dom a floating-point value of format xFormat.
 
-	     For that image domain, we must not account for midpoint 
+	     For that image domain, we must not account for midpoint
 	     cases but put them in an extra list.
 
-	     We start by analyzing at the bounds of the original 
+	     We start by analyzing at the bounds of the original
 	     domain.
-	     
+
 	  */
 	  midpointCases = [||];
 
@@ -7381,7 +7385,7 @@ procedure computeReducedDomainAndMidpointCasesPeriodic(func, dom, c, p, xFormat)
 	  while (ia < inf(td)) do ia = ia + 1;
 	  ib = ceil(sup(td)) - 1/2;
 	  while (ib > sup(td)) do ib = ib - 1;
-	  
+
 	  for i from ia to ib by 1 do {
 	      xt = i * p + c;
 	      if (xt == round(xt,xFormat,RN)) then {
@@ -7418,7 +7422,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 	  var isRepresentablePeriod;
 	  var argRedConstantTarget, argRedSubtractionTarget;
 	  var argRedConstantFormat;
-	  var argRedRepresentationTarget; 
+	  var argRedRepresentationTarget;
 	  var reducedArgFormat;
 	  var myProblemdef, origDefDom, suffix;
 	  var resArgRed;
@@ -7438,7 +7442,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 	     period = res.period;
 	     variableFormat = problemdef.variableFormat;
 
-	     /* Now compute a value c and a resulting 
+	     /* Now compute a value c and a resulting
 	        reduced domain:
 
 		r = x - p * nearestint((x - c) / p)
@@ -7449,7 +7453,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 
 		reducedDom = [ c - p/2 ; c + p/2 ]
 
-		As we want to stay in the same definition 
+		As we want to stay in the same definition
 		domain of the function, we must choose c in
 		such a way that reducedDom is included in dom.
               */
@@ -7471,8 +7475,8 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		 midpointCases = [||];
 
 		 "reducedDom = ", reducedDom;
-	
-		 /* Just to be sure, we check that the reduced domain 
+
+		 /* Just to be sure, we check that the reduced domain
 		    is contained in the original domain. Otherwise, we simply fail.
 
 		    We also check if the integer nearestint((x-c)/p)) we need for
@@ -7492,13 +7496,13 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		       midpointCases = redDomMidpointCases.midpointCases;
 		    };
 
-		    /* Now we check if we have either the Sterbenz condition 
-                       for the subtraction 
+		    /* Now we check if we have either the Sterbenz condition
+                       for the subtraction
 
-                          x minus p * nearestint((x - c)/p) 
+                          x minus p * nearestint((x - c)/p)
 
-                       or the certainty that 
-        
+                       or the certainty that
+
                           abs(p * nearestint((x - c)/p)) <= 1/2 * abs(x)
                     */
 		    haveSterbenzOnArgRed = checkSterbenzConditionForPeriodicArgRed(dom, c, period);
@@ -7514,10 +7518,10 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		    };
 
 		    if (haveSterbenzOnArgRed || pKStaysSmall || kStaysSmall) then {
-		       /* Compute the factor alpha by which the function amplifies the 
+		       /* Compute the factor alpha by which the function amplifies the
 		          relative error of the reduced argument into the final error due
 			  to argument reduction.
-		       */   		       
+		       */
 
 		       neededAccuracyOfArg = computeNeededAccuracyOfArgumentWorkHard(func, reducedDom, target);
 
@@ -7528,18 +7532,18 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		       reducedTarget = 1/8 * target;
 		       argRedTarget = 1/8 * target * 1/alpha;
 		       if (haveSterbenzOnArgRed) then {
-		       	  argRedConstantTarget = 1/4 * argRedTarget; 
+		       	  argRedConstantTarget = 1/4 * argRedTarget;
 			  argRedSubtractionTarget = 0;
 			  argRedRepresentationTarget = 1/8 * argRedTarget;
 		       } else {
-		       	  argRedConstantTarget = 1/8 * argRedTarget; 
+		       	  argRedConstantTarget = 1/8 * argRedTarget;
 			  argRedSubtractionTarget = 1/8 * argRedTarget;
 			  argRedRepresentationTarget = 1/8 * argRedTarget;
 		       };
 
 		       /* Check if the period is representable on a double expansion.
-		         
-			  If yes, we perhaps don't need to compute the amplification factor of the 
+
+			  If yes, we perhaps don't need to compute the amplification factor of the
 			  error in the constant.
 		       */
 		       isRepresentablePeriod = constantIsRepresentableOnDoubleExpansion(period);
@@ -7547,7 +7551,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		       /* Preset the format for the argument reduction constant (the period) */
 		       argRedConstantFormat = { .determined = false };
 
-		       /* Depending on whether the period is representable on a double expansion, 
+		       /* Depending on whether the period is representable on a double expansion,
 		          compute the amplification factor that determines how much the error in the
 			  stored constant is amplified.
 		       */
@@ -7589,7 +7593,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 		          */
 		          alphaPeriodConstantTemp = computePeriodicArgumentReductionErrorAmplification(dom, c, period, variableFormat);
 		          alphaPeriodConstant = alphaPeriodConstantTemp.alpha;
-			  
+
 			  if (1b-53 * alphaPeriodConstant <= argRedConstantTarget) then {
 			     argRedConstantFormat = { .determined = true, .format = D };
 			  } else {
@@ -7609,11 +7613,11 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 
 			  /* Now determine the format the reduced
                              argument has to be in. This format
-                             usually is smaller than the format used for the periodic constant and it might 
-                             actually be smaller than the entering variable format. 
+                             usually is smaller than the format used for the periodic constant and it might
+                             actually be smaller than the entering variable format.
 			 */
 		         reducedArgFormat = { .determined = false };
-			 
+
 			 if (1b-53 <= argRedRepresentationTarget) then {
 			    reducedArgFormat = { .determined = true, .format = D };
 			 } else {
@@ -7622,7 +7626,7 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 			    } else {
 			       if (1b-161 <= argRedRepresentationTarget) then {
 			          reducedArgFormat = { .determined = true, .format = TD };
-			       }; 
+			       };
                             };
 			 };
 
@@ -7654,14 +7658,14 @@ procedure doWorkForTryImplementationThroughPeriodic(problemdef, parametrization)
 
  		            if (res.okay) then {
 			       write("Implementation of the function on the reduced domain was successful. Trying to implement the argument reduction.\n");
-			       resArgRed = tryImplementArgumentReductionCodePeriodic(dom, period, c, variableFormat, argRedConstantFormat, reducedArgFormat, res.outputformat, haveSterbenzOnArgRed, 
+			       resArgRed = tryImplementArgumentReductionCodePeriodic(dom, period, c, variableFormat, argRedConstantFormat, reducedArgFormat, res.outputformat, haveSterbenzOnArgRed,
 			                                                             res.functionname, parametrization.implementationFile, parametrization.functionBasename);
-			    
+
 			       if (resArgRed.okay) then {
 	                          result.okay = true;
 	                          result.approxerr = res.approxerr;
-	                          result.implErr = (1 + problemdef.target * 1/8) * (1 + alpha * alphaPeriodConstant * resArgRed.epsConst + 
-                                                                                        alpha * resArgRed.epsSubstr + 
+	                          result.implErr = (1 + problemdef.target * 1/8) * (1 + alpha * alphaPeriodConstant * resArgRed.epsConst +
+                                                                                        alpha * resArgRed.epsSubstr +
                                                                                         alpha * alphaPeriodConstant * resArgRed.epsConst * resArgRed.epsSubstr) - 1;
 	                          result.outputformat = res.outputformat;
 	                          result.functionname = parametrization.functionBasename;
@@ -7757,10 +7761,10 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionAddition(f, g,
 
 	  /* Cut the target error into pieces */
 	  maxepsAdd = 1/3 * maxeps;
-	  
+
 	  alphaG = mydirtyinfnorm(g / (g + h),dom);
-	  alphaH = mydirtyinfnorm(h / (g + h),dom);	  
-	  
+	  alphaH = mydirtyinfnorm(h / (g + h),dom);
+
 	  "alphaG = ", alphaG;
 	  "alphaH = ", alphaH;
 
@@ -7793,7 +7797,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication
 	  write("Expression decomposition detected that the function can be split into f = g(x) * h(x) with\n");
 	  write("    g(x) = ", g, " on domain ", dom, " and\n");
 	  write("    h(x) = ", h, " on domain ", dom, "\n");
-	  
+
 	  /* Try to implement g */
 	  myProblemdef.func = g;
 	  myProblemdef.dom = dom;
@@ -7829,24 +7833,24 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication
 	     	myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 	     	myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 	     	myParametrization.functionBasename = parametrization.functionBasename @ suffix;
-             	myParametrization.implementationFile = parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g"; 
+             	myParametrization.implementationFile = parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g";
 
 	     	res2 = tryImplementation(myProblemdef, myParametrization);
 
 		if (res2.okay) then {
 		   write("Implementation of subfunction h successful\n");
-		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g >> " @ parametrization.implementationFile);		   
+		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g >> " @ parametrization.implementationFile);
 		   bashexecute("rm " @ parametrization.implementationFile @ "_expr_decomp_prod_subfunction_g");
 		   write("Generating multiplication code\n");
 
 		   if (maxepsMul < 1b-102) then finalOutputFormat = TD else
 		    if (maxepsMul < 1b-53) then finalOutputFormat = DD else
 		     finalOutputFormat = D;
-		   
+
 		   finalOutputFormat = expansionLengthToFormat(max(formatToExpansionLength(finalOutputFormat),
 							           formatToExpansionLength(res.outputformat),
 							           formatToExpansionLength(res2.outputformat)));
-		   		    
+
 		   implementationcode = "\n";
 		   implementationcode = implementationcode @ "void " @ parametrization.functionBasename @ "(";
 		   implementationcode = implementationcode @ (match finalOutputFormat with
@@ -7951,7 +7955,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionMultiplication
 		   result.outputformat = finalOutputFormat;
 		   result.functionname = parametrization.functionBasename;
 		   // TODO Add error bounds
-		};	  
+		};
 	  };
 
 	  return result;
@@ -7972,8 +7976,8 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 	  /* Compute the domain for g */
 	  domG = dirtyEvaluateImage(h,domH);
 
-	  /* Compute the accuracy needed for h in order to stay within the target error bound 
-	     after the amplification of the error by g 
+	  /* Compute the accuracy needed for h in order to stay within the target error bound
+	     after the amplification of the error by g
 	  */
 	  maxepsH = abs(computeNeededAccuracyOfArgumentWorkHard(g,domG,3/8 * maxeps));
 	  maxepsG = 3/8 * maxeps;
@@ -8007,7 +8011,7 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 
 	     if (res.okay) then {
 	     	write("Implementation of subfunction h successful, now trying to implement g\n");
-					    
+
 	        myProblemdef.func = g;
 	     	myProblemdef.dom = domG;
 	     	myProblemdef.target = maxepsG;
@@ -8019,14 +8023,14 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 	     	myParametrization.gappaFile = parametrization.gappaFile @ suffix;
 	     	myParametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
 	     	myParametrization.functionBasename = parametrization.functionBasename @ suffix;
-             	myParametrization.implementationFile = parametrization.implementationFile @ "_expr_decomp_subfunction_g"; 
+             	myParametrization.implementationFile = parametrization.implementationFile @ "_expr_decomp_subfunction_g";
 
 	     	res2 = tryImplementation(myProblemdef, myParametrization);
 
 		if (res2.okay) then {
 		   write("Implementation of subfunction g successful\n");
-		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g >> " @ parametrization.implementationFile);		   
-		   bashexecute("rm " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g"); 
+		   bashexecute("cat " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g >> " @ parametrization.implementationFile);
+		   bashexecute("rm " @ parametrization.implementationFile @ "_expr_decomp_subfunction_g");
 		   write("Generating composition code\n");
 
 		   implementationcode = "\n";
@@ -8045,12 +8049,12 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 		   							DD : ( "double res_h_resh, res_h_resm;\n" )
 		   							TD : ( "double res_h_resh, res_h_resm, res_h_resl;\n" ));
 		   implementationcode = implementationcode @ "\n";
-		   
+
 		   implementationcode = implementationcode @ res.functionname @ "(";
 		   implementationcode = implementationcode @ (match res.outputformat with
 		   			    		       	 	D  : ( "&res_h_resh, " )
 		   							DD : ( "&res_h_resh, &res_h_resm, " )
-		   							TD : ( "&res_h_resh, &res_h_resm, &res_h_resl, " ));							
+		   							TD : ( "&res_h_resh, &res_h_resm, &res_h_resl, " ));
 		   implementationcode = implementationcode @ (match problemdef.variableFormat with
 		   			    		       	 	D  : ( "xh" )
 		   							DD : ( "xh, xm" )
@@ -8065,12 +8069,12 @@ procedure doWorkForTryImplementationThroughExpressionDecompositionComposition(f,
 		   implementationcode = implementationcode @ (match res.outputformat with
 		   			    		       	 	D  : ( "res_h_resh" )
 		   							DD : ( "res_h_resh, res_h_resm" )
-		   							TD : ( "res_h_resh, res_h_resm, res_h_resl" ));							
-		   implementationcode = implementationcode @ ");\n";									
+		   							TD : ( "res_h_resh, res_h_resm, res_h_resl" ));
+		   implementationcode = implementationcode @ ");\n";
 
 		   implementationcode = implementationcode @ "}\n\n";
 
-		   write(implementationcode) >> parametrization.implementationFile;		   		   
+		   write(implementationcode) >> parametrization.implementationFile;
                    result.okay = true;
 		   result.outputformat = res2.outputformat;
 		   result.functionname = parametrization.functionBasename;
@@ -8089,7 +8093,7 @@ procedure doWorkForTryImplementationThroughExpressionDecomposition(problemdef, p
 
 	  func = problemdef.func;
 
-	  match (func) with 
+	  match (func) with
 	  	g + h  : {
 				/* Make sure that neither g nor h is a stupid constant */
 				if ((degree(g) != 0) && (degree(h) != 0)) then {
@@ -8098,7 +8102,7 @@ procedure doWorkForTryImplementationThroughExpressionDecomposition(problemdef, p
 		         }
                 g * h  : {
 				result = doWorkForTryImplementationThroughExpressionDecompositionMultiplication(func, g, h, problemdef, parametrization);
-		      	 } 
+		      	 }
                 g ^ h  : {
                                 /* Make sure that g is just a constant and h is neither a constant nor just x */
 				if ((degree(g) == 0) && (!(degree(h) in [0;1]))) then {
@@ -8251,9 +8255,10 @@ procedure tryDetectTrigonometric(func, dom) {
 		result.c = (2 * coeff(p, degree(p))) / pi;
 		result.poly = horner(p / coeff(p, degree(p)));
 		result.okay = true;
+		result.q = horner(p);
 	     };
 	  };
-	  
+
 	  return result;
 };
 
@@ -8331,7 +8336,7 @@ procedure tryGenerateArgumentReductionTrigonometricDetermineAlphas(c, p, dom, kD
 	  var k;
 	  var a1, a2;
 	  var X, criticalX, rndX;
-	  
+
 	  result = { .okay = false };
 
 	  okay = true;
@@ -8339,7 +8344,7 @@ procedure tryGenerateArgumentReductionTrigonometricDetermineAlphas(c, p, dom, kD
 	  alpha2 = 0;
 	  k = floor(inf(kDom));
 	  while (okay && (k <= ceil(sup(kDom)))) do {
-	  	if (k != 0) then {	  	
+	  	if (k != 0) then {
 		   criticalX = solvePolynomialEquation(c * p - k, dom);
 		   for X in criticalX do {
 		       if (abs((c * p - k)(round(X, variableFormat, RN))) <= 1b-1076) then {
@@ -8357,13 +8362,13 @@ procedure tryGenerateArgumentReductionTrigonometricDetermineAlphas(c, p, dom, kD
 		};
 		k = k + 1;
 	  };
-	  
+
 	  if (okay) then {
 	     result.okay = true;
 	     result.alpha1 = alpha1;
 	     result.alpha2 = alpha2;
 	  };
-	  
+
 	  return result;
 };
 
@@ -8387,39 +8392,365 @@ procedure testRealNonZeroConstant(X) {
 	  return res;
 };
 
-procedure tryGenerateArgumentReductionTrigonometricCodeForK(c, p, dom, variableFormat) {
+procedure tryGenerateArgumentReductionTrigonometricCodeForK(c, p, dom, variableFormat, baseName, implementationFile, parametrization) {
 	  var result;
+	  var q;
+	  var myproblemdef, myparametrization, res;
+	  var evalFuncName, outputFormat;
+	  var suffix;
 
 	  result = { .okay = false };
+
+	  q = horner(c * p);
+
+	  myproblemdef.func = q;
+	  myproblemdef.dom = dom;
+	  myproblemdef.target = 1b-16;
+	  myproblemdef.variableFormat = variableFormat;
+
+	  myparametrization = parametrization;
+	  myparametrization.maxDegree = min(degree(q), parametrization.maxDegree);
+	  myparametrization.functionBasename = baseName @ "_poly_q_for_k";
+	  suffix = "_poly_q_for_k";
+	  myparametrization.implementationFile = implementationFile @ suffix;
+	  myparametrization.gappaFile = parametrization.gappaFile @ suffix;
+	  myparametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+
+	  res = tryImplementation(myproblemdef, myparametrization);
+
+	  if (res.okay) then {
+	     evalFuncName = res.functionname;
+	     outputFormat = res.outputformat;
+
+	     bashexecute("cat " @ myparametrization.implementationFile @ " >> " @ implementationFile);
+	     bashexecute("rm " @ myparametrization.implementationFile);
+
+	     write("\nvoid ", baseName, "_period_k(double *k, ") >> implementationFile;
+	     match (variableFormat) with
+	           D  : { write("double x") >> implementationFile; }
+	           DD : { write("double xh, double xl") >> implementationFile; }
+		   TD : { write("double xh, double xm, xl") >> implementationFile; };
+             write(") {\n") >> implementationFile;
+	     write("    double t;\n") >> implementationFile;
+	     write("    double q;\n") >> implementationFile;
+	     match (outputFormat) with
+	           D  : { }
+		   DD : { write("    double qh, ql;\n") >> implementationFile; }
+		   TD : { write("    double qh, qm, ql;\n") >> implementationFile; };
+	     write("    ",evalFuncName,"(") >> implementationFile;
+	     match (outputFormat) with
+	           D  : { write("&q, ") >> implementationFile; }
+		   DD : { write("&qh, &ql, ") >> implementationFile; }
+		   TD : { write("&qh, &qm, &ql, ") >> implementationFile; };
+	     match (variableFormat) with
+	           D  : { write("x") >> implementationFile; }
+		   DD : { write("xh, xl") >> implementationFile; }
+		   TD : { write("xh, xm, xl") >> implementationFile; };
+             write(");\n") >> implementationFile;
+	     match (outputFormat) with
+	           D  : { }
+		   DD : { write("    q = qh + ql;\n") >> implementationFile; }
+		   TD : { write("    q = qh + (qm + ql);\n") >> implementationFile; };
+	     write("    t = q + 6755399441055744.0;\n") >> implementationFile;
+	     write("    *k = t - 6755399441055744.0;\n") >> implementationFile;
+	     write("}\n\n") >> implementationFile;
+
+	     result.okay = true;
+	  };
 
 	  return result;
 };
 
-procedure tryGenerateArgumentReductionTrigonometricCodeForKPiHalf(dom, target) {
+procedure tryGenerateArgumentReductionTrigonometricCodeForKPiHalf(dom, target, baseName, implementationFile) {
 	  var result;
+	  var okay, lenExpanPi;
+	  var w, expansionPi, expansionPiSum;
+	  var outputFormatNum, i, outputFormat;
 
 	  result = { .okay = false };
+
+	  okay = true;
+	  if (sup(abs(dom)) > 0) then {
+	    w = ceil(log2(sup(abs(dom))));
+	    expansionPi = [| round(-pi/2,53-w,RN) |];
+	    expansionPiSum = head(expansionPi);
+	    lenExpanPi = 1;
+	    while ((abs(expansionPiSum / (-pi/2) - 1) >= 3/8*target) && (lenExpanPi <= 4)) do {
+	    	  expansionPi = expansionPi :. (round(-pi/2 - expansionPiSum,53-w,RN));
+		  expansionPiSum = expansionPiSum + expansionPi[length(expansionPi)-1];
+		  lenExpanPi = lenExpanPi + 1;
+	    };
+	    if (!(abs(expansionPiSum / (-pi/2) - 1) < 3/8*target)) then {
+	       okay = false;
+	    };
+	  } else {
+	    okay = false;
+	  };
+	  if (okay) then {
+	     if (3/8*target < 1b-52) then {
+	       if (3/8*target < 1b-105) then {
+	         if (3/8*target < 1b-145) then {
+		    okay = false;
+		 } else {
+                    outputFormatNum = 3;
+		 };
+	       } else {
+	       	 outputFormatNum = 2;
+	       };
+	     } else {
+	       outputFormatNum = 1;
+	     };
+	  };
+	  if (okay) then {
+	     if (lenExpanPi < outputFormatNum) then {
+	     	for i from lenExpanPi + 1 to outputFormatNum do {
+	    	  expansionPi = expansionPi :. (round(-pi/2 - expansionPiSum,53-w,RN));
+		  expansionPiSum = expansionPiSum + expansionPi[length(expansionPi)-1];
+		};
+		lenExpanPi = outputFormatNum;
+	     };
+	     if (lenExpanPi > outputFormatNum + 1) then {
+	     	okay = false;
+	     };
+	  };
+	  if (okay) then {
+	     outputFormat = (match (outputFormatNum) with
+	                       2 : (DD)
+			       3 : (TD)
+			       default : (D));
+	     for i from 0 to lenExpanPi - 1 do {
+	     	 write("#define ", baseName, "_pi_half_expan_", (i+1), " (", expansionPi[i], ")\n") >> implementationFile;
+	     };
+	     write("\nvoid ", baseName, "_k_pi_half(") >> implementationFile;
+	     match (outputFormat) with
+	     	   D  : { write("double *res_h, ") >> implementationFile; }
+	     	   DD : { write("double *res_h, double *res_m, ") >> implementationFile; }
+	     	   TD : { write("double *res_h, double *res_m, double *res_l, ") >> implementationFile; };
+             write("double k) {\n") >> implementationFile;
+	     for i from 0 to lenExpanPi - 1 do {
+	     	 write("    double t_", (i+1), ";\n") >> implementationFile;
+	     };
+	     if (lenExpanPi != outputFormatNum) then {
+	     	match (outputFormat) with
+		      D  : { }
+		      DD : { write("    double t_4, t_5, t_6;\n") >> implementationFile; }
+		      TD : { write("    double t_5, t_6, t_7;\n") >> implementationFile; };
+	     };
+	     write("\n") >> implementationFile;
+	     for i from 0 to lenExpanPi - 1 do {
+	     	 write("    t_", (i+1), " = k * ", baseName, "_pi_half_expan_", (i+1), ";\n") >> implementationFile;
+	     };
+	     if (lenExpanPi == outputFormatNum) then {
+	     	match (outputFormat) with
+		      D  : { write("    *res_h = t_1;\n") >> implementationFile; }
+		      DD : { write("    Add12(*res_h, *res_m, t_1, t_2);\n") >> implementationFile; }
+		      TD : { write("    Renormalize3(res_h, res_m, res_l, t_1, t_2, t_3);\n") >> implementationFile; };
+	     } else {
+	     	match (outputFormat) with
+		      D  : { write("    *res_h = t_1 + t_2;\n") >> implementationFile; }
+		      DD : { write("    Renormalize3(&t_4, &t_5, &t_6, t_1, t_2, t_3);\n") >> implementationFile;
+		      	     write("    Add12(*res_h, *res_m, t_4, t_5);\n") >> implementationFile;
+		      	   }
+		      TD : { write("    Renormalize3(&t_5, &t_6, &t_7, t_2, t_3, t_4);\n") >> implementationFile;
+		      	     write("    Renormalize3(res_h, res_m, res_l, t_1, t_5, t_6);\n") >> implementationFile;
+		      	   };
+	     };
+             write("}\n\n") >> implementationFile;
+	     result.outputFormat = outputFormat;
+	     result.okay = true;
+	  };
 
 	  return result;
 };
 
-procedure tryGenerateArgumentReductionTrigonometricCodeForQ(q, dom, variableFormat, target) {
+procedure tryGenerateArgumentReductionTrigonometricCodeForQ(q, dom, variableFormat, target, baseName, implementationFile, parametrization) {
 	  var result;
+	  var myproblemdef, myparametrization, res;
+	  var suffix;
 
-	  result = { .okay = false };
+          result = { .okay = false };
+
+          if (horner(q - x) == 0) then {
+             write("void ", baseName, "_poly_q(") >> implementationFile;
+             match (variableFormat) with
+                   D  : { write("double *res_h, double x") >> implementationFile; }
+                   DD : { write("double *res_h, double *res_m, double xh, double xm") >> implementationFile; }
+                   TD : { write("double *res_h, double *res_m, double *res_l, double xh, double xm, double xl") >> implementationFile; };
+             write(") {\n") >> implementationFile;
+             match (variableFormat) with
+                   D  : { write("    *res_h = x;\n") >> implementationFile; }
+                   DD : { write("    *res_h = xh; *res_m = xm;\n") >> implementationFile; }
+                   TD : { write("    *res_h = xh; *res_m = xm; *res_l = xl;\n") >> implementationFile; };
+             write("}\n\n") >> implementationFile;
+             result.okay = true;
+             result.outputFormat = variableFormat;
+	     result.functionName = baseName @ "_poly_q";
+          } else {
+
+             myproblemdef.func = horner(q);
+             myproblemdef.dom = dom;
+             myproblemdef.target = target;
+             myproblemdef.variableFormat = variableFormat;
+
+             myparametrization = parametrization;
+             myparametrization.maxDegree = min(degree(q), parametrization.maxDegree);
+             myparametrization.functionBasename = baseName @ "_poly_q";
+	     suffix = "_poly_q";
+	     myparametrization.implementationFile = implementationFile @ suffix;
+	     myparametrization.gappaFile = parametrization.gappaFile @ suffix;
+	     myparametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+
+             res = tryImplementation(myproblemdef, myparametrization);
+
+	     if (res.okay) then {
+	     	bashexecute("cat " @ myparametrization.implementationFile @ " >> " @ implementationFile);
+	        bashexecute("rm " @ myparametrization.implementationFile);
+
+	        result.functionName = res.functionname;
+	        result.outputFormat = res.outputformat;
+		result.okay = true;
+             };
+	  };
 
 	  return result;
 };
 
-procedure tryGenerateArgumentReductionTrigonometricCodeForAddition(operandFormat1, operandFormat2, target) {
+procedure tryGenerateArgumentReductionTrigonometricCodeForAddition(operandFormat1, operandFormat2, target, baseName, implementationFile) {
 	  var result;
+	  var outputFormat;
+	  var declarations, code;
+	  var varNum, buckets, opNum1, opNum2, numBuckets;
+	  var okay, i, b, o1, o2;
+	  var currh, currm, currl;
 
 	  result = { .okay = false };
+
+	  okay = true;
+	  if (target < 1b-52) then {
+	    if (target < 1b-104) then {
+	       if (target < 1b-150) then {
+	       	  okay = false;
+	       } else {
+	       	  outputFormat = TD;
+	       };
+	    } else {
+	       outputFormat = DD;
+	    };
+	  } else {
+	    outputFormat = D;
+	  };
+	  if (okay) then {
+	     declarations = "";
+	     code = "";
+	     varNum = 0;
+	     opNum1 = (match (operandFormat1) with
+	                     D  : (1)
+			     DD : (2)
+			     TD : (3));
+             opNum2 = (match (operandFormat2) with
+                             D  : (1)
+                             DD : (2)
+                             TD : (3));
+	     numBuckets = max(opNum1, opNum2) + 1;
+	     buckets = [||];
+	     for i from 0 to numBuckets - 1 do buckets = [||] .: buckets;
+             write("void ", baseName, "_reduc_add(") >> implementationFile;
+	     match (outputFormat) with
+	     	   D  : { write("double *res_h, ") >> implementationFile; }
+	     	   DD : { write("double *res_h, double *res_m, ") >> implementationFile; }
+	     	   TD : { write("double *res_h, double *res_m, double *res_l, ") >> implementationFile; };
+	     match (operandFormat1) with
+	     	   D  : { write("double ah, ") >> implementationFile; }
+	     	   DD : { write("double ah, double am, ") >> implementationFile; }
+	     	   TD : { write("double ah, double am, double al, ") >> implementationFile; };
+	     match (operandFormat2) with
+	     	   D  : { write("double bh") >> implementationFile; }
+	     	   DD : { write("double bh, double bm") >> implementationFile; }
+	     	   TD : { write("double bh, double bm, double bl") >> implementationFile; };
+             write(") {\n") >> implementationFile;
+	     match (operandFormat1) with
+	     	   D  : { buckets[0] = buckets[0] :. "ah"; }
+	     	   DD : { buckets[0] = buckets[0] :. "ah"; buckets[1] = buckets[1] :. "am"; }
+	     	   TD : { buckets[0] = buckets[0] :. "ah"; buckets[1] = buckets[1] :. "am"; buckets[2] = buckets[2] :. "al"; };
+	     match (operandFormat2) with
+	     	   D  : { buckets[0] = buckets[0] :. "bh"; }
+	     	   DD : { buckets[0] = buckets[0] :. "bh"; buckets[1] = buckets[1] :. "bm"; }
+	     	   TD : { buckets[0] = buckets[0] :. "bh"; buckets[1] = buckets[1] :. "bm"; buckets[2] = buckets[2] :. "bl"; };
+	     for i from 0 to numBuckets - 1 do {
+	     	 b = buckets[i];
+		 while (length(b) > 1) do {
+		       o1 = head(b); b = tail(b);
+		       o2 = head(b); b = tail(b);
+		       if (i == numBuckets - 1) then {
+		       	  varNum = varNum + 1;
+			  code = code @ "    t_" @ varNum @ " = " @ o1 @ " + " @ o2 @ ";\n";
+			  b = b :. ("t_" @ varNum);
+		       } else {
+		       	  varNum = varNum + 2;
+			  code = code @ "    Add12Cond(t_" @ (varNum - 1) @ ", t_" @ varNum @ ", " @ o1 @ ", " @ o2 @ ");\n";
+			  b = b :. ("t_" @ (varNum - 1));
+			  buckets[i + 1] = buckets[i + 1] :. ("t_" @ varNum);
+		       };
+		 };
+		 buckets[i] = b;
+	     };
+	     while (buckets[numBuckets - 1] == [||]) do {
+	     	   numBuckets = numBuckets - 1;
+	     };
+	     match (outputFormat) with
+	     	   D  : {
+				currh = head(buckets[numBuckets - 1]);
+				for i from numBuckets - 2 to 0 by -1 do {
+				    varNum = varNum + 1;
+				    code = code @ "    t_" @ varNum @ " = " @ head(buckets[i]) @ " + " @ currh @ ";\n";
+				    currh = "t_" @ varNum;
+				};
+				code = code @ "    *res_h = " @ currh @ ";\n";
+		        }
+	           DD : {
+				currh = head(buckets[numBuckets - 1]);
+				varNum = varNum + 1;
+				currm = "t_" @ varNum;
+				code = code @ "    t_" @ varNum @ " = 0.0;\n";
+				for i from numBuckets - 2 to 0 by -1 do {
+				    varNum = varNum + 2;
+				    code = code @ "    Add122(&t_" @ (varNum - 1) @ ", &t_" @ varNum @ ", " @ head(buckets[i]) @ ", " @ currh @ ", " @ currm @ ");\n";
+				    currh = "t_" @ (varNum - 1);
+				    currm = "t_" @ varNum;
+				};
+				code = code @ "    *res_h = " @ currh @ ";\n";
+				code = code @ "    *res_m = " @ currm @ ";\n";
+		        }
+	           TD : {
+				currh = head(buckets[numBuckets - 1]);
+				varNum = varNum + 1;
+				currm = "t_" @ varNum;
+				currl = "t_" @ varNum;
+				code = code @ "    t_" @ varNum @ " = 0.0;\n";
+				for i from numBuckets - 2 to 0 by -1 do {
+				    varNum = varNum + 3;
+				    code = code @ "    Add133(&t_" @ (varNum - 2) @ ", &t_" @ (varNum - 1) @ ", &t_" @ varNum @ ", " @ head(buckets[i]) @ ", "
+				    	   	       		   @ ", " @ currh @ ", " @ currm @ ", " @ currl @ ");\n";
+				    currh = "t_" @ (varNum - 2);
+				    currm = "t_" @ (varNum - 1);
+				    currl = "t_" @ varNum;
+				};
+				code = code @ "    Renormalize3(res_h, res_m, res_l, " @ currh @ ", " @ currm @ ", " @ currl @ ");\n";
+		        };
+	     for i from 1 to varNum do {
+	     	 declarations = declarations @ "    double t_" @ i @ ";\n";
+	     };
+	     write(declarations,"\n") >> implementationFile;
+	     write(code,"\n") >> implementationFile;
+	     write("}\n\n") >> implementationFile;
+	     result.okay = true;
+	     result.outputFormat = outputFormat;
+	  };
 
 	  return result;
 };
 
-procedure tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, target, implementationFile, functionBaseName) {
+procedure tryGenerateArgumentReductionTrigonometric(c, p, Q, dom, variableFormat, target, implementationFile, functionBaseName, parametrization) {
 	  var result;
 	  var cPDom, kDom;
 	  var resAlphas;
@@ -8471,13 +8802,13 @@ procedure tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, t
 		 The determination of the two factors will be performed
 		 by a sub-routine.
 
-              */	 
+              */
 	      resAlphas = tryGenerateArgumentReductionTrigonometricDetermineAlphas(c, p, dom, kDom, variableFormat);
 
 	      if (resAlphas.okay) then {
 	      	 alpha1 = resAlphas.alpha1;
 		 alpha2 = resAlphas.alpha2;
-		 
+
 		 /* Now determine three new target errors:
 
 		    target1 = 1/4 * 1/alpha1 * target   for the error evaluating pi/2 * c * p(x),
@@ -8495,32 +8826,90 @@ procedure tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, t
 		 if (testRealNonZeroConstant(target1) &&
 		     testRealNonZeroConstant(target2) &&
 		     testRealNonZeroConstant(target3)) then {
-		    /* Form the polynomial q = pi/2 * c * p */
-		    q = horner(pi/2 * c * p);
+		    /* Form the polynomial q = Q = pi/2 * c * p */
+		    q = horner(Q);
 		    if (horner(p - q) == 0) then {
 		       q = p;
 		    };
 
 		    /* Try to generate the code that computes k as a double */
-		    resCodeK = tryGenerateArgumentReductionTrigonometricCodeForK(c, p, dom, variableFormat);
+		    resCodeK = tryGenerateArgumentReductionTrigonometricCodeForK(c, p, dom, variableFormat, functionBaseName, implementationFile, parametrization);
 
 		    if (resCodeK.okay) then {
 		       /* Try to generate the code that computes -k * pi/2 with accuracy target2 */
-		       resCodeKPiHalf = tryGenerateArgumentReductionTrigonometricCodeForKPiHalf(kDom, target2);
+		       resCodeKPiHalf = tryGenerateArgumentReductionTrigonometricCodeForKPiHalf(kDom, target2, functionBaseName, implementationFile);
 
 		       if (resCodeKPiHalf.okay) then {
 		       	  /* Try to generate the code that computes q = pi/2 * c * p with accuracy target1 */
-		          resCodeQ = tryGenerateArgumentReductionTrigonometricCodeForQ(q, dom, variableFormat, target1);
+		          resCodeQ = tryGenerateArgumentReductionTrigonometricCodeForQ(q, dom, variableFormat, target1, functionBaseName, implementationFile, parametrization);
 
 			  if (resCodeQ.okay) then {
 			     /* Try to generate the code for the addition of q and -k * pi/2 with accuracy target3 */
-			     resCodeAddition = tryGenerateArgumentReductionTrigonometricCodeForAddition(resCodeQ.outputFormat, resCodeKPiHalf.outputFormat, target3);
+			     resCodeAddition = tryGenerateArgumentReductionTrigonometricCodeForAddition(resCodeQ.outputFormat, resCodeKPiHalf.outputFormat, target3, functionBaseName, implementationFile);
 
 			     if (resCodeAddition.okay) then {
 			     	/* Generate the wrapper function */
 
-				/* TODO */
-
+				write("void ", functionBaseName, "_arg_red(int *K, ") >> implementationFile;
+				match (resCodeAddition.outputFormat) with
+				      D  : { write("double *res_h, ") >> implementationFile; }
+				      DD : { write("double *res_h, double *res_m, ") >> implementationFile; }
+				      TD : { write("double *res_h, double *res_m, double *res_l, ") >> implementationFile; };
+				match (variableFormat) with
+				      D  : { write("double xh") >> implementationFile; }
+				      DD : { write("double xh, double xm") >> implementationFile; }
+                                      TD : { write("double xh, double xm, double xl") >> implementationFile; };
+				write(") {\n") >> implementationFile;
+				write("    double k;\n") >> implementationFile;
+				match (resCodeQ.outputFormat) with
+				      D  : { write("    double qh;\n") >> implementationFile; }
+				      DD : { write("    double qh, qm;\n") >> implementationFile; }
+				      TD : { write("    double qh, qm, ql;\n") >> implementationFile; };
+				match (resCodeKPiHalf.outputFormat) with
+				      D  : { write("    double kpih;\n") >> implementationFile; }
+				      DD : { write("    double kpih, kpim;\n") >> implementationFile; }
+				      TD : { write("    double kpih, kpim, kpil;\n") >> implementationFile; };
+				write("    ", functionBaseName, "_period_k(&k, ") >> implementationFile;
+				match (variableFormat) with
+				      D  : { write("xh") >> implementationFile; }
+				      DD : { write("xh, xm") >> implementationFile; }
+				      TD : { write("xh, xm, xl") >> implementationFile; };
+				write(");\n") >> implementationFile;
+				write("    *K = (int) k;\n") >> implementationFile;
+				write("    ", resCodeQ.functionName, "(") >> implementationFile;
+				match (resCodeQ.outputFormat) with
+				      D  : { write("&qh, ") >> implementationFile; }
+				      DD : { write("&qh, &qm, ") >> implementationFile; }
+				      TD : { write("&qh, &qm, &ql, ") >> implementationFile; };
+				match (variableFormat) with
+				      D  : { write("xh") >> implementationFile; }
+				      DD : { write("xh, xm") >> implementationFile; }
+				      TD : { write("xh, xm, xl") >> implementationFile; };
+				write(");\n") >> implementationFile;
+				write("    ", functionBaseName, "_k_pi_half(") >> implementationFile;
+				match (resCodeKPiHalf.outputFormat) with
+				      D  : { write("&kiph, ") >> implementationFile; }
+				      DD : { write("&kpih, &kpim, ") >> implementationFile; }
+				      TD : { write("&kpih, &kpim, &kpil, ") >> implementationFile; };
+				write("k);\n") >> implementationFile;
+				write("    ", functionBaseName, "_reduc_add(") >> implementationFile;
+				match (resCodeAddition.outputFormat) with
+				      D  : { write("res_h, ") >> implementationFile; }
+				      DD : { write("res_h, res_m, ") >> implementationFile; }
+				      TD : { write("res_h, res_m, res_l, ") >> implementationFile; };
+				match (resCodeQ.outputFormat) with
+				      D  : { write("qh, ") >> implementationFile; }
+				      DD : { write("qh, qm, ") >> implementationFile; }
+				      TD : { write("qh, qm, ql, ") >> implementationFile; };
+				match (resCodeKPiHalf.outputFormat) with
+				      D  : { write("kiph") >> implementationFile; }
+				      DD : { write("kpih, kpim") >> implementationFile; }
+				      TD : { write("kpih, kpim, kpil") >> implementationFile; };
+				write(");\n") >> implementationFile;
+				write("}\n\n") >> implementationFile;
+				result.okay = true;
+				result.outputFormat = resCodeAddition.outputFormat;
+				result.functionName = functionBaseName @ "_arg_red";
 			     };
 			  };
 		       };
@@ -8533,8 +8922,13 @@ procedure tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, t
 };
 
 procedure doWorkForTryImplementationTrigonometric(problemdef, parametrization) {
-	  var result, res, f, c, p, dom, variableFormat;
+	  var result, res, f, c, p, q, dom, variableFormat;
 	  var resArgRed;
+	  var rDom;
+	  var resSin, resCos;
+	  var myproblemdef, myparametrization, suffix;
+	  var outputFormat;
+	  var resEven, resOdd;
 
 	  result = { .okay = false };
 
@@ -8551,10 +8945,13 @@ procedure doWorkForTryImplementationTrigonometric(problemdef, parametrization) {
 	        where f is either sin or cos, c a constant and p is a
 	        non-constant unitary polynomial.
 
+		q is equal to pi/2 * c * p
+
 	     */
 	     f = res.func;
 	     p = res.poly;
 	     c = res.c;
+	     q = res.q;
 
 	     /* Try to generate code for the argument reduction function
 
@@ -8565,9 +8962,9 @@ procedure doWorkForTryImplementationTrigonometric(problemdef, parametrization) {
 		where eps is the target error.
 
              */
-	     resArgRed = tryGenerateArgumentReductionTrigonometric(c, p, dom, variableFormat, 3/16 * (problemdef.target),
+	     resArgRed = tryGenerateArgumentReductionTrigonometric(c, p, q, dom, variableFormat, 3/16 * (problemdef.target),
 	     	                                                   parametrization.implementationFile,
-								   parametrization.functionBasename @ "_trigo_arg_red");
+								   parametrization.functionBasename @ "_trigo_arg_red", parametrization);
 
 	     if (resArgRed.okay) then {
 	     	/* We could generate code for the argument reduction
@@ -8576,15 +8973,132 @@ procedure doWorkForTryImplementationTrigonometric(problemdef, parametrization) {
 		   and r being represented in the format produced by the argument reduction.
 
 		   The mathematically exact domain for r is [-pi/4;pi/4]. As the actual r
-		   is guaranteed to be precise to a relative error of 3/16 * eps,
-		   we can easily determine a rigorous bound for the actual r.
+		   is computed with an at least 16-bit accurate approximation to c * p;
+		   which means that the actual domain is bounded by [-pi/4*(1+1b-15);pi/4*(1+1b-15)].
 
 		*/
-		
+		rDom = [-pi/4*(1+1b-15);pi/4*(1+1b-15)];
 
+		myproblemdef.func = (match (f) with
+		                           sin(x) : (sin(x))
+					   cos(x) : (-sin(x)));
+                myproblemdef.dom = rDom;
+                myproblemdef.target = 3/8 * (problemdef.target);
+                myproblemdef.variableFormat = resArgRed.outputFormat;
 
+                myparametrization = parametrization;
+                myparametrization.functionBasename = parametrization.functionBasename @ "_sin_red";
+	        suffix = "_sin_red";
+	        myparametrization.implementationFile = parametrization.implementationFile @ suffix;
+	        myparametrization.gappaFile = parametrization.gappaFile @ suffix;
+	        myparametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+		myparametrization.doNotPerformTrigonometric = true;
 
+                resSin = tryImplementation(myproblemdef, myparametrization);
 
+	        if (resSin.okay) then {
+	     	   bashexecute("cat " @ myparametrization.implementationFile @ " >> " @ parametrization.implementationFile);
+	           bashexecute("rm " @ myparametrization.implementationFile);
+
+		   myproblemdef.func = cos(x);
+                   myproblemdef.dom = rDom;
+                   myproblemdef.target = 3/8 * (problemdef.target);
+                   myproblemdef.variableFormat = resArgRed.outputFormat;
+
+                   myparametrization = parametrization;
+                   myparametrization.functionBasename = parametrization.functionBasename @ "_cos_red";
+	           suffix = "_cos_red";
+	           myparametrization.implementationFile = parametrization.implementationFile @ suffix;
+	           myparametrization.gappaFile = parametrization.gappaFile @ suffix;
+	           myparametrization.gappaOutputFile = parametrization.gappaOutputFile @ suffix;
+		   myparametrization.doNotPerformTrigonometric = true;
+
+                   resCos = tryImplementation(myproblemdef, myparametrization);
+
+	           if (resCos.okay) then {
+	     	      bashexecute("cat " @ myparametrization.implementationFile @ " >> " @ parametrization.implementationFile);
+	              bashexecute("rm " @ myparametrization.implementationFile);
+
+		      /* Generate the actual function */
+		      outputFormat = expansionLengthToFormat(max(formatToExpansionLength(resSin.outputformat),
+		                                                 formatToExpansionLength(resCos.outputformat)));
+
+		      write("void ", parametrization.functionBasename, "(") >> parametrization.implementationFile;
+		      match (outputFormat) with
+		      	    D  : { write("double *res_h, ") >> parametrization.implementationFile; }
+			    DD : { write("double *res_h, double *res_m, ") >> parametrization.implementationFile; }
+		            TD : { write("double *res_h, double *res_m, double *res_l, ") >> parametrization.implementationFile; };
+		      match (variableFormat) with
+		            D  : { write("double xh") >> parametrization.implementationFile; }
+		            DD : { write("double xh, double xm") >> parametrization.implementationFile; }
+                            TD : { write("double xh, double xm, double xl") >> parametrization.implementationFile; };
+		      write(") {\n") >> parametrization.implementationFile;
+		      write("    int k;\n") >> parametrization.implementationFile;
+		      match (resArgRed.outputFormat) with
+		      	    D  : { write("    double rh;\n") >> parametrization.implementationFile; }
+		      	    DD : { write("    double rh, rm;\n") >> parametrization.implementationFile; }
+		      	    TD  : { write("    double rh, rm, rl;\n") >> parametrization.implementationFile; };
+		      write("    double s;\n") >> parametrization.implementationFile;
+		      match (outputFormat) with
+		      	    D  : { write("    double th;\n    th = 0.0;\n") >> parametrization.implementationFile; }
+		      	    DD : { write("    double th, tm;\n    th = 0.0; tm = 0.0;\n") >> parametrization.implementationFile; }
+		      	    TD : { write("    double th, tm, tl;\n    th = 0.0; tm = 0.0; tl = 0.0;\n") >> parametrization.implementationFile; };
+	              write("    ", resArgRed.functionName,"(&k, ") >> parametrization.implementationFile;
+		      match (resArgRed.outputFormat) with
+		      	    D  : { write("&rh, ") >> parametrization.implementationFile; }
+		      	    DD : { write("&rh, &rm, ") >> parametrization.implementationFile; }
+		      	    TD : { write("&rh, &rm, &rl, ") >> parametrization.implementationFile; };
+		      match (variableFormat) with
+		            D  : { write("xh") >> parametrization.implementationFile; }
+		            DD : { write("xh, xm") >> parametrization.implementationFile; }
+                            TD : { write("xh, xm, xl") >> parametrization.implementationFile; };
+		      write(");\n") >> parametrization.implementationFile;
+		      resEven = (match (f) with
+		                      sin(x) : (resSin)
+				      cos(x) : (resCos));
+		      resOdd = (match (f) with
+		                      sin(x) : (resCos)
+				      cos(x) : (resSin));
+		      write("    if (k & 1) {\n") >> parametrization.implementationFile;
+		      write("        ", resOdd.functionname, "(") >> parametrization.implementationFile;
+		      match (resOdd.outputformat) with
+		      	    D  : { write("&th, ") >> parametrization.implementationFile; }
+			    DD : { write("&th, &tm, ") >> parametrization.implementationFile; }
+			    TD : { write("&th, &tm, &tl, ") >> parametrization.implementationFile; };
+		      match (resArgRed.outputFormat) with
+		      	    D  : { write("rh") >> parametrization.implementationFile; }
+		      	    DD : { write("rh, rm") >> parametrization.implementationFile; }
+		      	    TD : { write("rh, rm, rl") >> parametrization.implementationFile; };
+		      write(");\n") >> parametrization.implementationFile;
+		      write("    } else {\n") >> parametrization.implementationFile;
+		      write("        ", resEven.functionname, "(") >> parametrization.implementationFile;
+		      match (resEven.outputformat) with
+		      	    D  : { write("&th, ") >> parametrization.implementationFile; }
+			    DD : { write("&th, &tm, ") >> parametrization.implementationFile; }
+			    TD : { write("&th, &tm, &tl, ") >> parametrization.implementationFile; };
+		      match (resArgRed.outputFormat) with
+		      	    D  : { write("rh") >> parametrization.implementationFile; }
+		      	    DD : { write("rh, rm") >> parametrization.implementationFile; }
+		      	    TD : { write("rh, rm, rl") >> parametrization.implementationFile; };
+		      write(");\n") >> parametrization.implementationFile;
+		      write("    }\n") >> parametrization.implementationFile;
+		      write("    if (k & 2) {\n") >> parametrization.implementationFile;
+		      write("        s = -1.0;\n") >> parametrization.implementationFile;
+		      write("    } else {\n") >> parametrization.implementationFile;
+		      write("        s =  1.0;\n") >> parametrization.implementationFile;
+		      write("    }\n") >> parametrization.implementationFile;
+		      match (outputFormat) with
+		      	    D  : { write("    *res_h = s * th;\n") >> parametrization.implementationFile; }
+		      	    DD : { write("    *res_h = s * th; *res_m = s * tm;\n") >> parametrization.implementationFile; }
+		      	    TD : { write("    *res_h = s * th; *res_m = s * tm; *res_l = s * tl;\n") >> parametrization.implementationFile; };		      
+		      write("}\n\n") >> parametrization.implementationFile;
+		      result.okay = true;
+		      result.outputformat = outputFormat;
+		      result.functionname = parametrization.functionBasename;
+		      result.implerr = 3/8 * problemdef.target;
+		      result.approxerr = (5/8 * problemdef.target) / (1 + (3/8 * problemdef.target));
+                   };
+                };
 	     };
 	  };
 
@@ -8665,7 +9179,7 @@ procedure tryImplementation(problemdef, parametrization) {
 	  };
 
 	  argumentAlreadyReduced = false;
-	  match (parametrization) with 
+	  match (parametrization) with
 	  	{ .argumentReduced = true } : { argumentAlreadyReduced = true; }
                 default : { };
 
@@ -8744,9 +9258,9 @@ procedure tryImplementationExternal(problemdef, parametrization) {
 
 	  write("") > parametrization.implementationFile;
 	  emitCopyrightStatement(parametrization.implementationFile);
-          bashexecute("cat " @ myparam.implementationFile @ " >> " @ parametrization.implementationFile);	  
+          bashexecute("cat " @ myparam.implementationFile @ " >> " @ parametrization.implementationFile);
 	  bashexecute("rm " @ myparam.implementationFile);
-	  
+
 	  return res;
 };
 
@@ -8830,4 +9344,3 @@ procedure emitCopyrightStatement(outputFile) {
           write("*/\n") >> outputFile;
           write("\n") >> outputFile;
 };
-
