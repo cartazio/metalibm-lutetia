@@ -85,7 +85,7 @@ OBJS      = utils.o \
 # ---------------------------------------------------------------------
 
 
-all: vandercoeff 
+all: vandercoeff.so 
 
 ./vectors/mpfr/mpfr-vector.o: vectors/mpfr/mpfr-vector.h \
                               vectors/mpfr/mpfr-vector.c 
@@ -127,7 +127,7 @@ all: vandercoeff
 vandercoeff.o: vandercoeff.c $(INCS) $(OBJS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
-vandercoeff : vandercoeff.o libVanderCoeffsSparse.o $(OBJS)
+vandercoeff.so : vandercoeff.o libVanderCoeffsSparse.o $(OBJS)
 	$(CC) $(CFLAGS) -shared $(OBJS) vandercoeff.o  -L. $(LDLIBS) -o $@
 
 mpfr++.o: mpfr++.cpp mpfr++.h 

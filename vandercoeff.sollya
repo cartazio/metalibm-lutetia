@@ -26,8 +26,14 @@
  * Foundation, Inc., 59 Temple Place - Suite 330, Boston, MA 02111-1307, USA.  
 */
 
+__vandercoeff_metalibmdir = bashevaluate("pwd") @ "/";
+if (isbound(__metalibmdir)) then {
+   __vandercoeff_metalibmdir = "" @ __metalibmdir @ "";
+} else {
+  __vandercoeff_metalibmdir = bashevaluate("pwd") @ "/";
+};
 
-externalproc(vandercoeff, "./vandercoeff", (integer, list of integer, list of constant, list of constant, constant) -> list of range);
+externalproc(vandercoeff, __vandercoeff_metalibmdir @ "vandercoeff.so", (integer, list of integer, list of constant, list of constant, constant) -> list of range);
 
 
 procedure binomial(n,k) {

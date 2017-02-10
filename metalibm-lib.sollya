@@ -87,6 +87,10 @@ if isbound(metalibmdir) then {
   __metalibmdir = bashevaluate("pwd") @ "/";
 };
 
+if (__metalibmdir[length(__metalibmdir)-1] != "/") then {
+   __metalibmdir = __metalibmdir @ "/";
+};
+
 __metalibm_lib_roundingwarnings = roundingwarnings;
 __metalibm_lib_prec = prec;
 __metalibm_lib_verbosity = verbosity;
